@@ -1,6 +1,15 @@
 # Local recordings, experiment outputs and scratch files.
 /local/
 
+# Python environments, caches and build outputs.
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+/build/
+/dist/
+
 # Desktop metadata.
 .DS_Store
 Thumbs.db

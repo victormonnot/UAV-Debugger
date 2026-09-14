@@ -1,48 +1,86 @@
 # UAV Debugger
 
-A standalone tool for investigating UAV recordings and running controlled
-experiments to understand system behavior.
+A standalone tool for inspecting UAV recordings, with controlled simulation and
+bench experiments planned as a separate workflow.
 
-**Status: design stage.** The product scope and two modes are documented;
-no runnable application is available yet. The initial release scope is proposed
-in the roadmap below.
+**Status: first Analyze component implemented.** A file-only Python importer and
+JSON command-line summary inspect one documented timestamped MAVLink profile.
+An interactive interface, filtering, plots, Markdown reports and Experiment are
+not implemented yet.
 
-## Two modes, one investigation workflow
+## Quick start
 
-| Mode | Purpose | Intended workflow |
+The initial runtime target is **Linux with Python 3.12**. Install
+[uv](https://docs.astral.sh/uv/getting-started/installation/), then run these
+commands from the repository root:
+
+```sh
+uv sync --locked
+uv run --locked python -m uav_debugger tests/fixtures/telemetry-gap.tlog
+```
+
+The supplied synthetic recording produces 12 decoded records from two sources:
+7 `ATTITUDE` and 5 `HEARTBEAT` messages, with complete file traversal. Five
+`timestamp_repeated` warnings are expected because some messages share the same
+artificial logging timestamp; the command exits successfully.
+
+To inspect another recording, replace the path with a regular local file. The
+default size limit is **10 MiB (10,485,760 bytes)**. The importer preserves the
+source and requires no vehicle, simulator or ARGOS installation. Dependency
+installation may require network access; importing a file uses no transport
+connection.
+
+See the [importer guide](docs/importer.md) for the Python API, JSON fields, exit
+codes and exact input boundaries. The [fixture documentation](tests/fixtures/README.md)
+describes its provenance and expected observations.
+
+## Current input support
+
+The `qgc-timestamped-mavlink-v1` profile reads repeated 8-byte big-endian Unix
+microsecond timestamps followed by unsigned MAVLink 1 or 2 frames, decoded with
+the `common` dialect from `pymavlink==2.4.49`.
+
+This is a QGroundControl-style byte layout, verified here with synthetic input;
+it is not a claim of compatibility with recordings from a tested producer
+version. A `.tlog` extension alone does not identify the format. Unknown message
+IDs remain opaque, and damaged or unsupported records stop traversal with an
+explicit issue and the original remainder retained.
+
+Logging timestamps and device timestamps remain distinct. An interval without
+recorded observations does not establish packet loss, vehicle inactivity or a
+cause.
+
+## Product direction
+
+| Mode | Direction | Current implementation |
 | --- | --- | --- |
-| **Analyze** | Explore logs, video and events. | Open supported recordings, inspect their sources and timing, examine an incident and compare sessions. |
-| **Experiment** | Configure scenarios, run experiments and compare results. | Apply a specified MAVLink perturbation in an explicit simulation or bench setup, record what happened and examine the result in Analyze. |
+| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | File importer, evidence objects and JSON import summary. |
+| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Planned; no active execution. |
 
-The intended loop is to investigate an observation, formulate a hypothesis,
-run a controlled experiment and compare the evidence. Experiment results and
-ordinary recordings should use the same analysis tools.
+Analyze remains independently usable from saved files. Opening a recording never
+starts an experiment or sends vehicle commands. Video, session comparison and
+additional input formats are future work.
 
-Analyze is intended to work from saved files without a connected vehicle,
-simulator, experiment service or ARGOS installation. Experiment adds an optional
-active workflow; opening an archive must never start it.
+## Development checks
 
-## Intended scope
+```sh
+uv run --locked pytest
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked python scripts/generate_fixture.py --check
+```
 
-- UAV recording analysis with explicit source and time provenance.
-- Navigation through telemetry, recorded events and, when supported, video.
-- Comparisons that keep missing data, unsupported information and timing
-  uncertainty visible.
-- Reproducible MAVLink experiments on a configured simulation or bench target.
-- Independent use with documented input formats; ARGOS is a possible integration.
+The fixture generator's `--check` mode compares deterministic bytes without
+rewriting the fixture. Tests exercise importer evidence and failure boundaries,
+plus actual command-line invocations.
 
-These are intended capabilities, not a current compatibility list. No recording
-format, dialect, media format, operating system or vehicle integration has been
-implemented or verified in this repository.
-
-## Read next
+## Documentation
 
 | Document | Contents |
 | --- | --- |
+| [Importer guide](docs/importer.md) | Installation, input profile, API, CLI outcomes and limits. |
+| [Synthetic fixture](tests/fixtures/README.md) | Provenance, byte references and expected observations. |
 | [Project scope](docs/project-scope.md) | Users, boundaries and product principles. |
-| [Mode workflows](docs/workflows.md) | Analyze, Experiment and their shared results. |
-| [Architecture direction](docs/architecture.md) | Proposed responsibilities and evidence conventions; technical choices still open. |
-| [First milestone proposal](docs/first-milestone.md) | A bounded starting point and its acceptance criteria. |
-
-Installation instructions and verified format support will accompany the first
-runnable release.
+| [Mode workflows](docs/workflows.md) | Intended Analyze and Experiment workflows. |
+| [Architecture direction](docs/architecture.md) | Implemented foundations and proposed application responsibilities. |
+| [First milestone](docs/first-milestone.md) | Delivered importer foundation and remaining v0.1 workflow. |

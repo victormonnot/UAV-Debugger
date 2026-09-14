@@ -1,8 +1,10 @@
 # First milestone proposal
 
-**Status: proposed v0.1 scope and technical choices; not implemented or verified.**
-The first release would provide one offline Analyze workflow. Experiment remains
-part of the product and would follow as a separate delivery.
+**Status: in progress.** The file importer, synthetic fixture, Python API and
+JSON inspection command are implemented and tested. Interactive filtering,
+the timeline and Markdown reports remain to be delivered; v0.1 is not complete.
+See the [importer guide](importer.md) for current usage and verification.
+Experiment remains part of the product as a separate later delivery.
 
 ## User outcome: investigate a gap in recorded telemetry
 
@@ -35,12 +37,14 @@ The interface would initially expose Analyze. Video, cross-session comparison,
 multi-file alignment, additional formats and active Experiment controls are
 outside v0.1; they remain possible subsequent deliveries.
 
-## Proposed input profile
+## Implemented input profile
 
-Target a **QGroundControl-style timestamped MAVLink telemetry log**: repeated
+The importer accepts a **QGroundControl-style timestamped MAVLink telemetry log**: repeated
 records containing an unsigned 8-byte big-endian Unix-epoch timestamp in
 microseconds followed by one unsigned MAVLink 1 or MAVLink 2 frame. Decode using
-the `common` dialect included in a pinned `pymavlink` release.
+the `common` dialect included in `pymavlink` 2.4.49. The profile identifier is
+`qgc-timestamped-mavlink-v1`; its suffix versions the container contract, not
+the MAVLink wire protocol.
 
 The profile describes expected bytes; a `.tlog` extension does not identify the
 producer or prove compatibility. QGroundControl's logger writes its host wall
@@ -54,7 +58,7 @@ messages remain separate fields. Repeated or decreasing capture timestamps are
 visible, and calculations requiring monotonic time must identify affected ranges.
 The MAVLink checksum does not cover the outer recording timestamp.
 
-| Input condition | Proposed behavior |
+| Input condition | Implemented behavior |
 | --- | --- |
 | Known message, valid frame checksum | Decode with the pinned `common` definitions and retain its raw bytes. |
 | Message ID absent from the selected definitions | Preserve a structurally bounded record as opaque; show that fields and checksum are unverified. Advancing by its declared length is not proof of valid framing. |
@@ -72,7 +76,7 @@ and [signing and logging](https://mavlink.io/en/guide/message_signing.html#loggi
 
 MAVProxy's logging convention encodes link information in the timestamp's low
 bits; it is not part of this initial profile. Raw MAVLink streams, onboard logs
-such as ULog/DataFlash and custom dialects also have no proposed v0.1 support.
+such as ULog/DataFlash and custom dialects also have no v0.1 support.
 See the [MAVProxy logger source](https://github.com/ArduPilot/MAVProxy/blob/master/MAVProxy/modules/mavproxy_link.py).
 
 ## Proposed implementation boundary
@@ -83,20 +87,25 @@ in-memory session data and Markdown export. The
 responsibilities and tradeoffs. Target Linux with Python 3.12 for initial
 verification; other platforms would require their own checks.
 
-The first deliverable is a deterministic synthetic recording, its independent
-expected-observation manifest and a file-only importer with meaningful tests.
-The interactive view and report then exercise that same importer. A fixture
+The first deliverable now includes a deterministic synthetic recording, its
+independent expected-observation manifest, a file-only importer and behavioral
+tests. A command-line JSON summary makes the importer directly inspectable.
+The interactive view and report will exercise that same importer. A fixture
 matching the documented layout alone does not establish interoperability with
 every QGroundControl release: any producer compatibility claim must identify
 the actual producer/version and recording tested.
 
-The synthetic example should contain two system/component identities, known
-`HEARTBEAT` and `ATTITUDE` values, and a documented interval with no messages
-from one source while the other remains present. Generation, artificial clock,
-redistribution terms and expected values must be documented. It supplies no
-evidence of an actual aircraft response.
+The [synthetic example](../tests/fixtures/README.md) contains two system/component
+identities, known `HEARTBEAT` and `ATTITUDE` values, and a documented interval
+without messages from one source while the other remains present. Generation,
+the artificial clock and expected values are documented. Distribution licensing
+remains a release decision; the fixture supplies no evidence of an actual
+aircraft response.
 
-## Acceptance criteria
+## Full v0.1 acceptance criteria
+
+Importer and command-line checks are recorded in the [importer guide](importer.md).
+The complete interactive workflow and its performance checks remain outstanding.
 
 - After a fresh documented installation, the complete open/filter/inspect/export
   workflow runs with external networking disabled and loopback available.
@@ -117,8 +126,8 @@ evidence of an actual aircraft response.
   the target environment; report import time, memory use and filter behavior.
   Files beyond that limit receive an explicit outcome, not silent truncation.
 - Installation, importer tests and the actual browser workflow are checked for
-  the delivered version. No implementation, performance or interoperability
-  verification has been performed for this proposal.
+  the delivered version. Synthetic importer verification does not establish
+  compatibility with an untested producer or validate the future browser workflow.
 
 ## Candidate follow-up: one controlled experiment
 

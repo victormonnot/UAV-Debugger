@@ -1,9 +1,10 @@
 # Architecture direction
 
-This is a conceptual design for the documented product scope. There is no
-implementation yet. The starting stack below is a recommendation, not a verified
-implementation or a finalized compatibility commitment. Responsibilities below
-do not prescribe separate services or a plugin framework.
+This document combines the product architecture direction with the first
+implemented boundary: a Python file importer, in-memory evidence and a JSON
+inspection command. The [importer guide](importer.md) describes current behavior.
+Interactive analysis, reports and experiment execution remain future work;
+the diagram below describes the intended complete workflow.
 
 ## Shared analysis, optional experiment execution
 
@@ -35,8 +36,9 @@ process boundaries should follow demonstrated needs.
 | Experiment execution | Apply the declared scenario to the selected test path and record actual actions, observations, termination and failures. |
 | Reports | Present observations and limitations with links back to their sources; distinguish complete, partial and failed runs. |
 
-The event schema remains open. Its required fields will depend on the first
-supported recording format and experiment trace.
+The importer now represents file bytes, decoded records and import issues in
+`ImportResult`, `Record` and `ImportIssue`. This concrete recording model does
+not define the future experiment-event schema.
 
 ## Evidence conventions
 
@@ -63,14 +65,14 @@ MAVLink's [packet format](https://mavlink.io/en/guide/serialization.html) descri
 message identity and decoding conventions. Its
 [time synchronization protocol](https://mavlink.io/en/services/timesync.html)
 and [command protocol](https://mavlink.io/en/services/command.html) are primary
-references for timing and acknowledgement semantics. These references guide
-implementation decisions; they do not establish support in this project.
+references for timing and acknowledgement semantics. Only the documented file
+import profile is implemented; time synchronization and commands are not.
 
 ## Input boundaries
 
 | Input category | Current status |
 | --- | --- |
-| MAVLink recordings | Proposed v0.1 profile: QGroundControl-style timestamped logs, unsigned MAVLink 1/2, `common` dialect; no implemented support. |
+| MAVLink recordings | Implemented bounded QGroundControl-style timestamped profile, unsigned MAVLink 1/2, pinned `common` dialect; verified with synthetic inputs, not an actual producer recording. |
 | Onboard flight logs | Possible later integration; no formats selected or implemented. |
 | Video and associated timing | Intended analysis capability; encoding and synchronization support remain open. |
 | Experiment traces | Intended shared input; format will follow the first implemented experiment. |
@@ -82,12 +84,13 @@ measurement semantics. An initial importer does not imply all UAVs are supported
 
 ## Recommended starting stack
 
-These choices target the [proposed v0.1 workflow](first-milestone.md); dependency
-versions and runtime compatibility still require implementation-time validation.
+These choices target the [v0.1 workflow](first-milestone.md). Python 3.12,
+pymavlink 2.4.49, in-memory records, uv, pytest and Ruff are in use. Streamlit,
+Plotly and Markdown report export are not installed or implemented yet.
 
 | Concern | Recommendation | Reason |
 | --- | --- | --- |
-| Runtime | Python 3.12; Linux as the initial validation target | One runtime for decoding, analysis, interface and tests. |
+| Runtime | Python 3.12; importer verified on Linux x86_64 | One runtime for decoding, analysis and the intended interface. |
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
 | Interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection and download in one application. |
 | Timeline | Plotly with explicit source/type/time controls | Interactive activity plots without coupling filtering to chart zoom events. |
@@ -133,7 +136,8 @@ Experiment schema or create unused adapters.
 Lock concrete dependency versions when implementing and validate installation
 against that lock. `uv` supports refusing implicit lock changes via `--locked`;
 see [locking and syncing](https://docs.astral.sh/uv/concepts/projects/sync/).
-Project and fixture licensing remain open release decisions.
+The source distribution uses an explicit public-file inclusion list. Project
+and fixture licensing remain open release decisions.
 
 See the [first milestone proposal](first-milestone.md) for a candidate scope,
 and the [mode workflows](workflows.md) for the intended user experience.

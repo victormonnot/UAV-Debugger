@@ -1,8 +1,9 @@
 # Workflows
 
-These workflows describe intended behavior, not features available today.
-Analyze and Experiment share session analysis; a user may enter either mode
-without having used the other.
+These full workflows describe intended behavior. The current implementation
+covers file import and a command-line summary; see the [importer guide](importer.md).
+Interactive Analyze and active Experiment are not available yet. The intended
+modes share session analysis, with either usable independently of the other.
 
 ## Analyze an existing session
 
