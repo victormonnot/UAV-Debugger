@@ -1,0 +1,6 @@
+# Local recordings, experiment outputs and scratch files.
+/local/
+
+# Desktop metadata.
+.DS_Store
+Thumbs.db
