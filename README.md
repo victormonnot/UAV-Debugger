@@ -1,12 +1,12 @@
 # UAV Debugger
 
-A standalone tool for inspecting UAV recordings, with controlled simulation and
-bench experiments planned as a separate workflow.
+A standalone tool for inspecting UAV recordings, following observations back to
+their source frames and exporting analysis evidence.
 
-**Status: first Analyze component implemented.** A file-only Python importer and
-JSON command-line summary inspect one documented timestamped MAVLink profile.
-An interactive interface, filtering, plots, Markdown reports and Experiment are
-not implemented yet.
+**Status: local Analyze workflow implemented.** Open one timestamped MAVLink
+recording in a browser, filter sources and time, inspect message activity and raw
+frames, and download a Markdown report. A Python API and JSON command-line
+summary expose the same imported evidence. Experiment remains planned.
 
 ## Quick start
 
@@ -16,23 +16,36 @@ commands from the repository root:
 
 ```sh
 uv sync --locked
+uv run --locked uav-debugger-analyze
+```
+
+Open [Analyze](http://127.0.0.1:8501) in a browser on the same computer and choose
+`tests/fixtures/telemetry-gap.tlog` under **Open recording**. The synthetic example
+contains 12 messages from two sources. Select source **1 / 1**, message type
+**ATTITUDE**, start **1** and end **5**, then click **Apply filters**: records
+**#2** and **#8** show a four-second interval between those observations.
+
+Use **Record** to inspect a message's decoded fields, original capture timestamp
+and frame bytes. **Download report** exports the applied filters, input
+provenance, import limitations and the currently inspected record. Five repeated
+timestamp warnings are expected in this fixture.
+
+The launcher listens on `127.0.0.1` and disables usage statistics. Analysis
+requires no vehicle, simulator or ARGOS installation. Dependency installation
+can require network access. Recordings remain unchanged, and the application
+holds one recording per browser session in memory. The **10 MiB input limit**
+bounds file size, not total memory use or guaranteed performance.
+
+See the [Analyze guide](docs/analyze.md) for filtering, reports, alternate ports
+and observation limits. For a command-line summary:
+
+```sh
 uv run --locked python -m uav_debugger tests/fixtures/telemetry-gap.tlog
 ```
 
-The supplied synthetic recording produces 12 decoded records from two sources:
-7 `ATTITUDE` and 5 `HEARTBEAT` messages, with complete file traversal. Five
-`timestamp_repeated` warnings are expected because some messages share the same
-artificial logging timestamp; the command exits successfully.
-
-To inspect another recording, replace the path with a regular local file. The
-default size limit is **10 MiB (10,485,760 bytes)**. The importer preserves the
-source and requires no vehicle, simulator or ARGOS installation. Dependency
-installation may require network access; importing a file uses no transport
-connection.
-
-See the [importer guide](docs/importer.md) for the Python API, JSON fields, exit
-codes and exact input boundaries. The [fixture documentation](tests/fixtures/README.md)
-describes its provenance and expected observations.
+The [importer guide](docs/importer.md) documents the Python API, JSON output and
+exit codes; the [fixture documentation](tests/fixtures/README.md) records the
+example's provenance and expected observations.
 
 ## Current input support
 
@@ -54,7 +67,7 @@ cause.
 
 | Mode | Direction | Current implementation |
 | --- | --- | --- |
-| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | File importer, evidence objects and JSON import summary. |
+| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity plot, message inspection, Markdown report, Python API and JSON import summary. |
 | **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Planned; no active execution. |
 
 Analyze remains independently usable from saved files. Opening a recording never
@@ -71,16 +84,19 @@ uv run --locked python scripts/generate_fixture.py --check
 ```
 
 The fixture generator's `--check` mode compares deterministic bytes without
-rewriting the fixture. Tests exercise importer evidence and failure boundaries,
-plus actual command-line invocations.
+rewriting the fixture. Core tests cover importer boundaries, exact time
+selection, observation intervals, plot counts, report provenance and actual
+command-line invocations. Browser tests are opt-in; installation and commands
+are documented in the [Analyze guide](docs/analyze.md#browser-workflow-checks).
 
 ## Documentation
 
 | Document | Contents |
 | --- | --- |
+| [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
 | [Importer guide](docs/importer.md) | Installation, input profile, API, CLI outcomes and limits. |
 | [Synthetic fixture](tests/fixtures/README.md) | Provenance, byte references and expected observations. |
 | [Project scope](docs/project-scope.md) | Users, boundaries and product principles. |
 | [Mode workflows](docs/workflows.md) | Intended Analyze and Experiment workflows. |
-| [Architecture direction](docs/architecture.md) | Implemented foundations and proposed application responsibilities. |
-| [First milestone](docs/first-milestone.md) | Delivered importer foundation and remaining v0.1 workflow. |
+| [Architecture direction](docs/architecture.md) | Imported evidence, analysis, local presentation and future execution boundaries. |
+| [First milestone](docs/first-milestone.md) | Delivered Analyze workflow, verification and remaining release work. |

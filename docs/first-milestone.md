@@ -1,10 +1,11 @@
-# First milestone proposal
+# First milestone: offline Analyze
 
-**Status: in progress.** The file importer, synthetic fixture, Python API and
-JSON inspection command are implemented and tested. Interactive filtering,
-the timeline and Markdown reports remain to be delivered; v0.1 is not complete.
-See the [importer guide](importer.md) for current usage and verification.
-Experiment remains part of the product as a separate later delivery.
+**Status: offline Analyze workflow implemented in the development version.**
+The file importer, synthetic fixture, exact source/type/time filters, activity
+plot, record inspector and Markdown evidence report are available. See the
+[Analyze guide](analyze.md) and [importer guide](importer.md) for usage and the
+actual verification boundary. Producer interoperability and distribution
+licensing remain open release decisions. Experiment is a separate later delivery.
 
 ## User outcome: investigate a gap in recorded telemetry
 
@@ -18,7 +19,7 @@ An interval without recorded messages does not establish physical packet loss,
 vehicle inactivity or the cause of the gap. This distinction applies to the
 timeline, derived statistics and report.
 
-## Proposed user workflow
+## Implemented user workflow
 
 1. **Open one recording.** Choose a local file using the documented input profile.
    Review its name, byte size, SHA-256, import outcome and limitations.
@@ -33,7 +34,7 @@ timeline, derived statistics and report.
    decoder/profile versions, filters, counts, selected record references and
    import/time limitations. The report is a derived result, not a session archive.
 
-The interface would initially expose Analyze. Video, cross-session comparison,
+The interface exposes Analyze. Video, cross-session comparison,
 multi-file alignment, additional formats and active Experiment controls are
 outside v0.1; they remain possible subsequent deliveries.
 
@@ -79,9 +80,9 @@ bits; it is not part of this initial profile. Raw MAVLink streams, onboard logs
 such as ULog/DataFlash and custom dialects also have no v0.1 support.
 See the [MAVProxy logger source](https://github.com/ArduPilot/MAVProxy/blob/master/MAVProxy/modules/mavproxy_link.py).
 
-## Proposed implementation boundary
+## Implementation boundary
 
-Use Python, `pymavlink`, Streamlit and Plotly in one local application, with
+The implementation uses Python, `pymavlink`, Streamlit and Plotly in one local application, with
 in-memory session data and Markdown export. The
 [architecture proposal](architecture.md#recommended-starting-stack) explains the
 responsibilities and tradeoffs. Target Linux with Python 3.12 for initial
@@ -90,7 +91,7 @@ verification; other platforms would require their own checks.
 The first deliverable now includes a deterministic synthetic recording, its
 independent expected-observation manifest, a file-only importer and behavioral
 tests. A command-line JSON summary makes the importer directly inspectable.
-The interactive view and report will exercise that same importer. A fixture
+The interactive view and report exercise that same importer. A fixture
 matching the documented layout alone does not establish interoperability with
 every QGroundControl release: any producer compatibility claim must identify
 the actual producer/version and recording tested.
@@ -105,7 +106,9 @@ aircraft response.
 ## Full v0.1 acceptance criteria
 
 Importer and command-line checks are recorded in the [importer guide](importer.md).
-The complete interactive workflow and its performance checks remain outstanding.
+Interactive workflow checks and measured capacity are recorded in the
+[Analyze guide](analyze.md); these are bounded synthetic checks, not a guarantee
+for all producers, message mixes or hardware.
 
 - After a fresh documented installation, the complete open/filter/inspect/export
   workflow runs with external networking disabled and loopback available.
@@ -127,7 +130,7 @@ The complete interactive workflow and its performance checks remain outstanding.
   Files beyond that limit receive an explicit outcome, not silent truncation.
 - Installation, importer tests and the actual browser workflow are checked for
   the delivered version. Synthetic importer verification does not establish
-  compatibility with an untested producer or validate the future browser workflow.
+  compatibility with an untested producer.
 
 ## Candidate follow-up: one controlled experiment
 

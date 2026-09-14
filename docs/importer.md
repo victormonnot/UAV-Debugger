@@ -2,8 +2,9 @@
 
 The first Analyze component reads one local recording and exposes its source
 bytes, decoded records and import issues through a Python API. A small CLI prints
-a JSON import summary. Interactive filtering, timeline views, Markdown report
-export and Experiment are outside this delivered component.
+a JSON import summary. The [Analyze interface](analyze.md) adds interactive
+filtering, an activity plot, record inspection and Markdown report export using
+this importer. Experiment execution remains unimplemented.
 
 ## Install and run
 
@@ -180,8 +181,9 @@ does not establish equivalent capacity or speed for every message mix.
 
 A fresh environment installation with `uv sync --locked` and the importer/CLI
 tests passed on that runtime. The fixture CLI also completed with exit code `0`
-inside an isolated Linux network namespace. No browser workflow or real producer
-interoperability has been verified for this component.
+inside an isolated Linux network namespace. Browser workflow checks are recorded
+separately in the [Analyze guide](analyze.md); real producer interoperability
+remains unverified.
 
 Run the delivered checks from the repository root:
 
@@ -193,5 +195,5 @@ uv run --locked python scripts/generate_fixture.py --check
 ```
 
 See the [architecture](architecture.md) and [first milestone](first-milestone.md)
-for the boundary between imported evidence and the proposed interactive Analyze
+for the boundary between imported evidence and the interactive Analyze
 application.

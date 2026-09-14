@@ -1,9 +1,10 @@
 # Workflows
 
-These full workflows describe intended behavior. The current implementation
-covers file import and a command-line summary; see the [importer guide](importer.md).
-Interactive Analyze and active Experiment are not available yet. The intended
-modes share session analysis, with either usable independently of the other.
+The current [Analyze interface](analyze.md) covers opening one supported file,
+filtering observations, inspecting records and exporting evidence. The broader
+workflows below also describe future capabilities: video, session comparison
+and active Experiment. The intended modes share session analysis, with either
+usable independently of the other.
 
 ## Analyze an existing session
 
@@ -62,6 +63,6 @@ available evidence visible. Reusing a scenario should reproduce its requested
 conditions while retaining the actual application record for each run.
 
 An independently imported session and a session produced by Experiment should
-use the same analysis concepts. The exact session representation and import
-formats remain open; see [architecture](architecture.md). The
-[first milestone](first-milestone.md) proposes an initial release scope.
+use the same analysis concepts. The current recording representation is concrete;
+the future experiment trace remains to be defined. See [architecture](architecture.md)
+and the [first milestone](first-milestone.md) for the implementation boundary.

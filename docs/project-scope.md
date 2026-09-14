@@ -4,11 +4,12 @@ UAV Debugger is a planned standalone tool for understanding UAV sessions and
 testing system behavior through controlled experiments. It has two modes:
 **Analyze** and **Experiment**, built around the same session evidence.
 
-The first implementation provides a bounded offline MAVLink recording importer,
-a Python API and a command that prints an import summary. See the
-[importer guide](importer.md) for its tested input profile and limitations.
-The full capabilities below describe the intended product; interactive analysis
-and experiment execution are not available yet.
+The current implementation provides an offline Analyze interface with source,
+message and time filters, an activity plot, record inspection and Markdown
+evidence export. The same importer is available through Python and a JSON
+command-line summary. See the [Analyze guide](analyze.md) and
+[importer guide](importer.md) for tested inputs and limits. Video, session
+comparison and Experiment execution remain future capabilities.
 
 ## Analyze
 
@@ -58,8 +59,8 @@ Planned perturbations, applied perturbations and observed outcomes must remain
 distinguishable. Receiving a message does not prove that an action executed;
 adjacent events on a timeline do not by themselves establish causation.
 
-The first importer uses Python and an explicit timestamped MAVLink profile.
-Clock alignment, the interactive interface and experiment topology remain
-future work. See [architecture](architecture.md) for implementation boundaries
-and [the first milestone](first-milestone.md) for the remaining Analyze workflow.
+The implementation uses Python and an explicit timestamped MAVLink profile.
+Clock alignment and experiment topology remain future work. See
+[architecture](architecture.md) for implementation boundaries and
+[the first milestone](first-milestone.md) for the delivered Analyze scope.
 Return to the [project overview](../README.md).

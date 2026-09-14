@@ -1,10 +1,11 @@
 # Architecture direction
 
 This document combines the product architecture direction with the first
-implemented boundary: a Python file importer, in-memory evidence and a JSON
-inspection command. The [importer guide](importer.md) describes current behavior.
-Interactive analysis, reports and experiment execution remain future work;
-the diagram below describes the intended complete workflow.
+implemented boundary: a Python file importer, in-memory evidence, exact filters,
+an activity plot, record inspection, Markdown reports and a JSON command. See
+the [Analyze guide](analyze.md) and [importer guide](importer.md) for current use.
+Experiment execution and cross-session comparison remain future work; the diagram
+below describes the intended complete workflow.
 
 ## Shared analysis, optional experiment execution
 
@@ -84,11 +85,11 @@ measurement semantics. An initial importer does not imply all UAVs are supported
 
 ## Recommended starting stack
 
-These choices target the [v0.1 workflow](first-milestone.md). Python 3.12,
-pymavlink 2.4.49, in-memory records, uv, pytest and Ruff are in use. Streamlit,
-Plotly and Markdown report export are not installed or implemented yet.
+These choices implement the [v0.1 workflow](first-milestone.md). Python 3.12,
+pymavlink 2.4.49, Streamlit 1.63.0, Plotly 7.0.0, in-memory records, uv, pytest
+and Ruff are in use. Playwright is an optional browser-test dependency.
 
-| Concern | Recommendation | Reason |
+| Concern | Implementation | Reason |
 | --- | --- | --- |
 | Runtime | Python 3.12; importer verified on Linux x86_64 | One runtime for decoding, analysis and the intended interface. |
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
@@ -113,6 +114,15 @@ MAVLink decoder directly; user input must not reach a factory that also opens
 network or serial transports. See the
 [pymavlink guide](https://mavlink.io/en/mavgen_python/).
 
+`analysis.py` applies inclusive integer-time filters in file order. It segments
+the clock at regressions in the complete input before finding observation
+intervals; a filter cannot hide a reset and create a false elapsed duration.
+`charts.py` counts all selected observations in at most 200 bins. The Streamlit
+presentation pages records and issues rather than transferring an entire dense
+recording to the browser. `report.py` exports provenance, applied filters,
+coverage, interval references, global import issues and explicitly inspected
+record details without depending on Streamlit.
+
 For this input, retain the recording fingerprint and raw bytes, original record
 ordinal and byte range, capture timestamp and declared clock convention, frame
 identity, decoded fields and per-record issues. Keep traversal completion
@@ -122,12 +132,13 @@ plots are derived views; device-time fields do not silently replace capture time
 Streamlit reruns application code on interaction. Retain an import result in
 browser-session state so changing filters does not parse the file again. Inputs
 and decoded data occupy memory, so capacity must be bounded and measured before
-release. Plot selections can drive inspection, while explicit interval controls
-remain the source of filter state. See [execution and caching](https://docs.streamlit.io/develop/concepts/architecture/caching)
-and [Plotly selections](https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart).
+release. The Record control chooses the inspected message; explicit interval
+controls remain the source of filter state. Plot zoom only changes the display.
+See [execution and caching](https://docs.streamlit.io/develop/concepts/architecture/caching)
+and [Plotly charts](https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart).
 
-This approach favors a small navigable analyzer. A CLI with static output is an
-alternative for batch reports; an API and custom web frontend would become
+This approach provides a small navigable analyzer alongside the JSON inspection
+command. An API and custom web frontend would become
 useful if richer coordinated interactions or synchronized video justify them.
 Database storage, native packaging and separate execution services would follow
 demonstrated needs. The first implementation does not need to define the future

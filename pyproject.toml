@@ -4,17 +4,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "uav-debugger"
-version = "0.1.0.dev0"
+version = "0.1.0.dev1"
 description = "Offline UAV recording inspection with explicit source and time provenance"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["pymavlink==2.4.49"]
+dependencies = ["pymavlink==2.4.49", "streamlit==1.63.0", "plotly==7.0.0"]
 
 [project.scripts]
 uav-debugger = "uav_debugger.__main__:main"
+uav-debugger-analyze = "uav_debugger.analyze:main"
 
 [dependency-groups]
 dev = ["pytest==9.1.1", "ruff==0.16.7"]
+browser = ["playwright==1.62.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/uav_debugger"]
@@ -23,6 +25,7 @@ packages = ["src/uav_debugger"]
 include = [
     "/src/uav_debugger/*.py",
     "/tests/test_*.py",
+    "/tests/conftest.py",
     "/tests/fixtures/*",
     "/scripts/generate_fixture.py",
     "/README.md",
@@ -35,11 +38,13 @@ include = [
     "/docs/architecture.md",
     "/docs/first-milestone.md",
     "/docs/importer.md",
+    "/docs/analyze.md",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = ["browser: real Chromium workflow checks (enable with --run-browser)"]
 
 [tool.ruff]
 target-version = "py312"
