@@ -3,6 +3,7 @@
 import hashlib
 import json
 from collections import Counter
+from importlib.resources import files
 
 import streamlit as st
 
@@ -28,9 +29,24 @@ def _message_label(record: Record) -> str:
     return record.message_name or f"UNKNOWN_{record.message_id}"
 
 
-def _load_upload(uploaded) -> tuple[ImportResult, str]:
-    data = uploaded.getvalue()
-    token = hashlib.sha256(data).hexdigest() + ":" + uploaded.name
+def _use_example() -> None:
+    st.session_state.example_active = True
+    # A fresh uploader prevents an earlier file from remaining visibly selected.
+    st.session_state.upload_generation = st.session_state.get("upload_generation", 0) + 1
+
+
+def _use_upload() -> None:
+    st.session_state.example_active = False
+
+
+def _recording_widget_key(name: str) -> str:
+    # New input must also invalidate frontend widget values sent with an upload.
+    identity = hashlib.sha256(st.session_state.import_token.encode()).hexdigest()
+    return f"analysis_{name}_{identity}"
+
+
+def _load_recording(data: bytes, source_name: str) -> tuple[ImportResult, str]:
+    token = hashlib.sha256(data).hexdigest() + ":" + source_name
     if st.session_state.get("import_token") != token:
         # Retain one recording per browser session, with no shared/disk cache.
         for key in list(st.session_state):
@@ -39,7 +55,7 @@ def _load_upload(uploaded) -> tuple[ImportResult, str]:
         st.session_state.pop("import_result", None)
         st.session_state.pop("import_token", None)
         with st.spinner("Reading the recording…"):
-            result = import_bytes(data, source_name=uploaded.name)
+            result = import_bytes(data, source_name=source_name)
         st.session_state.import_result = result
         st.session_state.import_token = token
         st.session_state.analysis_sources = sorted(
@@ -63,13 +79,13 @@ def _filters(result: ImportResult) -> Selection:
     types = st.session_state.analysis_types
     if "analysis_selection" not in st.session_state:
         st.session_state.analysis_selection = Selection(start_us=low, end_us=high)
-    with st.sidebar.form("analysis_filters"):
+    with st.sidebar.form(_recording_widget_key("filters")):
         st.subheader("Filter observations")
         source = st.selectbox(
             "Source",
             [ALL_SOURCES, *sources],
             format_func=lambda value: value if value == ALL_SOURCES else f"{value[0]} / {value[1]}",
-            key="analysis_source",
+            key=_recording_widget_key("source"),
         )
         message_id = st.selectbox(
             "Message type",
@@ -77,12 +93,14 @@ def _filters(result: ImportResult) -> Selection:
             format_func=lambda value: (
                 "All message types" if value == ALL_MESSAGES else types[value]
             ),
-            key="analysis_type",
+            key=_recording_widget_key("type"),
         )
         start = st.text_input(
-            "Start (s)", value=timestamp_to_seconds(low, origin), key="analysis_start"
+            "Start (s)", value=timestamp_to_seconds(low, origin), key=_recording_widget_key("start")
         )
-        end = st.text_input("End (s)", value=timestamp_to_seconds(high, origin), key="analysis_end")
+        end = st.text_input(
+            "End (s)", value=timestamp_to_seconds(high, origin), key=_recording_widget_key("end")
+        )
         st.caption("Seconds from the first imported record. Both bounds are included.")
         submitted = st.form_submit_button("Apply filters", type="primary", width="stretch")
     if submitted:
@@ -103,7 +121,7 @@ def _filters(result: ImportResult) -> Selection:
             st.sidebar.error(f"Filters were not applied: {error}")
         else:
             st.session_state.analysis_selection = selection
-            st.session_state.pop("analysis_page", None)
+            st.session_state.pop(_recording_widget_key("page"), None)
     return st.session_state.analysis_selection
 
 
@@ -157,7 +175,7 @@ def _issues(result: ImportResult) -> None:
         counts = Counter(issue.code for issue in result.issues)
         st.text(" · ".join(f"{name}: {count:,}" for name, count in counts.items()))
         pages = (len(result.issues) + ISSUE_PAGE_SIZE - 1) // ISSUE_PAGE_SIZE
-        page = st.number_input("Issues page", 1, pages, 1, key="analysis_issue_page")
+        page = st.number_input("Issues page", 1, pages, 1, key=_recording_widget_key("issue_page"))
         start = (page - 1) * ISSUE_PAGE_SIZE
         st.dataframe(
             [
@@ -184,7 +202,7 @@ def _record_view(records: tuple[Record, ...], origin_us: int, selection: Selecti
         st.info("No records match these filters.")
         return None
     pages = (len(records) + PAGE_SIZE - 1) // PAGE_SIZE
-    page = st.number_input("Page", 1, pages, 1, key="analysis_page")
+    page = st.number_input("Page", 1, pages, 1, key=_recording_widget_key("page"))
     start = (page - 1) * PAGE_SIZE
     page_records = records[start : start + PAGE_SIZE]
     st.caption(
@@ -210,7 +228,10 @@ def _record_view(records: tuple[Record, ...], origin_us: int, selection: Selecti
     )
     by_index = {record.index: record for record in page_records}
     # A changed filter/page cannot leave an old record attached to the inspector.
-    record_key = "analysis_record_" + hashlib.sha256(repr((selection, page)).encode()).hexdigest()
+    record_key = (
+        _recording_widget_key("record")
+        + hashlib.sha256(repr((selection, page)).encode()).hexdigest()
+    )
     chosen = st.selectbox(
         "Record",
         list(by_index),
@@ -258,8 +279,19 @@ def main() -> None:
         st.title("UAV Debugger")
         st.caption("Recorded telemetry · local analysis")
         st.divider()
+        st.button(
+            "Load example",
+            on_click=_use_example,
+            disabled=st.session_state.get("example_active", False),
+            width="stretch",
+        )
+        st.caption("Synthetic recording · 12 messages · 2 sources. No file needed.")
+        if st.session_state.get("example_active", False):
+            st.button("Clear example", on_click=_use_upload, width="stretch")
         uploaded = st.file_uploader(
             "Open recording",
+            key=f"recording_upload_{st.session_state.get('upload_generation', 0)}",
+            on_change=_use_upload,
             max_upload_size=11,
             help="QGroundControl-style timestamps + unsigned MAVLink 1/2, "
             "common dialect. Up to 10 MiB.",
@@ -270,19 +302,33 @@ def main() -> None:
         export_area = st.empty()
     st.title("Analyze")
     st.caption("Trace an observation back to its recorded evidence.")
-    if uploaded is None:
+    using_example = st.session_state.get("example_active", False)
+    if uploaded is None and not using_example:
         for key in list(st.session_state):
             if key.startswith("analysis_") or key in ("import_result", "import_token"):
                 del st.session_state[key]
-        st.info("Open a recording to inspect its sources, timing and messages.")
+        st.info("Upload a recording or choose Load example to start analyzing.")
         st.markdown(
             "Start with the supplied **telemetry-gap.tlog** example: two sources, "
             "12 messages and a known interval without observations from one source."
         )
-        st.caption("Files stay on this computer. Opening a file never connects to a vehicle.")
+        st.caption(
+            "Files are processed on the computer running Analyze. "
+            "Opening a file never connects to a vehicle."
+        )
         return
+    if using_example:
+        st.info(
+            "Synthetic example — telemetry-gap.tlog. "
+            "Select source 1 / 1, ATTITUDE and 1–5 s, then Apply filters "
+            "to inspect a four-second observation interval."
+        )
     try:
-        result, _ = _load_upload(uploaded)
+        if using_example:
+            data = files("uav_debugger").joinpath("data", "telemetry-gap.tlog").read_bytes()
+            result, _ = _load_recording(data, "telemetry-gap.tlog (synthetic example)")
+        else:
+            result, _ = _load_recording(uploaded.getvalue(), uploaded.name)
     except (InputTooLargeError, ValueError) as error:
         st.error(str(error))
         return

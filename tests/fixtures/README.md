@@ -18,11 +18,17 @@ From the repository root, using Python 3.12:
 python scripts/generate_fixture.py --check
 ```
 
-This compares freshly encoded bytes with the stored fixture and exits with a
-nonzero status if they differ. It does not write any file. To deliberately
-regenerate `telemetry-gap.tlog`, omit `--check`. Generation uses only the Python
-standard library, has no clock/network inputs and does not modify the separately
+This compares freshly encoded bytes with both the stored test fixture and the
+bundled copy at `src/uav_debugger/data/telemetry-gap.tlog`, and exits with a
+nonzero status if either differs. It does not write any file. To deliberately
+regenerate both copies of `telemetry-gap.tlog`, omit `--check`. Generation uses
+only the Python standard library, has no clock/network inputs and does not modify the separately
 maintained [expected observations](telemetry-gap.expected.json).
+
+Analyze's **Load example** control reads the bundled copy through the same
+importer as uploaded recordings. It identifies the source as
+`telemetry-gap.tlog (synthetic example)` in the interface and reports; the
+original bytes and fingerprint below remain unchanged.
 
 | Property | Value |
 | --- | --- |

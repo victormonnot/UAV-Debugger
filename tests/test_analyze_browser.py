@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 
@@ -201,3 +202,87 @@ def test_oversized_upload_removes_stale_results_and_allows_recovery(analyze_page
     expect(metric(page, "Imported records")).to_have_text("1")
     expect(metric(page, "Selected records")).to_have_text("1")
     expect(page.get_by_role("combobox", name="Source", exact=True)).to_have_value("All sources")
+
+
+def test_bundled_example_without_upload_and_explicit_source_switches(analyze_page, tmp_path):
+    page, expect = analyze_page
+    expect(page.get_by_test_id("stMetric")).to_have_count(0)
+    expect(page.locator('input[type="file"]')).to_have_value("")
+    page.get_by_role("button", name="Load example", exact=True).click()
+    expect(metric(page, "Imported records")).to_have_text("12")
+    expect(metric(page, "Sources")).to_have_text("2")
+    expect(metric(page, "Selected records")).to_have_text("12")
+    expect(page.locator('input[type="file"]')).to_have_value("")
+    expect(page.get_by_role("button", name="Clear example", exact=True)).to_be_visible()
+    expect(page.get_by_text(re.compile(r"^Synthetic example —"))).to_be_visible()
+
+    choose(page, "Source", "1 / 1")
+    choose(page, "Message type", "ATTITUDE")
+    set_interval(page, 1, 5)
+    expect(metric(page, "Selected records")).to_have_text("2")
+    expect(metric(page, "Longest observed interval")).to_have_text("4 s")
+    expect(page.get_by_role("combobox", name="Record", exact=True)).to_have_value(
+        "#2 · ATTITUDE · 1 / 1"
+    )
+    expect(page.get_by_test_id("stPlotlyChart")).to_be_visible()
+    if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
+        screenshot = FIXTURE.parents[2] / "local" / "example-analyze.png"
+        screenshot.parent.mkdir(parents=True, exist_ok=True)
+        page.get_by_role("heading", name="Analyze", exact=True).scroll_into_view_if_needed()
+        page.screenshot(path=screenshot, full_page=True)
+
+    with page.expect_download() as pending:
+        page.get_by_role("button", name="Download report", exact=True).click()
+    download = pending.value
+    report_path = tmp_path / "synthetic-example.md"
+    download.save_as(report_path)
+    assert download.failure() is None
+    report = report_path.read_text()
+    provenance, selection, coverage, _, detail = [
+        json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", report, re.S)
+    ]
+    assert provenance["source_name"] == "telemetry-gap.tlog (synthetic example)"
+    assert provenance["sha256"] == EXPECTED["sha256"]
+    assert provenance["size_bytes"] == 409
+    assert selection["sources"] == [[1, 1]]
+    assert selection["message_ids"] == [30]
+    assert selection["start_us"] == 1_700_000_001_000_000
+    assert selection["end_us"] == 1_700_000_005_000_000
+    assert selection["bounds"] == "inclusive"
+    assert coverage["filtered_record_count"] == 2
+    longest = coverage["observation_intervals"]["longest"]
+    assert (longest["previous_index"], longest["index"], longest["delta_us"]) == (2, 8, 4_000_000)
+    assert detail["index"] == 2
+    assert detail["raw_frame_hex"] == EXPECTED["records"][2]["frame_hex"]
+    if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
+        (FIXTURE.parents[2] / "local" / "example-report.md").write_text(report, encoding="utf-8")
+
+    upload(page, FIXTURE.read_bytes()[:25], name="uploaded-short.tlog")
+    expect(metric(page, "Imported records")).to_have_text("1")
+    expect(metric(page, "Selected records")).to_have_text("1")
+    expect(page.get_by_role("combobox", name="Source", exact=True)).to_have_value("All sources")
+    expect(page.get_by_role("button", name="Clear example", exact=True)).to_have_count(0)
+    expect(page.get_by_text("telemetry-gap.tlog (synthetic example)", exact=True)).to_have_count(0)
+    expect(page.get_by_text(re.compile(r"^Synthetic example —"))).to_have_count(0)
+
+    # Removing an upload must not silently restore the earlier synthetic input.
+    page.get_by_role("button", name="Remove uploaded-short.tlog", exact=True).click()
+    expect(page.get_by_test_id("stMetric")).to_have_count(0)
+    expect(page.get_by_role("button", name="Download report", exact=True)).to_have_count(0)
+    expect(page.get_by_role("button", name="Clear example", exact=True)).to_have_count(0)
+
+    upload(page, FIXTURE.read_bytes()[:25], name="uploaded-short.tlog")
+    expect(metric(page, "Imported records")).to_have_text("1")
+    page.get_by_role("button", name="Load example", exact=True).click()
+    expect(metric(page, "Imported records")).to_have_text("12")
+    expect(metric(page, "Selected records")).to_have_text("12")
+    expect(page.locator('input[type="file"]')).to_have_value("")
+    expect(page.get_by_role("button", name="Remove uploaded-short.tlog", exact=True)).to_have_count(
+        0
+    )
+    expect(page.get_by_role("combobox", name="Source", exact=True)).to_have_value("All sources")
+    page.get_by_role("button", name="Clear example", exact=True).click()
+    expect(page.get_by_test_id("stMetric")).to_have_count(0)
+    expect(page.get_by_role("button", name="Download report", exact=True)).to_have_count(0)
+    expect(page.get_by_role("button", name="Clear example", exact=True)).to_have_count(0)
+    expect(page.get_by_role("button", name="Load example", exact=True)).to_be_visible()

@@ -35,9 +35,34 @@ Dependency installation can require network access. The application uses local
 files and bundled display components after installation; it needs no simulator,
 ARGOS installation or external service to analyze a recording.
 
+## Access through SSH
+
+Start Analyze on the remote machine using the launch command above. In a
+separate terminal **on the computer running your browser**, open a local SSH
+forward using the same destination and authentication options as your normal
+SSH connection:
+
+```sh
+ssh -N -L 127.0.0.1:8501:127.0.0.1:8501 user@remote-host
+```
+
+Replace `user@remote-host` with your SSH destination and keep the tunnel running.
+Open [http://127.0.0.1:8501](http://127.0.0.1:8501) in your local browser.
+Analyze continues listening on remote loopback; the SSH connection forwards the
+browser traffic to it. If local port 8501 is occupied, change only the first
+port to 8502 and open `http://127.0.0.1:8502` instead. See the
+[OpenSSH local forwarding documentation](https://man.openbsd.org/ssh#L).
+
+**Load example** reads the bundled recording on the server, so no file transfer
+is needed to try the workflow. **Open recording** selects a file on the browser
+computer and uploads it to the machine running Analyze. Reports download to the
+browser computer. These instructions describe SSH forwarding; a connection to
+your particular remote host is not part of the automated browser verification.
+
 ## Inspect the supplied example
 
-1. Under **Open recording**, choose `tests/fixtures/telemetry-gap.tlog`.
+1. Click **Load example**. The bundled recording opens without uploading a file
+   and is identified as a **Synthetic example** in the interface and report.
 2. Review **Recording provenance** and **Import issues**. The example contains
    12 decoded records from two sources, with five expected repeated-timestamp
    warnings from its artificial logging clock.
@@ -54,6 +79,14 @@ The four-second interval is between recorded observations of source 1's
 vehicle's behavior. The other source has recorded observations during that
 interval. See the [fixture documentation](../tests/fixtures/README.md) for the
 complete expected sequence, source identities and synthetic provenance.
+
+The example uses the same importer, filters, inspector and report as uploaded
+recordings. Its bytes match `tests/fixtures/telemetry-gap.tlog`; it is included
+in installed packages and requires no download. **Clear example** removes it
+from the current session. Uploading a file replaces the example and resets the
+filters. Clearing that upload leaves an empty view, without restoring the
+example. Loading the example after an upload clears the uploader and replaces
+the previous analysis.
 
 ## Apply source and time filters
 
@@ -196,11 +229,15 @@ These checks launch the local interface and use a real browser. The browser
 harness blocks non-local requests while exercising the application. Installing
 the browser is separate from running the tests and may require network access.
 
-On Linux x86_64 with Python 3.12.3, all 165 tests passed in a fresh environment
-installed from the lockfile, inside a Linux network namespace with only loopback
-enabled. This includes four Chromium workflows covering upload, inclusive
-filtering, inspection, downloaded report contents, replacement of a recording,
-empty and truncated input, and rejection above the analysis size limit.
+On Linux x86_64 with Python 3.12.3, all 167 tests passed in a fresh environment
+with locked dependencies and the installed application wheel, inside a Linux
+network namespace with only loopback enabled. This includes five Chromium
+workflows covering upload, inclusive filtering, inspection, downloaded report
+contents, replacement of a recording, empty and truncated input, rejection
+above the analysis size limit, and the bundled example without an upload.
+The example's packaged bytes match the original fixture; switching between
+example and upload resets the controls and clearing an upload does not restore
+previous example data.
 
 See the [project overview](../README.md) for the remaining development checks
 and the [architecture](architecture.md) for the shared analysis components.

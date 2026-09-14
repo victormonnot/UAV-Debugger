@@ -25,9 +25,9 @@ def test_import_is_retained_when_filters_and_record_selection_change():
         app = AppTest.from_file(APP).run()
         assert not app.exception
         assert parse.call_count == 1
-        app.selectbox(key="analysis_source").set_value((1, 1))
-        app.selectbox(key="analysis_type").set_value(30)
-        app.button[0].click().run()
+        next(box for box in app.selectbox if box.label == "Source").set_value((1, 1))
+        next(box for box in app.selectbox if box.label == "Message type").set_value(30)
+        next(button for button in app.button if button.label == "Apply filters").click().run()
         assert not app.exception
         assert parse.call_count == 1
         assert [record.index for record in app.session_state.analysis_view_records] == [2, 8]
@@ -40,9 +40,9 @@ def test_invalid_time_filter_keeps_the_applied_selection_and_reports_error():
     with patch("streamlit.file_uploader", return_value=Upload(FIXTURE.read_bytes())):
         app = AppTest.from_file(APP).run()
         applied = app.session_state.analysis_selection
-        app.text_input(key="analysis_start").set_value("5")
-        app.text_input(key="analysis_end").set_value("1")
-        app.button[0].click().run()
+        next(box for box in app.text_input if box.label == "Start (s)").set_value("5")
+        next(box for box in app.text_input if box.label == "End (s)").set_value("1")
+        next(button for button in app.button if button.label == "Apply filters").click().run()
         assert not app.exception
         assert app.session_state.analysis_selection == applied
         assert len(app.session_state.analysis_view_records) == 12
@@ -67,9 +67,37 @@ def test_clock_regression_is_visible_even_outside_the_current_filters():
     data[134:142] = (1_699_999_999_999_999).to_bytes(8, "big")
     with patch("streamlit.file_uploader", return_value=Upload(data)):
         app = AppTest.from_file(APP).run()
-        app.selectbox(key="analysis_source").set_value((1, 1))
-        app.selectbox(key="analysis_type").set_value(30)
-        app.button[0].click().run()
+        next(box for box in app.selectbox if box.label == "Source").set_value((1, 1))
+        next(box for box in app.selectbox if box.label == "Message type").set_value(30)
+        next(button for button in app.button if button.label == "Apply filters").click().run()
         assert not app.exception
         assert any("capture clock moves backward" in warning.value for warning in app.warning)
         assert app.session_state.analysis_view_intervals[0].delta_us is None
+
+
+def test_bundled_example_uses_the_same_importer_and_can_be_cleared():
+    with (
+        patch("streamlit.file_uploader", return_value=None),
+        patch("uav_debugger.import_bytes", wraps=import_bytes) as parse,
+    ):
+        app = AppTest.from_file(APP).run()
+        assert not app.metric
+        next(button for button in app.button if button.label == "Load example").click().run()
+        assert not app.exception
+        assert parse.call_count == 1
+        assert app.session_state.import_result.raw_bytes == FIXTURE.read_bytes()
+        assert (
+            app.session_state.import_result.source_name == "telemetry-gap.tlog (synthetic example)"
+        )
+        assert len(app.session_state.analysis_view_records) == 12
+        next(box for box in app.selectbox if box.label == "Source").set_value((1, 1))
+        next(box for box in app.selectbox if box.label == "Message type").set_value(30)
+        next(button for button in app.button if button.label == "Apply filters").click().run()
+        assert not app.exception
+        assert parse.call_count == 1
+        assert [record.index for record in app.session_state.analysis_view_records] == [2, 8]
+        next(button for button in app.button if button.label == "Clear example").click().run()
+        assert not app.exception
+        assert "import_result" not in app.session_state
+        assert "analysis_selection" not in app.session_state
+        assert not app.metric

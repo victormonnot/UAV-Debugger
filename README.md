@@ -19,9 +19,9 @@ uv sync --locked
 uv run --locked uav-debugger-analyze
 ```
 
-Open [Analyze](http://127.0.0.1:8501) in a browser on the same computer and choose
-`tests/fixtures/telemetry-gap.tlog` under **Open recording**. The synthetic example
-contains 12 messages from two sources. Select source **1 / 1**, message type
+Open [Analyze](http://127.0.0.1:8501) in a browser on the same computer and click
+**Load example**. The bundled synthetic recording needs no upload and contains
+12 messages from two sources. Select source **1 / 1**, message type
 **ATTITUDE**, start **1** and end **5**, then click **Apply filters**: records
 **#2** and **#8** show a four-second interval between those observations.
 
@@ -29,6 +29,10 @@ Use **Record** to inspect a message's decoded fields, original capture timestamp
 and frame bytes. **Download report** exports the applied filters, input
 provenance, import limitations and the currently inspected record. Five repeated
 timestamp warnings are expected in this fixture.
+
+Choose your own file under **Open recording** to replace the example, or use
+**Clear example** to return to an empty view. To use Analyze on a remote machine,
+see [access through SSH](docs/analyze.md#access-through-ssh).
 
 The launcher listens on `127.0.0.1` and disables usage statistics. Analysis
 requires no vehicle, simulator or ARGOS installation. Dependency installation

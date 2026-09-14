@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "uav-debugger"
-version = "0.1.0.dev1"
+version = "0.1.0.dev2"
 description = "Offline UAV recording inspection with explicit source and time provenance"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -24,6 +24,7 @@ packages = ["src/uav_debugger"]
 [tool.hatch.build.targets.sdist]
 include = [
     "/src/uav_debugger/*.py",
+    "/src/uav_debugger/data/*.tlog",
     "/tests/test_*.py",
     "/tests/conftest.py",
     "/tests/fixtures/*",
