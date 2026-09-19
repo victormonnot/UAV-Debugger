@@ -40,6 +40,7 @@ include = [
     "/docs/first-milestone.md",
     "/docs/importer.md",
     "/docs/analyze.md",
+    "/docs/recording-validation.md",
 ]
 
 [tool.pytest.ini_options]

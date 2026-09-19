@@ -57,9 +57,10 @@ The `qgc-timestamped-mavlink-v1` profile reads repeated 8-byte big-endian Unix
 microsecond timestamps followed by unsigned MAVLink 1 or 2 frames, decoded with
 the `common` dialect from `pymavlink==2.4.49`.
 
-This is a QGroundControl-style byte layout, verified here with synthetic input;
-it is not a claim of compatibility with recordings from a tested producer
-version. A `.tlog` extension alone does not identify the format. Unknown message
+This is a QGroundControl-style byte layout, checked with synthetic fixtures and
+[one public recording associated with an identified QGroundControl build](docs/recording-validation.md).
+That file has partial message-definition coverage; this is not general producer
+compatibility. A `.tlog` extension alone does not identify the format. Unknown message
 IDs remain opaque, and damaged or unsupported records stop traversal with an
 explicit issue and the original remainder retained.
 
@@ -99,6 +100,7 @@ are documented in the [Analyze guide](docs/analyze.md#browser-workflow-checks).
 | --- | --- |
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
 | [Importer guide](docs/importer.md) | Installation, input profile, API, CLI outcomes and limits. |
+| [Public recording verification](docs/recording-validation.md) | Download source, exact fingerprint, observed coverage and a reproducible browser case. |
 | [Synthetic fixture](tests/fixtures/README.md) | Provenance, byte references and expected observations. |
 | [Project scope](docs/project-scope.md) | Users, boundaries and product principles. |
 | [Mode workflows](docs/workflows.md) | Intended Analyze and Experiment workflows. |

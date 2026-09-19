@@ -4,8 +4,10 @@
 The file importer, synthetic fixture, exact source/type/time filters, activity
 plot, record inspector and Markdown evidence report are available. See the
 [Analyze guide](analyze.md) and [importer guide](importer.md) for usage and the
-actual verification boundary. Producer interoperability and distribution
-licensing remain open release decisions. Experiment is a separate later delivery.
+actual verification boundary. [One public producer recording](recording-validation.md)
+has been checked with partial decoding coverage; broader producer compatibility
+and distribution licensing remain open release work. Experiment is a separate
+later delivery.
 
 ## User outcome: investigate a gap in recorded telemetry
 
@@ -107,8 +109,9 @@ aircraft response.
 
 Importer and command-line checks are recorded in the [importer guide](importer.md).
 Interactive workflow checks and measured capacity are recorded in the
-[Analyze guide](analyze.md); these are bounded synthetic checks, not a guarantee
-for all producers, message mixes or hardware.
+[Analyze guide](analyze.md), with an additional
+[public recording check](recording-validation.md). These are bounded checks,
+not a guarantee for all producers, message mixes or hardware.
 
 - After a fresh documented installation, the complete open/filter/inspect/export
   workflow runs with external networking disabled and loopback available.

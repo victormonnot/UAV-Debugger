@@ -32,7 +32,9 @@ The synthetic example contains 409 bytes, 12 records, two source identities,
 `timestamp_repeated` warnings are expected. See the
 [fixture documentation](../tests/fixtures/README.md) for exact expected values,
 the artificial clock and provenance. Synthetic verification does not establish
-interoperability with an actual QGroundControl release or recording.
+interoperability with an actual QGroundControl release or recording. A separate
+[public recording check](recording-validation.md) documents complete traversal
+with partial decoding coverage for one identified attachment.
 
 ## Input profile
 
@@ -182,8 +184,10 @@ does not establish equivalent capacity or speed for every message mix.
 A fresh environment installation with `uv sync --locked` and the importer/CLI
 tests passed on that runtime. The fixture CLI also completed with exit code `0`
 inside an isolated Linux network namespace. Browser workflow checks are recorded
-separately in the [Analyze guide](analyze.md); real producer interoperability
-remains unverified.
+separately in the [Analyze guide](analyze.md). The
+[public recording verification](recording-validation.md) adds an actual external
+file with declared QGroundControl build provenance, without establishing broad
+producer compatibility or complete decoding of its messages.
 
 Run the delivered checks from the repository root:
 

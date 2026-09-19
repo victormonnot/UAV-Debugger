@@ -186,7 +186,10 @@ the browser handles saving the separate report.
 The current `qgc-timestamped-mavlink-v1` profile accepts unsigned MAVLink 1/2
 frames with QGroundControl-style timestamps and the pinned `common` dialect.
 Verification uses synthetic recordings with documented bytes and expected
-values; no actual QGroundControl producer/version compatibility is established.
+values, plus [one public QGroundControl recording](recording-validation.md)
+with complete traversal and partial decoding coverage. Its reported producer
+build and exact fingerprint are documented; broader version compatibility is
+not established.
 A `.tlog` filename does not identify its contents. See the
 [importer guide](importer.md#input-profile) for exact failure and unsupported-input
 behavior.

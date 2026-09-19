@@ -73,7 +73,7 @@ import profile is implemented; time synchronization and commands are not.
 
 | Input category | Current status |
 | --- | --- |
-| MAVLink recordings | Implemented bounded QGroundControl-style timestamped profile, unsigned MAVLink 1/2, pinned `common` dialect; verified with synthetic inputs, not an actual producer recording. |
+| MAVLink recordings | Implemented bounded QGroundControl-style timestamped profile, unsigned MAVLink 1/2, pinned `common` dialect; checked with synthetic inputs and [one public producer recording](recording-validation.md) with partial decoding coverage. |
 | Onboard flight logs | Possible later integration; no formats selected or implemented. |
 | Video and associated timing | Intended analysis capability; encoding and synchronization support remain open. |
 | Experiment traces | Intended shared input; format will follow the first implemented experiment. |
