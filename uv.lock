@@ -1265,7 +1265,7 @@ wheels = [
 
 [[package]]
 name = "uav-debugger"
-version = "0.1.0.dev2"
+version = "0.1.0.dev3"
 source = { editable = "." }
 dependencies = [
     { name = "plotly" },

@@ -15,9 +15,10 @@ from uav_debugger.analysis import (
     select_records,
     timestamp_to_seconds,
 )
-from uav_debugger.charts import activity_chart
+from uav_debugger.charts import activity_chart, attitude_chart
 from uav_debugger.model import ImportResult, Record
 from uav_debugger.report import build_markdown_report
+from uav_debugger.telemetry import build_attitude_view
 
 PAGE_SIZE = 100
 ISSUE_PAGE_SIZE = 100
@@ -121,7 +122,6 @@ def _filters(result: ImportResult) -> Selection:
             st.sidebar.error(f"Filters were not applied: {error}")
         else:
             st.session_state.analysis_selection = selection
-            st.session_state.pop(_recording_widget_key("page"), None)
     return st.session_state.analysis_selection
 
 
@@ -196,13 +196,115 @@ def _issues(result: ImportResult) -> None:
         )
 
 
-def _record_view(records: tuple[Record, ...], origin_us: int, selection: Selection) -> int | None:
+def _attitude_view(result: ImportResult, selection: Selection) -> tuple[int | None, int]:
+    st.subheader("Attitude")
+    text = st.text_input(
+        "Maximum line gap (s)",
+        value="1",
+        key=_recording_widget_key("attitude_gap"),
+        help="Connect consecutive points only up to this capture-time interval. "
+        "This is a display setting, not a packet-loss threshold.",
+    )
+    try:
+        gap_us = seconds_to_timestamp(text, 0)
+        if gap_us == 0:
+            raise ValueError("Maximum line gap must be positive.")
+    except ValueError as error:
+        st.error(f"Line gap was not applied: {error}")
+    else:
+        st.session_state.analysis_attitude_gap_us = gap_us
+    gap_us = st.session_state.get("analysis_attitude_gap_us", 1_000_000)
+    cache_key = (selection, gap_us)
+    if st.session_state.get("analysis_attitude_view_key") != cache_key:
+        view = build_attitude_view(result, selection, max_gap_us=gap_us)
+        st.session_state.analysis_attitude_view = view
+        st.session_state.analysis_attitude_chart = (
+            attitude_chart(view, origin_us=result.records[0].timestamp_us)
+            if view.status == "ready"
+            else None
+        )
+        st.session_state.analysis_attitude_view_key = cache_key
+        st.session_state.analysis_attitude_event = None
+    view = st.session_state.analysis_attitude_view
+    st.caption(
+        f"Applied maximum line gap: {timestamp_to_seconds(gap_us, 0)} s. "
+        "Original ATTITUDE angles in radians, against the recording's capture time."
+    )
+    if view.status == "empty":
+        st.info("No ATTITUDE records match the applied filters.")
+    elif view.status == "multiple_sources":
+        st.info("Select one source and apply filters to plot attitude.")
+    elif view.status == "too_many":
+        st.info(
+            f"The selection contains {view.record_count:,} ATTITUDE records. "
+            f"Narrow the time filters to at most {view.point_limit:,} to plot them. "
+            "The message table and report still cover the full selection."
+        )
+    else:
+        invalid = {
+            field: sum(getattr(sample, field) is None for sample in view.samples)
+            for field in ("roll", "pitch", "yaw")
+        }
+        if any(invalid.values()):
+            st.warning(
+                "Unplotted values (missing, nonfinite or unverified): "
+                + ", ".join(f"{field}: {count:,}" for field, count in invalid.items())
+                + ". Inspect the original records for details."
+            )
+        st.caption(
+            f"Source {view.source[0]} / {view.source[1]} · "
+            f"{view.record_count:,} ATTITUDE records. Click a point to inspect its message. "
+            "Lines break at repeated or regressing capture times, longer gaps, unavailable "
+            "values and angle jumps greater than π. Lines are visual guides; "
+            "no angle unwrapping or clock alignment is applied. Zoom leaves filters unchanged."
+        )
+        chart_key = (
+            _recording_widget_key("attitude_chart")
+            + hashlib.sha256(repr(cache_key).encode()).hexdigest()
+        )
+        with st.container(key="attitude_plot"):
+            event = st.plotly_chart(
+                st.session_state.analysis_attitude_chart,
+                width="stretch",
+                theme=None,
+                key=chart_key,
+                on_select="rerun",
+                selection_mode="points",
+                config={"displaylogo": False, "scrollZoom": False},
+            )
+        points = event.selection.points
+        signature = json.dumps(points, sort_keys=True)
+        if signature != st.session_state.get("analysis_attitude_event"):
+            st.session_state.analysis_attitude_event = signature
+            indices = {sample.record.index for sample in view.samples}
+            for point in reversed(points):
+                data = point.get("customdata")
+                if isinstance(data, (list, tuple)) and data:
+                    index = data[0]
+                    if type(index) is int and index in indices:
+                        return index, gap_us
+    return None, gap_us
+
+
+def _record_view(
+    records: tuple[Record, ...],
+    origin_us: int,
+    selection: Selection,
+    *,
+    focused_record: int | None = None,
+) -> int | None:
     st.subheader("Messages")
     if not records:
         st.info("No records match these filters.")
         return None
     pages = (len(records) + PAGE_SIZE - 1) // PAGE_SIZE
-    page = st.number_input("Page", 1, pages, 1, key=_recording_widget_key("page"))
+    page_key = _recording_widget_key("page") + hashlib.sha256(repr(selection).encode()).hexdigest()
+    if focused_record is not None:
+        position = next(
+            index for index, record in enumerate(records) if record.index == focused_record
+        )
+        st.session_state[page_key] = position // PAGE_SIZE + 1
+    page = st.number_input("Page", 1, pages, 1, key=page_key)
     start = (page - 1) * PAGE_SIZE
     page_records = records[start : start + PAGE_SIZE]
     st.caption(
@@ -232,6 +334,8 @@ def _record_view(records: tuple[Record, ...], origin_us: int, selection: Selecti
         _recording_widget_key("record")
         + hashlib.sha256(repr((selection, page)).encode()).hexdigest()
     )
+    if focused_record is not None:
+        st.session_state[record_key] = focused_record
     chosen = st.selectbox(
         "Record",
         list(by_index),
@@ -361,6 +465,7 @@ def main() -> None:
     )
     _issues(result)
     chosen = None
+    attitude_gap_us = None
     if result.records:
         origin_us = result.records[0].timestamp_us
         st.caption(
@@ -371,22 +476,27 @@ def main() -> None:
         )
         st.subheader("Message activity")
         if records:
-            st.plotly_chart(
-                st.session_state.analysis_view_chart,
-                width="stretch",
-                theme=None,
-                config={"displaylogo": False, "scrollZoom": False},
-            )
+            with st.container(key="activity_plot"):
+                st.plotly_chart(
+                    st.session_state.analysis_view_chart,
+                    width="stretch",
+                    theme=None,
+                    config={"displaylogo": False, "scrollZoom": False},
+                )
             st.caption(
                 "All selected records are counted in up to 200 time bins. Plot zoom does not "
                 "change filters. A gap is an absence of selected observations, "
                 "not measured packet loss."
             )
-        chosen = _record_view(records, origin_us, selection)
+        focused_record, attitude_gap_us = _attitude_view(result, selection)
+        chosen = _record_view(records, origin_us, selection, focused_record=focused_record)
     else:
         st.info("No records match these filters.")
     report = build_markdown_report(
-        result, selection, selected_indices=() if chosen is None else (chosen,)
+        result,
+        selection,
+        selected_indices=() if chosen is None else (chosen,),
+        attitude_plot_gap_us=attitude_gap_us,
     )
     with export_area.container():
         st.download_button(

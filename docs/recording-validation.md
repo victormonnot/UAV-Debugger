@@ -3,6 +3,8 @@
 UAV Debugger **0.1.0.dev2** was checked on 2026-09-19 against the exact public
 recording below. The importer traversed the entire file with partial message
 definition coverage, and the browser open/filter/inspect/report workflow passed.
+Version **0.1.0.dev3** additionally passed the attitude-plot checks described below
+on the same date and recording.
 This verifies one historical attachment, not all recordings from a QGroundControl
 release or the behavior of its vehicle.
 
@@ -69,8 +71,10 @@ Launch Analyze using the [user guide](analyze.md), then:
    seconds, then click **Apply filters**.
 4. Expect **15 selected records**, from original record **#4710** through
    **#4934**, and a longest observed interval of **0.772 s**.
-5. Choose **Record #4769** and inspect its decoded fields, capture timestamp
-   and raw frame. Download the Markdown report.
+5. Under **Attitude**, keep **Maximum line gap (s)** at **1**. The three curves
+   contain the 15 selected roll, pitch and yaw samples in radians. Click a point
+   for **Record #4769**, or choose it using **Record**, then inspect its decoded
+   fields, capture timestamp and raw frame. Download the Markdown report.
 
 The largest interval in this selection is between records **#4769** and
 **#4796**, whose capture timestamps are `1494591507436000` and
@@ -126,3 +130,25 @@ and [existing browser tests](analyze.md#browser-workflow-checks). The external
 recording is not fetched by the normal test suite. This case establishes neither
 complete decoding of this recording nor compatibility with current producer
 versions, other dialects or other recording formats.
+
+## Attitude plot verification in 0.1.0.dev3
+
+The same original attachment was uploaded through Chromium with external
+networking disabled. Before filtering, the three rendered Plotly traces
+contained all **1,329 ATTITUDE records**: every original record index, exact
+capture timestamp and roll/pitch/yaw value matched an independent
+`struct.unpack("<I6f", payload)` scan of the file. Display gaps were excluded
+from the comparison; no recorded sample was omitted or altered.
+
+The source/type/time selection above produced three curves with **15 samples
+each**. A real mouse click on the roll marker for **#4769** selected that exact
+record in the inspector. The downloaded report retained its original bytes,
+timestamp and fields, the input fingerprint, all import and filtered counts,
+and the attitude settings: source `22 / 1`, radians, 15 selected/plotted records,
+no unavailable angle values and a **1,000,000 µs** maximum line gap.
+
+No external browser requests, JavaScript errors or application exceptions
+occurred, and the original recording remained byte-identical. This checks
+display and evidence traceability, not the accuracy of the vehicle's attitude
+estimate or a physical interpretation of its motion. The attachment remains
+outside the distributed fixtures and normal automated test suite.

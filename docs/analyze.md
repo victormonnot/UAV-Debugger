@@ -1,8 +1,8 @@
 # Analyze a saved recording
 
 Analyze opens one supported telemetry recording in a local browser interface.
-It provides source and time filters, an activity plot, message inspection and a
-Markdown evidence report. The same file-only importer is available through the
+It provides source and time filters, activity and attitude plots, message inspection
+and a Markdown evidence report. The same file-only importer is available through the
 [Python API and command-line summary](importer.md).
 
 ## Install and launch
@@ -69,8 +69,9 @@ your particular remote host is not part of the automated browser verification.
 3. Set **Source** to **1 / 1**, **Message type** to **ATTITUDE**, **Start (s)** to
    **1**, and **End (s)** to **5**. Click **Apply filters**.
 4. The selection contains records **#2** and **#8**. **Longest observed interval**
-   reads **4 s**. Choose either entry under **Record** to inspect its fields and
-   original frame bytes.
+   reads **4 s**. **Attitude** shows two points per angle, disconnected at the
+   default **Maximum line gap (s)** of **1**. Click a point or choose an entry
+   under **Record** to inspect its fields and original frame bytes.
 5. Click **Download report** to save a Markdown summary containing the applied
    selection and the currently inspected record.
 
@@ -102,7 +103,7 @@ one second and one microsecond after the origin. Values requiring fractions of
 a microsecond are rejected rather than rounded. A decreasing capture clock can
 produce negative relative times; the original file order remains unchanged.
 
-Click **Apply filters** to update the plot, table, interval metric and report.
+Click **Apply filters** to update the plots, table, interval metric and report.
 Editing the controls alone leaves the previous selection active. Invalid bounds
 produce an error and preserve that previous selection. **Applied time range**
 shows the bounds currently used. A valid selection with no matching records
@@ -133,6 +134,48 @@ host-logging profile. These units do not establish clock resolution, accuracy
 or synchronization with the vehicle. Device timestamps remain separate decoded
 fields. The outer recording timestamp is not covered by the MAVLink frame
 checksum. No clock alignment, sensor latency or causal diagnosis is inferred.
+
+## Inspect attitude curves
+
+**Attitude** plots the `roll`, `pitch` and `yaw` fields of checksum-valid
+`ATTITUDE` messages, retaining their original values in radians. The angles
+follow the [MAVLink ATTITUDE definition](https://mavlink.io/en/messages/common.html#ATTITUDE).
+The shared horizontal axis uses capture time relative to the first imported
+record; `time_boot_ms` remains a separate field in the message inspector.
+
+The plot respects all applied source, message-type and time filters. If the
+selected `ATTITUDE` records contain several sources, select one **Source** and
+apply the filters. Selecting another message type leaves no attitude records
+to plot. Each plot accepts at most **5,000 ATTITUDE records**; larger selections
+show a request to narrow the time bounds. No points are silently decimated, and
+the message table and report still cover the full filtered selection.
+
+**Maximum line gap (s)** controls whether consecutive samples are connected.
+It defaults to **1 second** and takes effect when the text edit is submitted
+with Enter or by leaving the field. It accepts positive decimal seconds with
+microsecond precision. Invalid input preserves the last valid setting; the
+caption shows the applied value. The setting changes the display and report,
+not the selected records or interval metric.
+
+Each angle's line breaks at:
+
+- A capture-clock regression anywhere between its records, including a
+  regression hidden by filters, or equal sample timestamps.
+- An interval greater than the applied maximum line gap.
+- A missing, nonfinite or unverified field value, which has no plotted point.
+- An absolute change greater than π radians, avoiding a line across an angle
+  wrap. Values are not unwrapped or otherwise corrected.
+
+Connecting lines are visual guides between recorded samples; they do not
+establish continuous measurement or identify an anomaly. Markers and original
+file order are retained across breaks. Float coordinates are used only for
+display; hover labels retain exact capture timestamps and record byte ranges.
+
+Click a marker to inspect its original message. The **Messages** table moves to
+the relevant page, **Record** selects that message, and the downloaded report
+includes its evidence. Manual record selection remains available. Changing
+filters, the gap setting or the recording clears the previous plot selection.
+Plot zoom changes only the display and is not a report filter.
 
 ## Inspect records and import issues
 
@@ -166,6 +209,10 @@ prefix. It contains:
 - Complete import and filtered counts, traversal status and unprocessed bytes.
 - Observation-interval counts and the longest established interval, including
   its duration and both original record references.
+- Attitude plot availability, fields and units, selected/plotted counts, display
+  limit, unavailable-value counts and the applied maximum line gap when the
+  recording has imported records. The report describes the plot rather than
+  embedding an image.
 - Clock and observation limits, plus issues from the whole imported input.
 - The currently inspected record's identity, byte references, decoded fields
   and original frame. A selection with no records includes no record details.
@@ -200,7 +247,8 @@ time. Decoded objects, selected views and browser data require additional
 memory, which depends on record density and message contents.
 Files over the analysis limit are rejected even if their browser upload completes.
 
-One local Chromium measurement on Linux x86_64 with Python 3.12.3 loaded
+A Chromium measurement before attitude plotting was added, on Linux x86_64
+with Python 3.12.3, loaded
 10,485,750 bytes containing 419,430 synthetic HEARTBEAT records with increasing
 timestamps. Upload through a ready report took 6.800 seconds; applying inclusive
 1–5 second bounds took 0.503 seconds and selected exactly 4,001 records. The
@@ -232,12 +280,20 @@ These checks launch the local interface and use a real browser. The browser
 harness blocks non-local requests while exercising the application. Installing
 the browser is separate from running the tests and may require network access.
 
-On Linux x86_64 with Python 3.12.3, all 167 tests passed in a fresh environment
+For version 0.1.0.dev3 on Linux x86_64 with Python 3.12.3, all 222 tests passed in a fresh environment
 with locked dependencies and the installed application wheel, inside a Linux
-network namespace with only loopback enabled. This includes five Chromium
+network namespace with only loopback enabled. This includes seven Chromium
 workflows covering upload, inclusive filtering, inspection, downloaded report
 contents, replacement of a recording, empty and truncated input, rejection
 above the analysis size limit, and the bundled example without an upload.
+The attitude workflows use actual marker clicks to check inspector/report
+agreement, navigation to another table page, gap-setting validation, manual
+record selection and resetting stale plot/page state after filters or input change.
+Core checks cover per-field unavailable values, capture-clock regressions hidden
+by filters, repeated times, angle wraps, exact timestamp metadata and the
+5,000-record display limit. A separate check of the
+[public recording](recording-validation.md#attitude-plot-verification-in-010dev3)
+compared all 1,329 plotted attitude records with independently unpacked payloads.
 The example's packaged bytes match the original fixture; switching between
 example and upload resets the controls and clearing an upload does not restore
 previous example data.

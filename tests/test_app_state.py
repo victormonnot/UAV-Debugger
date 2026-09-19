@@ -25,6 +25,15 @@ def test_import_is_retained_when_filters_and_record_selection_change():
         app = AppTest.from_file(APP).run()
         assert not app.exception
         assert parse.call_count == 1
+        gap = next(box for box in app.text_input if box.label == "Maximum line gap (s)")
+        gap.set_value("5").run()
+        assert not app.exception
+        assert app.session_state.analysis_attitude_view.max_gap_us == 5_000_000
+        gap.set_value("0").run()
+        assert not app.exception
+        assert app.session_state.analysis_attitude_view.max_gap_us == 5_000_000
+        assert any("Line gap was not applied" in error.value for error in app.error)
+        assert parse.call_count == 1
         next(box for box in app.selectbox if box.label == "Source").set_value((1, 1))
         next(box for box in app.selectbox if box.label == "Message type").set_value(30)
         next(button for button in app.button if button.label == "Apply filters").click().run()
@@ -101,3 +110,23 @@ def test_bundled_example_uses_the_same_importer_and_can_be_cleared():
         assert "import_result" not in app.session_state
         assert "analysis_selection" not in app.session_state
         assert not app.metric
+
+
+def test_attitude_capacity_limit_can_be_resolved_with_time_filters():
+    frame = import_bytes(FIXTURE.read_bytes()).records[2].raw_frame
+    origin = 1_700_000_000_000_000
+    data = b"".join((origin + index * 1_000).to_bytes(8, "big") + frame for index in range(5_001))
+    with patch("streamlit.file_uploader", return_value=Upload(data)):
+        app = AppTest.from_file(APP, default_timeout=10).run()
+        assert not app.exception
+        assert app.session_state.analysis_attitude_view.status == "too_many"
+        assert app.session_state.analysis_attitude_chart is None
+        assert len(app.session_state.analysis_view_records) == 5_001
+        assert any("at most 5,000" in info.value for info in app.info)
+        next(box for box in app.text_input if box.label == "End (s)").set_value("0.001")
+        next(button for button in app.button if button.label == "Apply filters").click().run()
+        assert not app.exception
+        assert app.session_state.analysis_attitude_view.status == "ready"
+        assert [
+            sample.record.index for sample in app.session_state.analysis_attitude_view.samples
+        ] == [0, 1]

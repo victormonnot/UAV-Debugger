@@ -2,7 +2,7 @@
 
 **Status: offline Analyze workflow implemented in the development version.**
 The file importer, synthetic fixture, exact source/type/time filters, activity
-plot, record inspector and Markdown evidence report are available. See the
+plot, ATTITUDE curves, record inspector and Markdown evidence report are available. See the
 [Analyze guide](analyze.md) and [importer guide](importer.md) for usage and the
 actual verification boundary. [One public producer recording](recording-validation.md)
 has been checked with partial decoding coverage; broader producer compatibility
@@ -29,7 +29,8 @@ timeline, derived statistics and report.
    the observed time range, with the clock convention displayed.
 3. **Select an interval.** Filter by system/component, message type and explicit
    time bounds. A message-activity plot and table show the same selection.
-4. **Inspect evidence.** Select a record to see decoded fields, its original
+4. **Inspect evidence.** Plot one source's roll, pitch and yaw. Click a point or
+   select a record to see decoded fields, its original
    timestamp, file order, byte offset and raw frame. Show intervals between
    consecutive selected messages where the capture clock permits calculation.
 5. **Export a report.** Download Markdown containing the input fingerprint,

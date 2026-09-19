@@ -4,8 +4,8 @@ A standalone tool for inspecting UAV recordings, following observations back to
 their source frames and exporting analysis evidence.
 
 **Status: local Analyze workflow implemented.** Open one timestamped MAVLink
-recording in a browser, filter sources and time, inspect message activity and raw
-frames, and download a Markdown report. A Python API and JSON command-line
+recording in a browser, filter sources and time, plot attitude, inspect message
+activity and raw frames, and download a Markdown report. A Python API and JSON command-line
 summary expose the same imported evidence. Experiment remains planned.
 
 ## Quick start
@@ -25,8 +25,10 @@ Open [Analyze](http://127.0.0.1:8501) in a browser on the same computer and clic
 **ATTITUDE**, start **1** and end **5**, then click **Apply filters**: records
 **#2** and **#8** show a four-second interval between those observations.
 
-Use **Record** to inspect a message's decoded fields, original capture timestamp
-and frame bytes. **Download report** exports the applied filters, input
+The **Attitude** plot shows roll, pitch and yaw in radians. Click a point or use
+**Record** to inspect its decoded fields, original capture timestamp and frame
+bytes. The example's four-second gap remains disconnected at the default
+one-second maximum line gap. **Download report** exports the applied filters, plot settings, input
 provenance, import limitations and the currently inspected record. Five repeated
 timestamp warnings are expected in this fixture.
 
@@ -72,7 +74,7 @@ cause.
 
 | Mode | Direction | Current implementation |
 | --- | --- | --- |
-| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity plot, message inspection, Markdown report, Python API and JSON import summary. |
+| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown report, Python API and JSON import summary. |
 | **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Planned; no active execution. |
 
 Analyze remains independently usable from saved files. Opening a recording never
@@ -90,7 +92,7 @@ uv run --locked python scripts/generate_fixture.py --check
 
 The fixture generator's `--check` mode compares deterministic bytes without
 rewriting the fixture. Core tests cover importer boundaries, exact time
-selection, observation intervals, plot counts, report provenance and actual
+selection, observation intervals, plot counts and discontinuities, report provenance and actual
 command-line invocations. Browser tests are opt-in; installation and commands
 are documented in the [Analyze guide](docs/analyze.md#browser-workflow-checks).
 

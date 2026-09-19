@@ -5,7 +5,7 @@ testing system behavior through controlled experiments. It has two modes:
 **Analyze** and **Experiment**, built around the same session evidence.
 
 The current implementation provides an offline Analyze interface with source,
-message and time filters, an activity plot, record inspection and Markdown
+message and time filters, activity and attitude plots, record inspection and Markdown
 evidence export. The same importer is available through Python and a JSON
 command-line summary. See the [Analyze guide](analyze.md) and
 [importer guide](importer.md) for tested inputs and limits. Video, session

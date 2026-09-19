@@ -88,6 +88,7 @@ def test_default_export_does_not_include_unrequested_message_details(session):
 
     assert coverage["filtered_record_count"] == 2
     assert coverage["explicit_detail_record_count"] == 0
+    assert "attitude_plot" not in coverage
     assert details == []
     assert "raw_frame_hex" not in report
     assert "rollspeed" not in report
@@ -312,3 +313,124 @@ def test_non_finite_measurements_are_explicit_and_distinct_from_observed_strings
             parse_constant=lambda value: pytest.fail(f"Invalid JSON numeric token: {value}"),
         )
     assert record.fields["missing"] is fields["missing"]
+
+
+def test_attitude_settings_share_exact_filters_and_keep_report_block_order(session):
+    selection = Selection(
+        sources=((1, 1),),
+        message_ids=(30,),
+        start_us=EPOCH_US + 1_000_001,
+        end_us=EPOCH_US + 5_000_000,
+    )
+
+    report = build_markdown_report(
+        session,
+        selection,
+        selected_indices=(8,),
+        attitude_plot_gap_us=1_234_567,
+    )
+    provenance, filters, coverage, issues, detail = _blocks(report)
+
+    assert provenance["sha256"] == session.sha256
+    assert filters["start_us"] == EPOCH_US + 1_000_001
+    assert filters["end_us"] == EPOCH_US + 5_000_000
+    assert coverage["filtered_record_count"] == 1
+    assert coverage["attitude_plot"] == {
+        "status": "ready",
+        "sources": [[1, 1]],
+        "source": [1, 1],
+        "record_count": 1,
+        "plotted_record_count": 1,
+        "point_limit": 5000,
+        "max_gap_us": 1_234_567,
+        "unit": "rad",
+        "fields": ["roll", "pitch", "yaw"],
+        "invalid_value_counts": {"roll": 0, "pitch": 0, "yaw": 0},
+    }
+    assert len(issues) == len(session.issues)
+    assert detail["index"] == 8
+    assert detail["raw_frame_hex"] == session.records[8].raw_frame.hex()
+    assert detail["fields"] == dict(session.records[8].fields)
+    assert "1234567 microseconds" in report
+    assert "including one hidden by the filters" in report
+    assert "greater than pi radians" in report
+
+
+@pytest.mark.parametrize(
+    "selection, status, sources, record_count, filtered_count",
+    [
+        (Selection(), "multiple_sources", [[1, 1], [2, 1]], 7, 12),
+        (Selection(message_ids=(0,)), "empty", [], 0, 5),
+        (Selection(start_us=EPOCH_US + 6_000_001), "empty", [], 0, 0),
+    ],
+)
+def test_unavailable_attitude_plot_does_not_change_report_coverage(
+    session, selection, status, sources, record_count, filtered_count
+):
+    _, _, coverage, issues = _blocks(
+        build_markdown_report(session, selection, attitude_plot_gap_us=4_000_000)
+    )
+
+    assert coverage["imported_record_count"] == 12
+    assert coverage["filtered_record_count"] == filtered_count
+    assert len(issues) == len(session.issues)
+    summary = coverage["attitude_plot"]
+    assert summary["status"] == status
+    assert summary["sources"] == sources
+    assert summary["source"] is None
+    assert summary["record_count"] == record_count
+    assert summary["plotted_record_count"] == 0
+    assert summary["invalid_value_counts"] is None
+    assert summary["max_gap_us"] == 4_000_000
+
+
+def test_attitude_plot_limit_leaves_all_records_reportable(session):
+    frame = session.records[2].raw_frame
+    raw_bytes = b"".join(
+        (EPOCH_US + index * 1000).to_bytes(8, "big") + frame for index in range(5001)
+    )
+    result = import_bytes(raw_bytes)
+
+    report = build_markdown_report(
+        result, Selection(), selected_indices=(5000,), attitude_plot_gap_us=1_000_000
+    )
+    _, _, coverage, _, detail = _blocks(report)
+
+    assert coverage["imported_record_count"] == coverage["filtered_record_count"] == 5001
+    assert coverage["attitude_plot"]["status"] == "too_many"
+    assert coverage["attitude_plot"]["record_count"] == 5001
+    assert coverage["attitude_plot"]["point_limit"] == 5000
+    assert coverage["attitude_plot"]["plotted_record_count"] == 0
+    assert coverage["attitude_plot"]["invalid_value_counts"] is None
+    assert detail["index"] == 5000
+    assert detail["raw_frame_hex"] == frame.hex()
+    assert "not plotted or silently decimated" in report
+
+
+def test_invalid_attitude_values_are_counted_without_losing_original_evidence(session):
+    original = session.records[2]
+    record = replace(original, fields={**original.fields, "roll": float("nan")})
+    result = replace(session, records=(record,))
+
+    _, _, coverage, _, detail = _blocks(
+        build_markdown_report(
+            result, Selection(), selected_indices=(2,), attitude_plot_gap_us=1_000_000
+        )
+    )
+
+    assert coverage["attitude_plot"]["record_count"] == 1
+    assert coverage["attitude_plot"]["plotted_record_count"] == 1
+    assert coverage["attitude_plot"]["invalid_value_counts"] == {
+        "roll": 1,
+        "pitch": 0,
+        "yaw": 0,
+    }
+    assert detail["fields"]["roll"] == {"non_finite_float": "nan"}
+    assert detail["fields"]["pitch"] == original.fields["pitch"]
+    assert detail["raw_frame_hex"] == original.raw_frame.hex()
+
+
+@pytest.mark.parametrize("gap", [0, -1, True, 1.5, "1"])
+def test_invalid_attitude_gap_settings_are_rejected(session, gap):
+    with pytest.raises(ValueError):
+        build_markdown_report(session, Selection(), attitude_plot_gap_us=gap)

@@ -2,7 +2,7 @@
 
 This document combines the product architecture direction with the first
 implemented boundary: a Python file importer, in-memory evidence, exact filters,
-an activity plot, record inspection, Markdown reports and a JSON command. See
+activity and attitude plots, record inspection, Markdown reports and a JSON command. See
 the [Analyze guide](analyze.md) and [importer guide](importer.md) for current use.
 Experiment execution and cross-session comparison remain future work; the diagram
 below describes the intended complete workflow.
@@ -94,7 +94,7 @@ and Ruff are in use. Playwright is an optional browser-test dependency.
 | Runtime | Python 3.12; importer verified on Linux x86_64 | One runtime for decoding, analysis and the intended interface. |
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
 | Interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection and download in one application. |
-| Timeline | Plotly with explicit source/type/time controls | Interactive activity plots without coupling filtering to chart zoom events. |
+| Timeline | Plotly with explicit source/type/time controls | Activity and attitude plots with point-to-record inspection; zoom does not change filters. |
 | Session data | Python data structures in memory | One recording per browser session; persistence needs are initially limited to report export. |
 | Report | Markdown download | Readable evidence summary with source fingerprints and record references. |
 | Environment and checks | `pyproject.toml`, `uv.lock`, pytest and Ruff | Reproducible dependencies, behavioral tests and basic source checks. |
@@ -117,10 +117,18 @@ network or serial transports. See the
 `analysis.py` applies inclusive integer-time filters in file order. It segments
 the clock at regressions in the complete input before finding observation
 intervals; a filter cannot hide a reset and create a false elapsed duration.
-`charts.py` counts all selected observations in at most 200 bins. The Streamlit
+`telemetry.py` extracts a single source's selected ATTITUDE observations, retaining
+record references, original radians and capture-clock segments. It permits at
+most 5,000 records per plot and exposes explicit empty, multiple-source and
+capacity outcomes. Unavailable field values remain gaps. `charts.py` counts all
+selected observations in at most 200 activity bins and plots the three attitude
+angles without decimation. Connecting lines break at clock discontinuities,
+unavailable values, angle jumps greater than π and the user-selected maximum
+capture-time interval. This threshold is a display setting, not a diagnosis.
+The Streamlit
 presentation pages records and issues rather than transferring an entire dense
 recording to the browser. `report.py` exports provenance, applied filters,
-coverage, interval references, global import issues and explicitly inspected
+coverage, interval references, attitude plot settings, global import issues and explicitly inspected
 record details without depending on Streamlit.
 
 For this input, retain the recording fingerprint and raw bytes, original record
@@ -132,8 +140,11 @@ plots are derived views; device-time fields do not silently replace capture time
 Streamlit reruns application code on interaction. Retain an import result in
 browser-session state so changing filters does not parse the file again. Inputs
 and decoded data occupy memory, so capacity must be bounded and measured before
-release. The Record control chooses the inspected message; explicit interval
-controls remain the source of filter state. Plot zoom only changes the display.
+release. The Record control or an attitude point selection chooses the inspected
+message; point selection also navigates to its table page. Plot widgets are keyed
+by recording, applied filters and line-gap setting so stale events cannot attach
+an earlier point to a new view. Explicit interval controls remain the source of
+filter state. Plot zoom only changes the display.
 See [execution and caching](https://docs.streamlit.io/develop/concepts/architecture/caching)
 and [Plotly charts](https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart).
 

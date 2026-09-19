@@ -8,6 +8,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 from .analysis import Selection, observed_intervals, select_records
 from .model import ImportResult, Record
+from .telemetry import attitude_plot_summary, build_attitude_view
 
 MAX_REPORTED_ISSUES = 100
 
@@ -68,12 +69,15 @@ def build_markdown_report(
     selection: Selection,
     *,
     selected_indices: tuple[int, ...] = (),
+    attitude_plot_gap_us: int | None = None,
 ) -> str:
     """Export complete counts/issues and only explicitly requested record details.
 
     Detail indices must be distinct indices in the current filtered selection.
     The issue list is capped with an explicit omitted count; input and filtered
-    record counts always describe their entire respective sets.
+    record counts always describe their entire respective sets. An optional
+    attitude line-gap setting includes the corresponding plot coverage and
+    display policy, derived from the same selection as the rest of the report.
     """
     if not isinstance(selected_indices, tuple) or any(
         not isinstance(index, int) or isinstance(index, bool) or index < 0
@@ -172,6 +176,30 @@ def build_markdown_report(
         "omitted_issue_count": omitted_issues,
         "observation_intervals": interval_summary,
     }
+    attitude_sections = []
+    if attitude_plot_gap_us is not None:
+        attitude_summary = attitude_plot_summary(
+            build_attitude_view(result, selection, max_gap_us=attitude_plot_gap_us)
+        )
+        coverage["attitude_plot"] = attitude_summary
+        attitude_sections = [
+            "## Attitude plot",
+            "The coverage data records the applied attitude plot settings and availability. "
+            "Roll, pitch and yaw retain their original ATTITUDE values in radians, positioned "
+            "by capture timestamps relative to the first imported record. Device time is "
+            "not substituted for the capture clock. The plot uses one selected source and "
+            f"accepts at most {attitude_summary['point_limit']} selected ATTITUDE records; "
+            "larger selections are not plotted or silently decimated. Other filtered "
+            "records remain available in the message table and this report.",
+            f"The applied maximum line gap is {attitude_plot_gap_us} microseconds. "
+            "Lines break across a capture-clock regression, including one hidden by the "
+            "filters, between repeated sample timestamps, and across gaps exceeding this "
+            "setting. For each angle, missing, nonfinite or unverified values and jumps "
+            "greater than pi radians also break the line. Values are not unwrapped. "
+            "Connecting lines are display aids; the gap setting does not establish packet "
+            "loss, a vehicle anomaly or a cause. The report contains settings and source "
+            "evidence rather than an image of the plot.",
+        ]
     issue_data = [
         {
             "severity": issue.severity,
@@ -201,6 +229,7 @@ def build_markdown_report(
         "The coverage data retains the interval's two original record references even when "
         "only one endpoint was selected for detailed export. This is an observation interval, "
         "not a physical packet-loss measurement. Equal maxima use the first pair in file order.",
+        *attitude_sections,
         "## Clock and observation limits",
         "The outer timestamp is the logger's host wall clock, interpreted as unsigned "
         "Unix-epoch microseconds under the declared input profile. Microsecond units "

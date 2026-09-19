@@ -44,6 +44,42 @@ def upload(page, content, name="telemetry-gap.tlog"):
     )
 
 
+def activity_plot(page):
+    return page.locator(".st-key-activity_plot").get_by_test_id("stPlotlyChart")
+
+
+def attitude_plot(page):
+    return page.locator(".st-key-attitude_plot .js-plotly-plot")
+
+
+def attitude_traces(page):
+    return attitude_plot(page).evaluate(
+        "graph => graph.data.map(({x, y, customdata}) => ({x, y, customdata}))"
+    )
+
+
+def click_attitude_point(page, point_index):
+    graph = attitude_plot(page)
+    graph.scroll_into_view_if_needed()
+    point = graph.locator(".scatterlayer .trace").first.locator("path.point").nth(point_index)
+    bounds = point.bounding_box()
+    assert bounds is not None
+    # Plotly's drag layer covers the marker, so click its actual screen position.
+    page.mouse.click(bounds["x"] + bounds["width"] / 2, bounds["y"] + bounds["height"] / 2)
+
+
+def download_blocks(page, path):
+    page.locator('[data-testid="stApp"][data-test-script-state="notRunning"]').wait_for()
+    with page.expect_download() as pending:
+        page.get_by_role("button", name="Download report", exact=True).click()
+    download = pending.value
+    download.save_as(path)
+    assert download.failure() is None
+    return [
+        json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", path.read_text(), re.S)
+    ]
+
+
 def test_upload_filter_inspect_and_download(analyze_page, tmp_path):
     page, expect = analyze_page
     original = FIXTURE.read_bytes()
@@ -66,7 +102,7 @@ def test_upload_filter_inspect_and_download(analyze_page, tmp_path):
         "#2 · ATTITUDE · 1 / 1"
     )
     expect(metric(page, "Longest observed interval")).to_have_text("4 s")
-    expect(page.get_by_test_id("stPlotlyChart")).to_be_visible()
+    expect(activity_plot(page)).to_be_visible()
     expect(
         page.get_by_text("Showing 1–2 of 2 records in original file order.", exact=True)
     ).to_be_visible()
@@ -133,7 +169,7 @@ def test_upload_filter_inspect_and_download(analyze_page, tmp_path):
     choose(page, "Message type", "All message types")
     set_interval(page, 0, 6)
     expect(metric(page, "Selected records")).to_have_text("12")
-    expect(page.get_by_test_id("stPlotlyChart")).to_be_visible()
+    expect(activity_plot(page)).to_be_visible()
     page.get_by_role("heading", name="Analyze", exact=True).scroll_into_view_if_needed()
 
 
@@ -224,7 +260,7 @@ def test_bundled_example_without_upload_and_explicit_source_switches(analyze_pag
     expect(page.get_by_role("combobox", name="Record", exact=True)).to_have_value(
         "#2 · ATTITUDE · 1 / 1"
     )
-    expect(page.get_by_test_id("stPlotlyChart")).to_be_visible()
+    expect(activity_plot(page)).to_be_visible()
     if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
         screenshot = FIXTURE.parents[2] / "local" / "example-analyze.png"
         screenshot.parent.mkdir(parents=True, exist_ok=True)
@@ -286,3 +322,124 @@ def test_bundled_example_without_upload_and_explicit_source_switches(analyze_pag
     expect(page.get_by_role("button", name="Download report", exact=True)).to_have_count(0)
     expect(page.get_by_role("button", name="Clear example", exact=True)).to_have_count(0)
     expect(page.get_by_role("button", name="Load example", exact=True)).to_be_visible()
+
+
+def test_attitude_points_gap_settings_and_inspector_stay_consistent(analyze_page, tmp_path):
+    page, expect = analyze_page
+    page.get_by_role("button", name="Load example", exact=True).click()
+    expect(metric(page, "Imported records")).to_have_text("12")
+    # Two independent attitude sources must not be joined in a single plot.
+    expect(attitude_plot(page)).to_have_count(0)
+    choose(page, "Source", "1 / 1")
+    choose(page, "Message type", "ATTITUDE")
+    set_interval(page, 1, 5)
+    expect(metric(page, "Selected records")).to_have_text("2")
+    expect(attitude_plot(page)).to_be_visible()
+
+    traces = attitude_traces(page)
+    assert len(traces) == 3
+    for trace, value in zip(traces, (0.25, -0.5, 1.0), strict=True):
+        assert [x for x in trace["x"] if x is not None] == [1, 5]
+        assert [y for y in trace["y"] if y is not None] == [value, value]
+        assert None in trace["y"]  # Four seconds exceeds the default one-second line gap.
+        assert [point[0] for point in trace["customdata"] if point is not None] == [2, 8]
+
+    click_attitude_point(page, 1)
+    expect(page.get_by_role("heading", name="Record #8", exact=True)).to_be_visible()
+    expect(page.get_by_role("combobox", name="Record", exact=True)).to_have_value(
+        "#8 · ATTITUDE · 1 / 1"
+    )
+    _, _, coverage, _, detail = download_blocks(page, tmp_path / "attitude-point.md")
+    assert detail["index"] == 8
+    assert detail["raw_frame_hex"] == EXPECTED["records"][8]["frame_hex"]
+    assert detail["fields"] == EXPECTED["records"][8]["fields"]
+    assert coverage["attitude_plot"]["status"] == "ready"
+    assert coverage["attitude_plot"]["unit"] == "rad"
+    assert coverage["attitude_plot"]["fields"] == ["roll", "pitch", "yaw"]
+    assert coverage["attitude_plot"]["max_gap_us"] == 1_000_000
+
+    # A persisted Plotly selection must not override a later manual inspection.
+    choose(page, "Record", "#2 · ATTITUDE · 1 / 1")
+    expect(page.get_by_role("heading", name="Record #2", exact=True)).to_be_visible()
+    gap = page.get_by_role("textbox", name="Maximum line gap (s)", exact=True)
+    gap.fill("5")
+    gap.press("Enter")
+    page.wait_for_function(
+        "document.querySelector('.st-key-attitude_plot .js-plotly-plot')"
+        "?.data?.[0]?.y.every(value => value !== null)"
+    )
+    assert attitude_traces(page)[0]["y"] == [0.25, 0.25]
+    expect(page.get_by_role("heading", name="Record #2", exact=True)).to_be_visible()
+    _, _, coverage, _, detail = download_blocks(page, tmp_path / "connected-attitude.md")
+    assert coverage["attitude_plot"]["max_gap_us"] == 5_000_000
+    assert detail["index"] == 2
+
+    gap.fill("0")
+    gap.press("Enter")
+    expect(page.get_by_test_id("stAlert").filter(has_text="gap")).to_be_visible()
+    _, _, coverage, _, detail = download_blocks(page, tmp_path / "invalid-gap.md")
+    assert coverage["attitude_plot"]["max_gap_us"] == 5_000_000
+    assert detail["index"] == 2
+
+    click_attitude_point(page, 1)
+    expect(page.get_by_role("heading", name="Record #8", exact=True)).to_be_visible()
+    choose(page, "Message type", "HEARTBEAT")
+    set_interval(page, 0, 6)
+    expect(metric(page, "Selected records")).to_have_text("2")
+    expect(attitude_plot(page)).to_have_count(0)
+    expect(page.get_by_role("heading", name="Record #0", exact=True)).to_be_visible()
+    _, _, coverage, _, detail = download_blocks(page, tmp_path / "heartbeat-selection.md")
+    assert coverage["attitude_plot"]["status"] == "empty"
+    assert detail["index"] == 0
+
+    upload(page, FIXTURE.read_bytes()[:25], name="replacement.tlog")
+    expect(metric(page, "Imported records")).to_have_text("1")
+    expect(gap).to_have_value("1")
+    expect(attitude_plot(page)).to_have_count(0)
+    _, _, coverage, _, detail = download_blocks(page, tmp_path / "replacement.md")
+    assert coverage["attitude_plot"]["max_gap_us"] == 1_000_000
+    assert detail["index"] == 0
+
+
+def test_attitude_point_opens_its_original_record_on_another_page(analyze_page, tmp_path):
+    page, expect = analyze_page
+    # Repeat a documented synthetic frame; only the independent outer clock advances.
+    frame = bytes.fromhex(EXPECTED["records"][2]["frame_hex"])
+    origin_us = EXPECTED["capture_clock"]["first_timestamp_us"]
+    count = 121
+    content = b"".join(
+        (origin_us + index * 100_000).to_bytes(8, "big") + frame for index in range(count)
+    )
+    upload(page, content, name="paged-attitude.tlog")
+    expect(metric(page, "Imported records")).to_have_text(str(count))
+    expect(attitude_plot(page)).to_be_visible()
+    expect(page.get_by_role("spinbutton", name="Page", exact=True)).to_have_value("1")
+    expect(page.get_by_role("heading", name="Record #0", exact=True)).to_be_visible()
+
+    click_attitude_point(page, 110)
+    expect(page.get_by_role("spinbutton", name="Page", exact=True)).to_have_value("2")
+    expect(page.get_by_role("heading", name="Record #110", exact=True)).to_be_visible()
+    expect(page.get_by_role("combobox", name="Record", exact=True)).to_have_value(
+        "#110 · ATTITUDE · 1 / 1"
+    )
+    expect(
+        page.get_by_text("Showing 101–121 of 121 records in original file order.")
+    ).to_be_visible()
+    provenance, _, coverage, _, detail = download_blocks(page, tmp_path / "point-page-two.md")
+    assert provenance["sha256"] == hashlib.sha256(content).hexdigest()
+    assert coverage["filtered_record_count"] == count
+    assert detail["index"] == 110
+    assert detail["timestamp_us"] == origin_us + 110 * 100_000
+    assert detail["offset"] == 110 * (8 + len(frame))
+    assert detail["frame_offset"] == detail["offset"] + 8
+    assert detail["raw_frame_hex"] == frame.hex()
+    assert detail["fields"] == EXPECTED["records"][2]["fields"]
+
+    # Applying new bounds cannot reuse the point selected in the previous view.
+    set_interval(page, 0, 1)
+    expect(metric(page, "Selected records")).to_have_text("11")
+    expect(page.get_by_role("spinbutton", name="Page", exact=True)).to_have_value("1")
+    expect(page.get_by_role("heading", name="Record #0", exact=True)).to_be_visible()
+    _, _, coverage, _, detail = download_blocks(page, tmp_path / "narrowed-attitude.md")
+    assert coverage["filtered_record_count"] == 11
+    assert detail["index"] == 0
