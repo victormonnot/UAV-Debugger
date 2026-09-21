@@ -29,6 +29,8 @@ include = [
     "/tests/conftest.py",
     "/tests/fixtures/*",
     "/scripts/generate_fixture.py",
+    "/scripts/check_distribution.py",
+    "/.github/workflows/ci.yml",
     "/README.md",
     "/pyproject.toml",
     "/uv.lock",
@@ -41,6 +43,7 @@ include = [
     "/docs/importer.md",
     "/docs/analyze.md",
     "/docs/recording-validation.md",
+    "/docs/verification.md",
 ]
 
 [tool.pytest.ini_options]

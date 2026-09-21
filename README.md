@@ -95,6 +95,10 @@ rewriting the fixture. Core tests cover importer boundaries, exact time
 selection, observation intervals, plot counts and discontinuities, report provenance and actual
 command-line invocations. Browser tests are opt-in; installation and commands
 are documented in the [Analyze guide](docs/analyze.md#browser-workflow-checks).
+The [Verification workflow](.github/workflows/ci.yml) is configured to check source,
+build and inspect distributions, then run the installed package's complete test suite
+with only loopback networking. See [verification and release preparation](docs/verification.md)
+for local reproduction, the hosted-run status boundary and remaining release decisions.
 
 ## Documentation
 
@@ -108,3 +112,4 @@ are documented in the [Analyze guide](docs/analyze.md#browser-workflow-checks).
 | [Mode workflows](docs/workflows.md) | Intended Analyze and Experiment workflows. |
 | [Architecture direction](docs/architecture.md) | Imported evidence, analysis, local presentation and future execution boundaries. |
 | [First milestone](docs/first-milestone.md) | Delivered Analyze workflow, verification and remaining release work. |
+| [Verification and release preparation](docs/verification.md) | Automated checks, distribution contents, installed-package testing and v0.1 release conditions. |

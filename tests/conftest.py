@@ -1,5 +1,6 @@
 """Opt-in browser checks for the local Analyze application."""
 
+import importlib
 import os
 import socket
 import subprocess
@@ -26,6 +27,15 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "browser: real browser workflow, enabled by --run-browser")
+    if config.getoption("--run-browser"):
+        try:
+            importlib.import_module("playwright.sync_api")
+        except ImportError as error:
+            raise pytest.UsageError(
+                "Browser checks were requested but Playwright could not be imported. "
+                "Run uv sync --locked --group browser, then install Chromium with "
+                "uv run --locked --group browser playwright install chromium."
+            ) from error
 
 
 def pytest_collection_modifyitems(config, items):
@@ -39,7 +49,6 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(scope="module")
 def analyze_server(tmp_path_factory):
-    pytest.importorskip("playwright.sync_api", reason="Install the browser dependency group")
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
@@ -81,7 +90,7 @@ def analyze_server(tmp_path_factory):
 
 @pytest.fixture
 def analyze_page(analyze_server, request):
-    api = pytest.importorskip("playwright.sync_api")
+    api = importlib.import_module("playwright.sync_api")
     api.expect.set_options(timeout=15_000)
     external_requests = []
     page_errors = []

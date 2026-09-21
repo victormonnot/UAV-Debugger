@@ -1,0 +1,64 @@
+name: Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Linux / Python 3.12 / Chromium
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.13"
+          python-version: "3.12"
+          enable-cache: false
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group browser --no-install-project
+
+      - name: Check source and synthetic fixture
+        run: |
+          .venv/bin/ruff check .
+          .venv/bin/ruff format --check .
+          .venv/bin/python scripts/generate_fixture.py --check
+
+      - name: Build and verify distributions
+        run: |
+          uv build --out-dir local/ci-dist
+          .venv/bin/python scripts/check_distribution.py --dist-dir local/ci-dist
+
+      - name: Install the verified wheel
+        run: |
+          uv pip install --python .venv/bin/python --no-deps local/ci-dist/*.whl
+          .venv/bin/python -c 'import pathlib, sys, uav_debugger; assert pathlib.Path(uav_debugger.__file__).resolve().is_relative_to(pathlib.Path(sys.prefix).resolve()), "Tests must use the installed wheel"'
+
+      - name: Install Chromium and system dependencies
+        run: .venv/bin/python -m playwright install --with-deps chromium
+
+      - name: Test the installed package with only loopback networking
+        # Create the network namespace, then run Python and Chromium as the runner user.
+        run: |
+          sudo unshare --net -- bash -c '
+            set -eu
+            ip link set dev lo up
+            exec runuser -u "$1" -- "$2" -m pytest --run-browser
+          ' bash "$(id -un)" "$PWD/.venv/bin/python"

@@ -1,6 +1,7 @@
 """Streamlit state checks complement real browser upload/download coverage."""
 
 import io
+from importlib.resources import files
 from pathlib import Path
 from unittest.mock import patch
 
@@ -9,7 +10,8 @@ from streamlit.testing.v1 import AppTest
 from uav_debugger import import_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / "src" / "uav_debugger" / "app.py"
+# Use the active installation so wheel verification also exercises its UI code.
+APP = files("uav_debugger").joinpath("app.py")
 FIXTURE = ROOT / "tests" / "fixtures" / "telemetry-gap.tlog"
 
 

@@ -8,6 +8,8 @@ actual verification boundary. [One public producer recording](recording-validati
 has been checked with partial decoding coverage; broader producer compatibility
 and distribution licensing remain open release work. Experiment is a separate
 later delivery.
+The [verification workflow and release guide](verification.md) cover automated
+installed-package checks, archive contents and remaining publication decisions.
 
 ## User outcome: investigate a gap in recorded telemetry
 

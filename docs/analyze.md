@@ -268,6 +268,8 @@ Analyze workflow. Other operating systems require their own verification.
 ## Browser workflow checks
 
 Ordinary `uv run --locked pytest` runs the core checks and skips browser tests.
+When `--run-browser` is explicitly requested, missing Playwright is an error
+rather than a skipped browser suite.
 To install the optional browser dependencies and run the Chromium workflow:
 
 ```sh
@@ -280,7 +282,7 @@ These checks launch the local interface and use a real browser. The browser
 harness blocks non-local requests while exercising the application. Installing
 the browser is separate from running the tests and may require network access.
 
-For version 0.1.0.dev3 on Linux x86_64 with Python 3.12.3, all 222 tests passed in a fresh environment
+For version 0.1.0.dev3 on Linux x86_64 with Python 3.12.3, all 252 tests passed in a fresh environment
 with locked dependencies and the installed application wheel, inside a Linux
 network namespace with only loopback enabled. This includes seven Chromium
 workflows covering upload, inclusive filtering, inspection, downloaded report
@@ -300,3 +302,5 @@ previous example data.
 
 See the [project overview](../README.md) for the remaining development checks
 and the [architecture](architecture.md) for the shared analysis components.
+For the automated workflow and checks against built distributions, see
+[verification and release preparation](verification.md).
