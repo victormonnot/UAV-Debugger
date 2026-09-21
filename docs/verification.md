@@ -88,6 +88,10 @@ wheel for the version declared in `pyproject.toml`. It compares source-archive
 files against the explicit Hatch inclusion list, and wheel modules/data against
 the package source. Unexpected, missing, duplicated or changed files cause a
 failure. It also checks distribution metadata and wheel integrity entries.
+When license metadata and explicit license-file paths are declared, their
+headers must agree with `pyproject.toml`; source and wheel archives must retain
+the declared files with their original bytes. The checker does not select a
+license or infer redistribution rights from a filename.
 
 The only packaged recording is `uav_debugger/data/telemetry-gap.tlog`, whose
 bytes must match the test fixture and its expected SHA-256. The separately
@@ -101,18 +105,23 @@ review.
 On 2026-09-21, the local sequence used uv 0.12.13 and Python 3.12.3 on Linux
 x86_64: a fresh locked dependency environment, an actual source/wheel build,
 content verification, wheel installation, import-location verification and the
-complete loopback-only suite. **All 252 tests passed**, including seven Chromium
-workflows, 28 distribution checks and two browser-dependency opt-in checks.
+complete loopback-only suite. **All 292 tests passed**, including seven Chromium
+workflows, 68 distribution checks and two browser-dependency opt-in checks.
 Ruff, fixture verification and workflow syntax checking with actionlint 1.7.12
-also passed. The archives contained 42 source files and 15 wheel files; only
+also passed. The archives contained 44 source files and 15 wheel files; only
 the synthetic fixture was packaged. This local run used the unprivileged
-namespace command; the workflow's privileged runner setup has not been executed
-here or verified on GitHub.
+namespace command.
 
-The workflow definition and package verification commands are prepared for this
-development version. A hosted GitHub Actions result must be observed on the
-candidate commit after the workflow reaches the repository; local checks do
-not establish hosted-runner success. The [Analyze guide](analyze.md#browser-workflow-checks)
+The hosted [Verification run #1](https://github.com/victormonnot/UAV-Debugger/actions/runs/35586054818)
+completed successfully on 2026-09-21 for commit
+`f5fb8d55edbc815b4e7131d3843ba25336615de0`. Its Ubuntu 24.04 / Python 3.12 /
+Chromium job completed the distribution checks, wheel installation and tests
+inside the privileged network-namespace setup. The public job status confirms
+successful steps; the numerical test total above comes from the local run,
+not hosted logs. This result applies to that commit. Later release candidates
+require their own successful run.
+
+The [Analyze guide](analyze.md#browser-workflow-checks)
 records the bounded browser verification, and the
 [public recording check](recording-validation.md) identifies the exact external
 file and producer declaration tested.
@@ -121,11 +130,14 @@ Before a v0.1 release:
 
 - Select the project and original synthetic fixture licenses, add their texts
   and package metadata, and review dependency notices for the intended
-  distribution. These licensing decisions remain open.
+  distribution. These licensing decisions remain open; the
+  [direct runtime dependency notices](../THIRD_PARTY_NOTICES.md) record the
+  pinned libraries' upstream terms and the scope of that review.
 - Run the complete installed-package and archive checks for the candidate,
   and confirm the hosted workflow result for that commit.
 - Set the final version and prepare release notes describing the implemented
-  input profile, tested platforms, capacity and observation limits.
+  input profile, tested platforms, capacity and observation limits. The
+  [unreleased changelog](../CHANGELOG.md) records the current feature boundary.
 
 The current input remains the bounded QGroundControl-style timestamped profile,
 unsigned MAVLink 1/2 and pinned `common` definitions, with a 10 MiB file limit

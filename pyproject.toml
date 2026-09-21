@@ -10,6 +10,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["pymavlink==2.4.49", "streamlit==1.63.0", "plotly==7.0.0"]
 
+[project.urls]
+Repository = "https://github.com/victormonnot/UAV-Debugger"
+Documentation = "https://github.com/victormonnot/UAV-Debugger/blob/main/docs/analyze.md"
+Issues = "https://github.com/victormonnot/UAV-Debugger/issues"
+
 [project.scripts]
 uav-debugger = "uav_debugger.__main__:main"
 uav-debugger-analyze = "uav_debugger.analyze:main"
@@ -32,6 +37,8 @@ include = [
     "/scripts/check_distribution.py",
     "/.github/workflows/ci.yml",
     "/README.md",
+    "/CHANGELOG.md",
+    "/THIRD_PARTY_NOTICES.md",
     "/pyproject.toml",
     "/uv.lock",
     "/.python-version",

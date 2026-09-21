@@ -2,9 +2,9 @@
 """Check this project's source archive and pure-Python wheel without extracting them.
 
 Run after building into a clean directory. The source archive must contain the
-public Hatch include list, and the wheel must match the package's Python modules
-and sole bundled synthetic recording. This is a project check, not a general
-wheel or source-distribution validator.
+public Hatch include list, and the wheel must match the package's Python modules,
+sole bundled synthetic recording and explicitly declared license files. This is
+a project check, not a general wheel or source-distribution validator.
 """
 
 from __future__ import annotations
@@ -115,6 +115,26 @@ def _source_bytes(root: Path, relative: str) -> bytes:
     return path.read_bytes()
 
 
+def _license_files(project: dict) -> tuple[str, ...]:
+    """Accept this project's explicit PEP 639 paths without expanding patterns."""
+    if "license" in project:
+        expression = project["license"]
+        _require(
+            isinstance(expression, str) and bool(expression.strip()),
+            "Project license must be an SPDX expression string",
+        )
+    files = project.get("license-files", [])
+    _require(isinstance(files, list), "Project license-files must be a list")
+    for name in files:
+        _require(
+            isinstance(name, str) and not any(char in name for char in "*?[]\r\n\x00"),
+            "License files must use explicit relative paths",
+        )
+        _archive_path(name)
+    _require(len(files) == len(set(files)), "Duplicate project license-file path")
+    return tuple(files)
+
+
 def _check_metadata(content: bytes, project: dict, label: str) -> None:
     metadata = BytesParser().parsebytes(content)
     for field, expected in (
@@ -127,6 +147,24 @@ def _check_metadata(content: bytes, project: dict, label: str) -> None:
         sorted(metadata.get_all("Requires-Dist", [])) == sorted(project["dependencies"]),
         f"{label}: incorrect Requires-Dist",
     )
+    expressions = [project["license"]] if "license" in project else []
+    _require(
+        metadata.get_all("License-Expression", []) == expressions,
+        f"{label}: incorrect License-Expression",
+    )
+    _require(
+        sorted(metadata.get_all("License-File", [])) == sorted(project.get("license-files", [])),
+        f"{label}: incorrect License-File",
+    )
+    _require(not metadata.get_all("License"), f"{label}: unexpected legacy License header")
+    if expressions or project.get("license-files"):
+        versions = metadata.get_all("Metadata-Version", [])
+        _require(
+            len(versions) == 1
+            and re.fullmatch(r"[0-9]+\.[0-9]+", versions[0]) is not None
+            and tuple(map(int, versions[0].split("."))) >= (2, 4),
+            f"{label}: license metadata requires Metadata-Version 2.4 or later",
+        )
 
 
 def _check_wheel_metadata(files: dict[str, bytes], prefix: str, project: dict) -> None:
@@ -166,6 +204,7 @@ def check_distribution(root: Path, dist_dir: Path) -> str:
     root = root.resolve()
     metadata = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     project = metadata["project"]
+    license_files = _license_files(project)
     normalized_name = re.sub(r"[-_.]+", "_", project["name"]).lower()
     stem = f"{normalized_name}-{project['version']}"
     sdist_name, wheel_name = f"{stem}.tar.gz", f"{stem}-py3-none-any.whl"
@@ -176,6 +215,11 @@ def check_distribution(root: Path, dist_dir: Path) -> str:
 
     expected_source: set[str] = set()
     patterns = metadata["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    for name in license_files:
+        _require(
+            name in {pattern.removeprefix("/") for pattern in patterns},
+            f"License file needs an explicit source include: {name}",
+        )
     for pattern in patterns:
         relative = _archive_path(pattern.removeprefix("/"))
         matches = {
@@ -196,13 +240,20 @@ def check_distribution(root: Path, dist_dir: Path) -> str:
         if path.is_file()
     } | {BUNDLED_FIXTURE}
     dist_info = f"{stem}.dist-info"
-    expected_wheel = expected_package | {
-        f"{dist_info}/{name}" for name in ("METADATA", "WHEEL", "entry_points.txt", "RECORD")
-    }
+    expected_wheel = (
+        expected_package
+        | {f"{dist_info}/{name}" for name in ("METADATA", "WHEEL", "entry_points.txt", "RECORD")}
+        | {f"{dist_info}/licenses/{name}" for name in license_files}
+    )
     wheel = _read_archive(dist_dir / wheel_name)
     _same_names(set(wheel), expected_wheel, "Wheel")
     for name in expected_package:
         _require(wheel[name] == _source_bytes(root, f"src/{name}"), f"Wheel bytes differ: {name}")
+    for name in license_files:
+        _require(
+            wheel[f"{dist_info}/licenses/{name}"] == _source_bytes(root, name),
+            f"Wheel license bytes differ: {name}",
+        )
     _check_wheel_metadata(wheel, dist_info, project)
 
     fixture = _source_bytes(root, TEST_FIXTURE)

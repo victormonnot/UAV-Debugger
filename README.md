@@ -113,3 +113,5 @@ for local reproduction, the hosted-run status boundary and remaining release dec
 | [Architecture direction](docs/architecture.md) | Imported evidence, analysis, local presentation and future execution boundaries. |
 | [First milestone](docs/first-milestone.md) | Delivered Analyze workflow, verification and remaining release work. |
 | [Verification and release preparation](docs/verification.md) | Automated checks, distribution contents, installed-package testing and v0.1 release conditions. |
+| [Changelog](CHANGELOG.md) | Features and limitations prepared for the first release. |
+| [Dependency notices](THIRD_PARTY_NOTICES.md) | Licensing information for the pinned direct runtime dependencies. |
