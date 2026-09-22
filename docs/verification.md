@@ -1,6 +1,6 @@
 # Verification and v0.1 release preparation
 
-UAV Debugger **0.1.0** is prepared for release. The current verification target
+UAV Debugger **0.1.0** provides the offline Analyze workflow. Its verification target
 is Linux x86_64, Python 3.12 and Chromium. Installation
 metadata permits later Python versions; this does not establish their behavior
 or support for other operating systems.
@@ -118,22 +118,22 @@ and both `License-File` headers. Package installation preserves those documents
 and identifies version `0.1.0`; reports use that installed version. The only
 packaged recording is the unchanged synthetic fixture.
 
-The hosted [Verification run #2](https://github.com/victormonnot/UAV-Debugger/actions/runs/35769104887)
+The hosted [Verification run #3](https://github.com/victormonnot/UAV-Debugger/actions/runs/35770134911)
 completed successfully on 2026-09-22 for commit
-`e7d617cb31da2e22222efa841b4d82672d296941`, the preceding `0.1.0.dev3` version with
-MIT licensing. Its Ubuntu 24.04 / Python 3.12 /
+`bb28fcc7987a6810a29adc2b35b20796035e10e4`, the `0.1.0` application candidate.
+Its Ubuntu 24.04 / Python 3.12 /
 Chromium job completed the distribution checks, wheel installation and tests
 inside the privileged network-namespace setup. The public job status confirms
 successful steps; the numerical test total above comes from the local run,
-not hosted logs. This result applies to that commit; hosted verification of
-the prepared `0.1.0` changes remains pending until they are committed and pushed.
+not hosted logs. This result applies to that commit. Subsequent commits require
+their own successful run; release notes identify the run for the tagged commit.
 
 The [Analyze guide](analyze.md#browser-workflow-checks)
 records the bounded browser verification, and the
 [public recording check](recording-validation.md) identifies the exact external
 file and producer declaration tested.
 
-Before a v0.1 release:
+## Release verification
 
 - Review dependency notices for the intended distribution, especially if
   bundling a complete environment. The original project code, documentation
@@ -142,11 +142,10 @@ Before a v0.1 release:
   pinned libraries' separate upstream terms and the scope of that review.
 - Run the complete installed-package and archive checks for the candidate,
   and confirm the hosted workflow result for that commit.
-- Publish only after the candidate's verification succeeds. Version `0.1.0`
-  and its [release notes](../CHANGELOG.md) are prepared; the notes describe the
-  implemented input profile, tested platforms, capacity and observation limits.
-  Preparing a version does not create a tag, GitHub release or package-index
-  publication. The verification workflow performs none of those actions.
+- Publish only after the candidate's verification succeeds. The
+  [release notes](../CHANGELOG.md) describe the implemented input profile,
+  tested platforms, capacity and observation limits. The verification workflow
+  does not create tags, GitHub releases or package-index publications.
 
 The current input remains the bounded QGroundControl-style timestamped profile,
 unsigned MAVLink 1/2 and pinned `common` definitions, with a 10 MiB file limit
