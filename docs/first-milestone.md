@@ -6,8 +6,7 @@ plot, ATTITUDE curves, record inspector and Markdown evidence report are availab
 [Analyze guide](analyze.md) and [importer guide](importer.md) for usage and the
 actual verification boundary. [One public producer recording](recording-validation.md)
 has been checked with partial decoding coverage; broader producer compatibility
-and distribution licensing remain open release work. Experiment is a separate
-later delivery.
+remains unverified. Experiment is a separate later delivery.
 The [verification workflow and release guide](verification.md) cover automated
 installed-package checks, archive contents and remaining publication decisions.
 
@@ -104,9 +103,9 @@ the actual producer/version and recording tested.
 The [synthetic example](../tests/fixtures/README.md) contains two system/component
 identities, known `HEARTBEAT` and `ATTITUDE` values, and a documented interval
 without messages from one source while the other remains present. Generation,
-the artificial clock and expected values are documented. Distribution licensing
-remains a release decision; the fixture supplies no evidence of an actual
-aircraft response.
+the artificial clock and expected values are documented. The fixture is
+distributed under the [MIT License](../LICENSE) and supplies no evidence of an
+actual aircraft response.
 
 ## Full v0.1 acceptance criteria
 

@@ -158,8 +158,11 @@ Experiment schema or create unused adapters.
 Lock concrete dependency versions when implementing and validate installation
 against that lock. `uv` supports refusing implicit lock changes via `--locked`;
 see [locking and syncing](https://docs.astral.sh/uv/concepts/projects/sync/).
-The source distribution uses an explicit public-file inclusion list. Project
-and fixture licensing remain open release decisions.
+The source distribution uses an explicit public-file inclusion list. The
+project's original code, documentation and synthetic fixture use the
+[MIT License](../LICENSE). Source and wheel distributions include the license
+text and [direct runtime dependency notices](../THIRD_PARTY_NOTICES.md);
+dependencies retain their own terms.
 
 See the [first milestone proposal](first-milestone.md) for a candidate scope,
 and the [mode workflows](workflows.md) for the intended user experience.

@@ -7,8 +7,9 @@ MAVProxy, an autopilot or a simulator. Passing these fixture checks establishes
 behavior on this example, not interoperability with a particular QGroundControl
 release or evidence of an aircraft response.
 
-Distribution licensing for the fixture and project remains an open release
-decision; no redistribution license is assigned by this document.
+This original fixture, its expected-observation manifest and its generator are
+distributed under the project's [MIT License](../../LICENSE). External recordings
+are not covered by this license.
 
 ## Reproduction and identity
 

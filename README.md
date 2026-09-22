@@ -115,3 +115,10 @@ for local reproduction, the hosted-run status boundary and remaining release dec
 | [Verification and release preparation](docs/verification.md) | Automated checks, distribution contents, installed-package testing and v0.1 release conditions. |
 | [Changelog](CHANGELOG.md) | Features and limitations prepared for the first release. |
 | [Dependency notices](THIRD_PARTY_NOTICES.md) | Licensing information for the pinned direct runtime dependencies. |
+
+## License
+
+The original source code, documentation and synthetic telemetry fixture are
+licensed under the [MIT License](LICENSE). Dependencies retain their own
+licenses; see the [direct runtime dependency notices](THIRD_PARTY_NOTICES.md).
+Separately obtained recordings are not covered by the project license.

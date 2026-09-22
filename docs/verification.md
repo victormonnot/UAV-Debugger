@@ -88,10 +88,11 @@ wheel for the version declared in `pyproject.toml`. It compares source-archive
 files against the explicit Hatch inclusion list, and wheel modules/data against
 the package source. Unexpected, missing, duplicated or changed files cause a
 failure. It also checks distribution metadata and wheel integrity entries.
-When license metadata and explicit license-file paths are declared, their
-headers must agree with `pyproject.toml`; source and wheel archives must retain
-the declared files with their original bytes. The checker does not select a
-license or infer redistribution rights from a filename.
+The package declares `MIT` as its SPDX license expression. The corresponding
+metadata headers must agree with `pyproject.toml`; source and wheel archives must
+retain `LICENSE` and `THIRD_PARTY_NOTICES.md` with their original bytes. In wheels,
+both documents reside under the package's `.dist-info/licenses/` directory.
+The checker does not infer redistribution rights from a filename.
 
 The only packaged recording is `uav_debugger/data/telemetry-gap.tlog`, whose
 bytes must match the test fixture and its expected SHA-256. The separately
@@ -108,9 +109,17 @@ content verification, wheel installation, import-location verification and the
 complete loopback-only suite. **All 292 tests passed**, including seven Chromium
 workflows, 68 distribution checks and two browser-dependency opt-in checks.
 Ruff, fixture verification and workflow syntax checking with actionlint 1.7.12
-also passed. The archives contained 44 source files and 15 wheel files; only
-the synthetic fixture was packaged. This local run used the unprivileged
-namespace command.
+also passed. That run preceded the MIT license declaration and used the
+unprivileged namespace command.
+
+After MIT was declared on 2026-09-21, source and wheel builds were checked again:
+the archives contain **45 source files and 17 wheel files**, including the
+unchanged license text and dependency notices, with `License-Expression: MIT`
+and both `License-File` headers. The wheel was installed in a fresh locked
+environment, where the metadata and installed license files were verified.
+All 68 distribution tests, Ruff and deterministic fixture checks passed. The
+application source and fixture bytes are unchanged from the 292-test run; the
+full browser suite was not repeated for this licensing change.
 
 The hosted [Verification run #1](https://github.com/victormonnot/UAV-Debugger/actions/runs/35586054818)
 completed successfully on 2026-09-21 for commit
@@ -128,11 +137,11 @@ file and producer declaration tested.
 
 Before a v0.1 release:
 
-- Select the project and original synthetic fixture licenses, add their texts
-  and package metadata, and review dependency notices for the intended
-  distribution. These licensing decisions remain open; the
+- Review dependency notices for the intended distribution, especially if
+  bundling a complete environment. The original project code, documentation
+  and synthetic fixture use the [MIT License](../LICENSE); the
   [direct runtime dependency notices](../THIRD_PARTY_NOTICES.md) record the
-  pinned libraries' upstream terms and the scope of that review.
+  pinned libraries' separate upstream terms and the scope of that review.
 - Run the complete installed-package and archive checks for the candidate,
   and confirm the hosted workflow result for that commit.
 - Set the final version and prepare release notes describing the implemented

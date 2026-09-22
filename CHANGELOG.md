@@ -23,6 +23,9 @@
 - A file-only Python importer API and a command-line JSON summary.
 - A verification workflow that builds and checks distributions, installs the
   wheel, and runs core and Chromium tests with only loopback networking.
+- MIT licensing for the original source code, documentation and synthetic
+  fixture, with license text and direct runtime dependency notices included in
+  source and wheel distributions. Dependencies retain their own license terms.
 
 ### Supported input and limits
 

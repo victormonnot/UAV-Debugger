@@ -36,10 +36,11 @@ This notice records the direct runtime dependencies declared in `pyproject.toml`
 It is not an exhaustive inventory of transitive dependencies, components bundled
 by those dependencies, or development/browser tooling. Consult their own
 distributions and notices when redistributing an environment or a bundled
-application. `uv.lock` records the resolved dependency versions; a project
-license does not replace the terms of those dependencies.
+application. `uv.lock` records the resolved dependency versions. The MIT license
+for UAV Debugger's original code, documentation and synthetic fixture does not
+replace the terms of those dependencies.
 
 The separately obtained public QGroundControl recording is not a project fixture
 or a distributed dependency. Its provenance and verification limits are recorded
-in [the public recording check](docs/recording-validation.md); it is not included
+in [the public recording check](https://github.com/victormonnot/UAV-Debugger/blob/main/docs/recording-validation.md); it is not included
 in UAV Debugger packages.
