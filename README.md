@@ -3,10 +3,11 @@
 A standalone tool for inspecting UAV recordings, following observations back to
 their source frames and exporting analysis evidence.
 
-**Status: local Analyze workflow implemented.** Open one timestamped MAVLink
-recording in a browser, filter sources and time, plot attitude, inspect message
-activity and raw frames, and download a Markdown report. A Python API and JSON command-line
-summary expose the same imported evidence. Experiment remains planned.
+**Status: 0.1.0 prepared for release.** Use the local **Analyze** workflow to open
+one timestamped MAVLink recording in a browser, filter sources and time, plot
+attitude, inspect message activity and raw frames, and download a Markdown report.
+A Python API and JSON command-line summary expose the same imported evidence.
+Experiment remains planned.
 
 ## Quick start
 

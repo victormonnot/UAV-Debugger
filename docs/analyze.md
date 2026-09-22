@@ -282,7 +282,8 @@ These checks launch the local interface and use a real browser. The browser
 harness blocks non-local requests while exercising the application. Installing
 the browser is separate from running the tests and may require network access.
 
-For version 0.1.0.dev3 on Linux x86_64 with Python 3.12.3, all 292 tests passed in a fresh environment
+For version 0.1.0 on 2026-09-22, on Linux x86_64 with Python 3.12.3,
+all 292 tests passed in a fresh environment
 with locked dependencies and the installed application wheel, inside a Linux
 network namespace with only loopback enabled. This includes seven Chromium
 workflows covering upload, inclusive filtering, inspection, downloaded report

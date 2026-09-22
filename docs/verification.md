@@ -1,7 +1,7 @@
 # Verification and v0.1 release preparation
 
-UAV Debugger remains a development version, **0.1.0.dev3**. The current
-verification target is Linux x86_64, Python 3.12 and Chromium. Installation
+UAV Debugger **0.1.0** is prepared for release. The current verification target
+is Linux x86_64, Python 3.12 and Chromium. Installation
 metadata permits later Python versions; this does not establish their behavior
 or support for other operating systems.
 
@@ -103,32 +103,30 @@ review.
 
 ## Verification status and release conditions
 
-On 2026-09-21, the local sequence used uv 0.12.13 and Python 3.12.3 on Linux
-x86_64: a fresh locked dependency environment, an actual source/wheel build,
-content verification, wheel installation, import-location verification and the
-complete loopback-only suite. **All 292 tests passed**, including seven Chromium
-workflows, 68 distribution checks and two browser-dependency opt-in checks.
-Ruff, fixture verification and workflow syntax checking with actionlint 1.7.12
-also passed. That run preceded the MIT license declaration and used the
-unprivileged namespace command.
+On 2026-09-22, version **0.1.0** was checked locally with uv 0.12.13 and Python
+3.12.3 on Linux x86_64: a fresh locked dependency environment, an actual
+source/wheel build, content verification, wheel installation, import-location
+verification and the complete loopback-only suite. **All 292 tests passed**,
+including seven Chromium workflows, 68 distribution checks and two
+browser-dependency opt-in checks. Ruff, fixture verification, lock consistency
+and workflow syntax checking with actionlint 1.7.12 also passed. The run used
+the unprivileged namespace command above.
 
-After MIT was declared on 2026-09-21, source and wheel builds were checked again:
-the archives contain **45 source files and 17 wheel files**, including the
-unchanged license text and dependency notices, with `License-Expression: MIT`
-and both `License-File` headers. The wheel was installed in a fresh locked
-environment, where the metadata and installed license files were verified.
-All 68 distribution tests, Ruff and deterministic fixture checks passed. The
-application source and fixture bytes are unchanged from the 292-test run; the
-full browser suite was not repeated for this licensing change.
+The archives contain **45 source files and 17 wheel files**, including the
+original license text and dependency notices, with `License-Expression: MIT`
+and both `License-File` headers. Package installation preserves those documents
+and identifies version `0.1.0`; reports use that installed version. The only
+packaged recording is the unchanged synthetic fixture.
 
-The hosted [Verification run #1](https://github.com/victormonnot/UAV-Debugger/actions/runs/35586054818)
-completed successfully on 2026-09-21 for commit
-`f5fb8d55edbc815b4e7131d3843ba25336615de0`. Its Ubuntu 24.04 / Python 3.12 /
+The hosted [Verification run #2](https://github.com/victormonnot/UAV-Debugger/actions/runs/35769104887)
+completed successfully on 2026-09-22 for commit
+`e7d617cb31da2e22222efa841b4d82672d296941`, the preceding `0.1.0.dev3` version with
+MIT licensing. Its Ubuntu 24.04 / Python 3.12 /
 Chromium job completed the distribution checks, wheel installation and tests
 inside the privileged network-namespace setup. The public job status confirms
 successful steps; the numerical test total above comes from the local run,
-not hosted logs. This result applies to that commit. Later release candidates
-require their own successful run.
+not hosted logs. This result applies to that commit; hosted verification of
+the prepared `0.1.0` changes remains pending until they are committed and pushed.
 
 The [Analyze guide](analyze.md#browser-workflow-checks)
 records the bounded browser verification, and the
@@ -144,9 +142,11 @@ Before a v0.1 release:
   pinned libraries' separate upstream terms and the scope of that review.
 - Run the complete installed-package and archive checks for the candidate,
   and confirm the hosted workflow result for that commit.
-- Set the final version and prepare release notes describing the implemented
-  input profile, tested platforms, capacity and observation limits. The
-  [unreleased changelog](../CHANGELOG.md) records the current feature boundary.
+- Publish only after the candidate's verification succeeds. Version `0.1.0`
+  and its [release notes](../CHANGELOG.md) are prepared; the notes describe the
+  implemented input profile, tested platforms, capacity and observation limits.
+  Preparing a version does not create a tag, GitHub release or package-index
+  publication. The verification workflow performs none of those actions.
 
 The current input remains the bounded QGroundControl-style timestamped profile,
 unsigned MAVLink 1/2 and pinned `common` definitions, with a 10 MiB file limit

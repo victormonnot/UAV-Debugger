@@ -1,6 +1,6 @@
 # First milestone: offline Analyze
 
-**Status: offline Analyze workflow implemented in the development version.**
+**Status: offline Analyze workflow implemented for version 0.1.0.**
 The file importer, synthetic fixture, exact source/type/time filters, activity
 plot, ATTITUDE curves, record inspector and Markdown evidence report are available. See the
 [Analyze guide](analyze.md) and [importer guide](importer.md) for usage and the
