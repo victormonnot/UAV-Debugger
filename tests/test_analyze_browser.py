@@ -23,21 +23,54 @@ def metric(page, label):
     )
 
 
-def choose(page, label, option):
-    # Streamlit streams a rerun incrementally; wait before interacting with a new widget.
+def wait_for_render(page):
     page.locator('[data-testid="stApp"][data-test-script-state="notRunning"]').wait_for()
+    page.wait_for_function("!document.querySelector('[data-testid=stSkeleton]')")
     page.get_by_role("button", name="Download report", exact=True).wait_for(state="visible")
+
+
+def choose(page, label, option):
+    wait_for_render(page)
     field = page.get_by_role("combobox", name=label, exact=True)
-    # Keyboard opening also handles an existing value that a click only focuses.
-    field.click()
+    # The popup closes on ancestor scrolling. Finish scrolling to a control below
+    # the charts before opening it, including delivery of pending scroll events.
+    field.scroll_into_view_if_needed()
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    field.fill(option)
     field.press("ArrowDown")
-    page.get_by_role("option", name=option, exact=True).click()
+    candidate = page.get_by_role("option", name=option, exact=True)
+    candidate.click()
+    candidate.wait_for(state="hidden")
+    if label == "Record":
+        # A local selectbox value changes before its rerun updates the inspector/report.
+        heading = f"Record {option.split(' · ', 1)[0]}"
+        page.get_by_role("heading", name=heading, exact=True).wait_for()
+        wait_for_render(page)
+
+
+def apply_changed_filters(page):
+    # These cases change the selection while retaining some of the same records.
+    # Unchanged counts and notRunning can still belong to the previous execution.
+    previous_record = page.get_by_role("combobox", name="Record", exact=True).element_handle()
+    assert previous_record is not None
+    page.get_by_role("button", name="Apply filters", exact=True).click()
+    page.wait_for_function("element => !element.isConnected", arg=previous_record)
+    wait_for_render(page)
 
 
 def set_interval(page, start, end):
+    wait_for_render(page)
     page.get_by_role("textbox", name="Start (s)", exact=True).fill(str(start))
     page.get_by_role("textbox", name="End (s)", exact=True).fill(str(end))
     page.get_by_role("button", name="Apply filters", exact=True).click()
+    # The record count may stay unchanged; await the actual applied bounds instead.
+    page.get_by_text(
+        f"Applied time range: {start} to {end} s · Apply filters to update the view and report.",
+        exact=True,
+    ).wait_for()
+    wait_for_render(page)
 
 
 def upload(page, content, name="telemetry-gap.tlog"):
@@ -71,7 +104,7 @@ def click_attitude_point(page, point_index):
 
 
 def download_blocks(page, path):
-    page.locator('[data-testid="stApp"][data-test-script-state="notRunning"]').wait_for()
+    wait_for_render(page)
     with page.expect_download() as pending:
         page.get_by_role("button", name="Download report", exact=True).click()
     download = pending.value
@@ -109,10 +142,12 @@ def test_experiment_captures_open_independently_and_export_evidence(
         capture = output / f"{point}.tlog"
         imported = import_file(capture)
         upload(page, capture.read_bytes(), name=capture.name)
+        # The second capture can have the same record count as the first one.
+        expect(page.locator("code").filter(has_text=imported.sha256)).to_have_count(1)
         expect(metric(page, "Imported records")).to_have_text(str(len(imported.records)))
         choose(page, "Source", "1 / 1")
         choose(page, "Message type", "ATTITUDE")
-        page.get_by_role("button", name="Apply filters", exact=True).click()
+        apply_changed_filters(page)
         expect(metric(page, "Selected records")).to_have_text(str(len(imported.records)))
         expect(attitude_plot(page)).to_be_visible()
         inspected = imported.records[1]
@@ -144,7 +179,7 @@ def test_upload_filter_inspect_and_download(analyze_page, tmp_path):
 
     choose(page, "Source", "1 / 1")
     choose(page, "Message type", "ATTITUDE")
-    page.get_by_role("button", name="Apply filters", exact=True).click()
+    apply_changed_filters(page)
     expect(metric(page, "Selected records")).to_have_text("2")
     set_interval(page, 1, 5)
     expect(metric(page, "Selected records")).to_have_text("2")
