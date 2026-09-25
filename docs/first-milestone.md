@@ -1,14 +1,15 @@
 # First milestone: offline Analyze
 
-**Status: offline Analyze workflow implemented for version 0.1.0.**
+**Status: offline Analyze published in version 0.1.0.**
 The file importer, synthetic fixture, exact source/type/time filters, activity
 plot, ATTITUDE curves, record inspector and Markdown evidence report are available. See the
 [Analyze guide](analyze.md) and [importer guide](importer.md) for usage and the
 actual verification boundary. [One public producer recording](recording-validation.md)
 has been checked with partial decoding coverage; broader producer compatibility
-remains unverified. Experiment is a separate later delivery.
+remains unverified. The separate [local Experiment CLI](experiment.md) is an
+unreleased subsequent increment and does not change the v0.1.0 scope below.
 The [verification workflow and release guide](verification.md) cover automated
-installed-package checks, archive contents and remaining publication decisions.
+installed-package checks, archive contents and publication evidence.
 
 ## User outcome: investigate a gap in recorded telemetry
 
@@ -137,18 +138,19 @@ not a guarantee for all producers, message mixes or hardware.
   the delivered version. Synthetic importer verification does not establish
   compatibility with an untested producer.
 
-## Candidate follow-up: one controlled experiment
+## Subsequent increment: one controlled experiment
 
-After a usable analyzer exists, a separate delivery could forward a known local
-MAVLink stream through a bounded experiment path, introduce one specified
-one-direction interruption, record applied actions and endpoint observations,
-and inspect the resulting session in Analyze. Nominal and perturbed runs should
-share the same configuration except for the studied change.
+The unreleased [Experiment CLI](experiment.md) now forwards a synthetic local
+MAVLink stream through a bounded relay path, supports one two-second interruption
+in forwarding, and records actual actions and observations before and after the
+relay. Baseline and blackout runs use the same requested configuration apart
+from the selected scenario. Each capture opens independently in Analyze.
 
-That delivery needs its own target topology, scenario semantics, recording
-format, stop behavior and verification criteria. A stream experiment would
-establish behavior on that configured path; autopilot response would require an
-additional actual simulator/bench integration and its own evidence.
+The Experiment guide defines its topology, scenario semantics, recording format,
+clocks and stop behavior. The stream experiment establishes behavior on that
+configured local path; autopilot response would require an additional actual
+simulator/bench integration and its own evidence. The Experiment interface and
+automatic comparison remain later work.
 
 See [project scope](project-scope.md) and [architecture direction](architecture.md)
 for the product boundaries and shared analysis design.

@@ -1,7 +1,8 @@
-# Verification and v0.1 release preparation
+# Verification and release checks
 
-UAV Debugger **0.1.0** provides the offline Analyze workflow. Its verification target
-is Linux x86_64, Python 3.12 and Chromium. Installation
+Published UAV Debugger **0.1.0** provides the offline Analyze workflow. The
+unreleased development version **0.2.0.dev0** adds the local Experiment CLI.
+The verification target is Linux x86_64, Python 3.12 and Chromium. Installation
 metadata permits later Python versions; this does not establish their behavior
 or support for other operating systems.
 
@@ -103,6 +104,42 @@ review.
 
 ## Verification status and release conditions
 
+### Local Experiment development checks
+
+On 2026-09-25, development version **0.2.0.dev0** was built and installed in a
+fresh locked environment on Linux x86_64 / Python 3.12.3 with uv 0.12.13.
+The complete suite ran against the installed wheel inside an unprivileged
+user/network namespace with only loopback enabled: **329 tests passed**,
+including nine Chromium workflows and 35 Experiment tests. Ruff lint/format,
+fixture verification and lock consistency also passed. No dependency versions
+changed. This is local verification of an unreleased increment, not hosted CI
+or publication evidence for a new release.
+
+Experiment tests exercise actual UDP receipt at both capture points, byte
+preservation, a full two-second blackout and resumption, observation references
+and fingerprints, sequence wrap, wall-clock regression, rejected configuration
+and existing output, SIGINT/SIGTERM, and cleanup after socket setup/send/close
+and capture-write failures. New Chromium cases open both captures from each
+scenario, apply source/type filters, inspect a record and export its report.
+Existing Analyze checks remain in the same complete suite.
+
+The installed console command also ran the two default six-second scenarios
+with only loopback networking. The baseline recorded **120 input / 120 receiver**
+messages. The blackout recorded **120 input / 80 receiver**, with **40 actual
+relay drops** and a measured monotonic gate interval of **2.000068776 seconds**.
+The largest receiver observation interval was **2.049653 seconds** on the wall
+clock. All four captures imported completely with no opaque records; forwarded
+frame bytes matched receiver observations in these runs. These are measured
+results, not guaranteed counts, precise timing or vehicle-behavior claims.
+
+The development archives contain **48 source files / 18 wheel files**, including
+the Experiment module, console entry point and source guide/tests. Content checks
+verify public inputs, metadata, licensing and the unchanged synthetic fixture.
+Experiment recordings and private local notes are excluded. See the
+[Experiment guide](experiment.md) for reproduction and evidence limits.
+
+### Published v0.1.0 baseline
+
 On 2026-09-22, version **0.1.0** was checked locally with uv 0.12.13 and Python
 3.12.3 on Linux x86_64: a fresh locked dependency environment, an actual
 source/wheel build, content verification, wheel installation, import-location
@@ -151,5 +188,6 @@ The current input remains the bounded QGroundControl-style timestamped profile,
 unsigned MAVLink 1/2 and pinned `common` definitions, with a 10 MiB file limit
 and 5,000 selected ATTITUDE records per curve view. One historical producer
 attachment has complete traversal and partial decoding; current producer
-versions are not generally verified. Experiment execution and other formats
-remain separate future capabilities.
+versions are not generally verified. The local synthetic Experiment runner is
+an unreleased development capability. Simulator/bench integration, an Experiment
+interface, automatic comparison and other formats remain future work.

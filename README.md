@@ -7,7 +7,10 @@ their source frames and exporting analysis evidence.
 one timestamped MAVLink recording in a browser, filter sources and time, plot
 attitude, inspect message activity and raw frames, and download a Markdown report.
 A Python API and JSON command-line summary expose the same imported evidence.
-Experiment remains planned.
+The current development version, **0.2.0.dev0**, includes an **unreleased
+Experiment CLI** for a bounded synthetic sender → relay → receiver run on local
+UDP, with optional two-second
+forwarding interruption and captures for Analyze.
 
 ## Quick start
 
@@ -54,6 +57,27 @@ The [importer guide](docs/importer.md) documents the Python API, JSON output and
 exit codes; the [fixture documentation](tests/fixtures/README.md) records the
 example's provenance and expected observations.
 
+## Local Experiment preview
+
+From the current source checkout, run a baseline and a second experiment with
+a two-second interruption:
+
+```sh
+uv run --locked uav-debugger-experiment --output local/experiments/baseline --scenario baseline
+uv run --locked uav-debugger-experiment --output local/experiments/blackout --scenario blackout
+```
+
+Each run defaults to six seconds and requires a new output directory. A synthetic
+20 Hz `ATTITUDE` sender, a byte-preserving relay and a receiver exchange UDP
+datagrams on `127.0.0.1` in one process. The relay input and receiver record
+messages they actually read as `relay-input.tlog` and `receiver.tlog`. Open each
+file separately in Analyze. Requested settings, applied actions and observations
+are also retained with explicit clocks; `Ctrl+C` stops cleanly.
+
+See the [Experiment guide](docs/experiment.md) for configuration, output files,
+termination and evidence limits. This first increment has no simulator,
+Experiment interface or automatic comparison. It is not included in v0.1.0.
+
 ## Current input support
 
 The `qgc-timestamped-mavlink-v1` profile reads repeated 8-byte big-endian Unix
@@ -76,7 +100,7 @@ cause.
 | Mode | Direction | Current implementation |
 | --- | --- | --- |
 | **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown report, Python API and JSON import summary. |
-| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Planned; no active execution. |
+| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Unreleased CLI: synthetic sender, relay and receiver on local UDP; baseline and two-second forwarding interruption; separate action and observation evidence. |
 
 Analyze remains independently usable from saved files. Opening a recording never
 starts an experiment or sends vehicle commands. Video, session comparison and
@@ -94,27 +118,30 @@ uv run --locked python scripts/generate_fixture.py --check
 The fixture generator's `--check` mode compares deterministic bytes without
 rewriting the fixture. Core tests cover importer boundaries, exact time
 selection, observation intervals, plot counts and discontinuities, report provenance and actual
-command-line invocations. Browser tests are opt-in; installation and commands
+command-line invocations. Experiment checks exercise local UDP captures,
+blackout decisions, evidence references and shutdown. Browser tests are opt-in;
+installation and commands
 are documented in the [Analyze guide](docs/analyze.md#browser-workflow-checks).
 The [Verification workflow](.github/workflows/ci.yml) is configured to check source,
 build and inspect distributions, then run the installed package's complete test suite
 with only loopback networking. See [verification and release preparation](docs/verification.md)
-for local reproduction, the hosted-run status boundary and remaining release decisions.
+for local reproduction, current development checks and published-release evidence.
 
 ## Documentation
 
 | Document | Contents |
 | --- | --- |
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
+| [Experiment guide](docs/experiment.md) | Run the local synthetic baseline/interruption, inspect captures and interpret execution evidence. |
 | [Importer guide](docs/importer.md) | Installation, input profile, API, CLI outcomes and limits. |
 | [Public recording verification](docs/recording-validation.md) | Download source, exact fingerprint, observed coverage and a reproducible browser case. |
 | [Synthetic fixture](tests/fixtures/README.md) | Provenance, byte references and expected observations. |
 | [Project scope](docs/project-scope.md) | Users, boundaries and product principles. |
-| [Mode workflows](docs/workflows.md) | Intended Analyze and Experiment workflows. |
-| [Architecture direction](docs/architecture.md) | Imported evidence, analysis, local presentation and future execution boundaries. |
-| [First milestone](docs/first-milestone.md) | Delivered Analyze workflow, verification and remaining release work. |
-| [Verification and release preparation](docs/verification.md) | Automated checks, distribution contents, installed-package testing and v0.1 release conditions. |
-| [Changelog](CHANGELOG.md) | Features and limitations prepared for the first release. |
+| [Mode workflows](docs/workflows.md) | Current Analyze and Experiment workflows and later capabilities. |
+| [Architecture direction](docs/architecture.md) | Imported evidence, analysis, local presentation and optional execution. |
+| [First milestone](docs/first-milestone.md) | Delivered v0.1.0 Analyze workflow and its verification boundary. |
+| [Verification and release preparation](docs/verification.md) | Automated checks, distribution contents, installed-package testing and release evidence. |
+| [Changelog](CHANGELOG.md) | Published and unreleased features and limitations. |
 | [Dependency notices](THIRD_PARTY_NOTICES.md) | Licensing information for the pinned direct runtime dependencies. |
 
 ## License

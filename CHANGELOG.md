@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- A local **Experiment** CLI with a synthetic 20 Hz MAVLink 2 `ATTITUDE`
+  sender, byte-preserving UDP relay and receiver restricted to `127.0.0.1`.
+  One process runs a baseline or a two-second interruption in forwarding;
+  the default six-second duration is configurable within bounded limits.
+- Separate timestamped MAVLink captures of actual socket reads at the relay
+  input and receiver, opened individually by the existing Analyze workflow.
+- A run manifest and JSONL action/observation records distinguishing requested
+  settings, applied decisions, record references and monotonic, wall and
+  synthetic sender clocks.
+- Orderly `SIGINT`/`SIGTERM` handling, bounded draining, explicit completed,
+  interrupted and failed outcomes, and rejection of existing output directories.
+
+### Scope
+
+- Analyze retains its independent file-only import and browser workflow.
+  Experiment does not add a simulator, vehicle connection, active browser
+  controls, trace import or automatic comparison.
+- Local UDP observations establish behavior on the configured synthetic path;
+  they do not establish physical link performance or autopilot/failsafe behavior.
+  See the [Experiment guide](docs/experiment.md) for usage and clock limits.
+
 ## 0.1.0 — 2026-09-22
 
 ### Added

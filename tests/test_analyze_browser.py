@@ -4,6 +4,8 @@ import hashlib
 import json
 import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -78,6 +80,54 @@ def download_blocks(page, path):
     return [
         json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", path.read_text(), re.S)
     ]
+
+
+@pytest.mark.parametrize("scenario", ["baseline", "blackout"])
+def test_experiment_captures_open_independently_and_export_evidence(
+    analyze_page, tmp_path, scenario
+):
+    from uav_debugger import import_file
+
+    output = tmp_path / scenario
+    command = [
+        sys.executable,
+        "-m",
+        "uav_debugger.experiment",
+        "--output",
+        str(output),
+        "--scenario",
+        scenario,
+        "--duration",
+        "2.4" if scenario == "blackout" else "0.3",
+    ]
+    if scenario == "blackout":
+        command.extend(["--blackout-at", "0.2"])
+    process = subprocess.run(command, capture_output=True, text=True, timeout=10, check=False)
+    assert process.returncode == 0, process.stderr
+    page, expect = analyze_page
+    for point in ("relay-input", "receiver"):
+        capture = output / f"{point}.tlog"
+        imported = import_file(capture)
+        upload(page, capture.read_bytes(), name=capture.name)
+        expect(metric(page, "Imported records")).to_have_text(str(len(imported.records)))
+        choose(page, "Source", "1 / 1")
+        choose(page, "Message type", "ATTITUDE")
+        page.get_by_role("button", name="Apply filters", exact=True).click()
+        expect(metric(page, "Selected records")).to_have_text(str(len(imported.records)))
+        expect(attitude_plot(page)).to_be_visible()
+        inspected = imported.records[1]
+        choose(page, "Record", f"#{inspected.index} · ATTITUDE · 1 / 1")
+        expect(
+            page.get_by_role("heading", name=f"Record #{inspected.index}", exact=True)
+        ).to_be_visible()
+        blocks = download_blocks(page, tmp_path / f"{scenario}-{point}-report.md")
+        provenance, selection, _coverage, _issues, detail = blocks
+        assert provenance["sha256"] == imported.sha256
+        assert provenance["source_name"] == capture.name
+        assert selection["sources"] == [[1, 1]]
+        assert selection["message_ids"] == [30]
+        assert detail["index"] == inspected.index
+        assert detail["raw_frame_hex"] == inspected.raw_frame.hex()
 
 
 def test_upload_filter_inspect_and_download(analyze_page, tmp_path):

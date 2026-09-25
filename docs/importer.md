@@ -4,7 +4,9 @@ The first Analyze component reads one local recording and exposes its source
 bytes, decoded records and import issues through a Python API. A small CLI prints
 a JSON import summary. The [Analyze interface](analyze.md) adds interactive
 filtering, an activity plot, record inspection and Markdown report export using
-this importer. Experiment execution remains unimplemented.
+this importer. The optional [Experiment CLI](experiment.md) writes captures in
+the same supported profile; the importer remains independent of execution and
+opens no transports.
 
 ## Install and run
 

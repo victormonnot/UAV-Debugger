@@ -1,30 +1,54 @@
 # Workflows
 
 The current [Analyze interface](analyze.md) covers opening one supported file,
-filtering observations, inspecting records and exporting evidence. The broader
-workflows below also describe future capabilities: video, session comparison
-and active Experiment. The intended modes share session analysis, with either
-usable independently of the other.
+filtering observations, inspecting records and exporting evidence. The
+unreleased [Experiment CLI](experiment.md) runs a bounded local synthetic path
+and produces captures for that same analysis. Video, session comparison and
+simulator integration remain future capabilities.
 
 ## Analyze an existing session
 
-1. Select recordings in a supported format and identify their sources.
+1. Open one recording in a supported format and identify its sources.
 2. Review what was imported, what is missing and any parsing limitations.
-3. Inspect the timeline, telemetry, events and available video.
+3. Filter source, message type and time; inspect activity and attitude plots.
 4. Follow a question from an event to its underlying source evidence.
-5. Compare another session when useful, preserving differences in conditions.
-6. Save findings with evidence references and unresolved questions.
+5. Save a report with evidence references and observation limits.
 
-For example, a user investigating a telemetry gap could inspect the last
-available messages, any reported mode change and a corresponding video segment.
-If the recording contains no evidence of the vehicle during the gap, the tool
-should show that absence rather than infer what the UAV did.
+For example, a user investigating a telemetry gap can inspect the last and next
+available messages from a selected source. If the recording contains no
+evidence of the vehicle during the gap, the tool shows that absence without
+inferring what the UAV did. Correlating video or comparing sessions is a later
+workflow.
 
 Sources may have different clocks or incomplete timestamps. An aligned view
 should retain original timestamps and disclose its alignment assumptions.
 When reliable alignment is unavailable, that uncertainty remains visible.
 
-## Run a controlled experiment
+## Run the local synthetic experiment
+
+1. Run the CLI with `--scenario baseline` and a new output directory.
+2. Run it again with `--scenario blackout` and a different output directory.
+   Keep the same requested duration; the default is six seconds in both cases.
+3. Inspect each run's `run.json` outcome, requested settings and actual endpoint
+   topology. Read the applied gate transitions in `actions.jsonl`.
+4. Open `relay-input.tlog` and `receiver.tlog` separately in Analyze. Review
+   provenance, filter source `1 / 1` and `ATTITUDE`, inspect the curves and the
+   records around any interval, then save each report.
+5. Follow capture references in `observations.jsonl` to relate actual reads to
+   the run's monotonic and wall-clock evidence. Retain the full run directory.
+
+The blackout suppresses relay forwarding for two seconds from actual gate
+activation. The input capture keeps recording received datagrams; the receiver
+capture contains only datagrams actually read downstream. Configuration alone
+does not establish that a transition occurred, and send success alone does not
+establish receiver observation. Exact counts and timing depend on scheduling.
+
+Analyze opens each capture independently. It does not import the JSON execution
+trace, align files or compare runs automatically. Opening any saved recording
+never starts or resumes an experiment. The [Experiment guide](experiment.md)
+defines the clocks, stop behavior, outcome codes and detailed usage.
+
+## Later simulation or bench workflow
 
 1. State the behavior to investigate and the observations needed to assess it.
 2. Identify the simulation or bench setup and the MAVLink path under test.
@@ -39,7 +63,7 @@ requested interruption, the interval applied by the runner and the messages
 seen at each recorded observation point. Any conclusion about vehicle behavior
 would require the relevant vehicle evidence as well.
 
-The session should retain the scenario and relevant environment configuration,
+Such a session should retain the scenario and relevant environment configuration,
 including any random seed when the perturbation depends on randomness. Failed,
 cancelled and incomplete runs should remain distinguishable from completed runs.
 
@@ -62,7 +86,8 @@ A comparison should make relevant differences in inputs, configuration and
 available evidence visible. Reusing a scenario should reproduce its requested
 conditions while retaining the actual application record for each run.
 
-An independently imported session and a session produced by Experiment should
-use the same analysis concepts. The current recording representation is concrete;
-the future experiment trace remains to be defined. See [architecture](architecture.md)
-and the [first milestone](first-milestone.md) for the implementation boundary.
+An independently imported recording and a capture produced by Experiment use
+the same analysis components. The current CLI defines a concrete local trace;
+broader target configuration and automatic comparison remain future work. See
+[architecture](architecture.md) and the [first milestone](first-milestone.md)
+for the implementation boundary.

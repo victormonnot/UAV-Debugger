@@ -5,6 +5,12 @@ It provides source and time filters, activity and attitude plots, message inspec
 and a Markdown evidence report. The same file-only importer is available through the
 [Python API and command-line summary](importer.md).
 
+The optional [Experiment CLI](experiment.md) produces `relay-input.tlog` and
+`receiver.tlog` captures for this same workflow. Open them individually; their
+outer timestamps identify actual reads at different observation points. Analyze
+does not load the run's JSON action trace, align the captures or compare them
+automatically. Opening a capture never starts or resumes execution.
+
 ## Install and launch
 
 The initial runtime target is Linux with Python 3.12. From the repository root,

@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "uav-debugger"
-version = "0.1.0"
-description = "Offline UAV recording inspection with explicit source and time provenance"
+version = "0.2.0.dev0"
+description = "UAV recording analysis and bounded local MAVLink experiments with explicit provenance"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
@@ -20,6 +20,7 @@ Issues = "https://github.com/victormonnot/UAV-Debugger/issues"
 [project.scripts]
 uav-debugger = "uav_debugger.__main__:main"
 uav-debugger-analyze = "uav_debugger.analyze:main"
+uav-debugger-experiment = "uav_debugger.experiment:main"
 
 [dependency-groups]
 dev = ["pytest==9.1.1", "ruff==0.16.7"]
@@ -52,6 +53,7 @@ include = [
     "/docs/first-milestone.md",
     "/docs/importer.md",
     "/docs/analyze.md",
+    "/docs/experiment.md",
     "/docs/recording-validation.md",
     "/docs/verification.md",
 ]

@@ -1,11 +1,12 @@
 # Architecture direction
 
-This document combines the product architecture direction with the first
-implemented boundary: a Python file importer, in-memory evidence, exact filters,
-activity and attitude plots, record inspection, Markdown reports and a JSON command. See
-the [Analyze guide](analyze.md) and [importer guide](importer.md) for current use.
-Experiment execution and cross-session comparison remain future work; the diagram
-below describes the intended complete workflow.
+UAV Debugger implements a Python file importer, in-memory evidence, exact filters,
+activity and attitude plots, record inspection, Markdown reports and a JSON
+command. The unreleased Experiment CLI adds a bounded synthetic local UDP path
+and saves captures for those same analysis components. See the
+[Analyze guide](analyze.md), [importer guide](importer.md) and
+[Experiment guide](experiment.md) for current use. Simulator integration and
+cross-session comparison remain future work.
 
 ## Shared analysis, optional experiment execution
 
@@ -14,32 +15,57 @@ flowchart LR
     files["Supported saved recordings"] --> import["Import and validate"]
     import --> session["Session evidence"]
     session --> analyze["Analyze"]
-    analyze --> report["Review and comparison reports"]
-    scenario["Experiment scenario"] --> runner["Optional experiment runner"]
-    runner --> target["Configured simulation or bench target"]
-    runner --> trace["Applied actions and observations"]
-    target --> trace
-    trace --> import
+    analyze --> report["Evidence report"]
+    scenario["Baseline or blackout settings"] --> runner["Optional local Experiment CLI"]
+    runner --> path["Synthetic sender → relay → receiver"]
+    path --> captures["Two timestamped MAVLink captures"]
+    captures --> import
+    runner --> trace["JSON manifest, actions and observations"]
 ```
 
-The runner produces evidence for the same analyzer rather than a second
-investigation interface. File analysis has no operational dependency on the
-runner. Shared responsibilities can initially live in one application process;
-process boundaries should follow demonstrated needs.
+The runner's two captures use the existing import profile. Analyze opens one
+file at a time; JSON execution traces stay alongside the captures and are not
+imported or automatically aligned. File analysis has no operational dependency
+on the runner. The explicit Experiment command is the only entry point that
+starts the local sender and relay.
 
 ## Responsibilities
 
-| Responsibility | Proposed contract |
+| Responsibility | Current contract |
 | --- | --- |
 | Import | Identify a supported format and its version, validate the input and retain its origin. Unsupported or damaged input produces an explicit outcome. |
 | Session evidence | Preserve source identity, original ordering, timestamps with their meaning, decoded observations and references to original records. |
-| Analysis | Select sources and intervals, inspect measurements/events and compare recorded observations without changing their meaning. |
-| Experiment execution | Apply the declared scenario to the selected test path and record actual actions, observations, termination and failures. |
-| Reports | Present observations and limitations with links back to their sources; distinguish complete, partial and failed runs. |
+| Analysis | Select sources and intervals, inspect recorded measurements and preserve original meaning. Automatic comparison remains future work. |
+| Experiment execution | Apply the baseline or blackout scenario to the local synthetic path and record actual actions, observations, termination and failures. |
+| Reports | Present imported observations and limitations with references to their sources. Experiment outcome remains in the separate run manifest. |
 
 The importer now represents file bytes, decoded records and import issues in
 `ImportResult`, `Record` and `ImportIssue`. This concrete recording model does
-not define the future experiment-event schema.
+not depend on the runner's JSON event schema.
+
+## Local execution boundary
+
+`experiment.py` owns configuration validation, the synthetic MAVLink encoder,
+four loopback UDP sockets, selector scheduling, capture writing, JSON evidence
+and shutdown. Sender, relay and receiver share one process. The relay input is
+observed before its forwarding/drop decision; the receiver is observed only
+after an actual socket read. Captures preserve original datagram frame bytes.
+No network or serial transport factory is exposed to file analysis.
+
+The runner schedules using monotonic nanoseconds and records elapsed time from
+the run origin. Capture timestamps use host wall-clock Unix microseconds sampled
+after the read. The synthetic payload's `time_boot_ms` is sender elapsed time;
+it stays separate from those capture clocks. Requested gate timing, actual gate
+transitions and socket observations are different evidence. The implementation
+does not measure kernel receive timestamps or infer exact transport latency.
+
+The output directory is exclusive to one run. `run.json` records settings,
+versions, endpoints, outcome, counters and fingerprints; `actions.jsonl` records
+application decisions, and `observations.jsonl` links reads to their captures.
+Normal completion or catchable termination stops production, drains local
+datagrams for a bounded interval and closes resources. A failure to finalize
+evidence cannot establish successful completion. The
+[Experiment guide](experiment.md) defines the public contract and limitations.
 
 ## Evidence conventions
 
@@ -66,8 +92,8 @@ MAVLink's [packet format](https://mavlink.io/en/guide/serialization.html) descri
 message identity and decoding conventions. Its
 [time synchronization protocol](https://mavlink.io/en/services/timesync.html)
 and [command protocol](https://mavlink.io/en/services/command.html) are primary
-references for timing and acknowledgement semantics. Only the documented file
-import profile is implemented; time synchronization and commands are not.
+references for timing and acknowledgement semantics. The implemented file
+profile and synthetic runner do not implement time synchronization or commands.
 
 ## Input boundaries
 
@@ -76,7 +102,7 @@ import profile is implemented; time synchronization and commands are not.
 | MAVLink recordings | Implemented bounded QGroundControl-style timestamped profile, unsigned MAVLink 1/2, pinned `common` dialect; checked with synthetic inputs and [one public producer recording](recording-validation.md) with partial decoding coverage. |
 | Onboard flight logs | Possible later integration; no formats selected or implemented. |
 | Video and associated timing | Intended analysis capability; encoding and synchronization support remain open. |
-| Experiment traces | Intended shared input; format will follow the first implemented experiment. |
+| Experiment captures and traces | Two local timestamped MAVLink captures feed the existing importer; JSON settings/actions/observations are retained separately and have no Analyze trace-import interface. |
 | ARGOS recordings | Possible adapter; core analysis remains independent of ARGOS. |
 
 Different input adapters may describe different observations. Converting them
@@ -91,12 +117,13 @@ and Ruff are in use. Playwright is an optional browser-test dependency.
 
 | Concern | Implementation | Reason |
 | --- | --- | --- |
-| Runtime | Python 3.12; importer verified on Linux x86_64 | One runtime for decoding, analysis and the intended interface. |
+| Runtime | Python 3.12; Linux x86_64 | One runtime for decoding, analysis, presentation and local execution. |
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
 | Interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection and download in one application. |
 | Timeline | Plotly with explicit source/type/time controls | Activity and attitude plots with point-to-record inspection; zoom does not change filters. |
 | Session data | Python data structures in memory | One recording per browser session; persistence needs are initially limited to report export. |
 | Report | Markdown download | Readable evidence summary with source fingerprints and record references. |
+| Experiment | Standard-library sockets, selectors, clocks, signals and JSON; existing pinned MAVLink encoder | A bounded local path without extra dependencies or a generic target framework. |
 | Environment and checks | `pyproject.toml`, `uv.lock`, pytest and Ruff | Reproducible dependencies, behavioral tests and basic source checks. |
 
 Streamlit runs the Python backend on the host and presents the interface in a
@@ -152,8 +179,8 @@ This approach provides a small navigable analyzer alongside the JSON inspection
 command. An API and custom web frontend would become
 useful if richer coordinated interactions or synchronized video justify them.
 Database storage, native packaging and separate execution services would follow
-demonstrated needs. The first implementation does not need to define the future
-Experiment schema or create unused adapters.
+demonstrated needs. The local Experiment schema covers the implemented path;
+unused adapters and a general target framework are outside this increment.
 
 Lock concrete dependency versions when implementing and validate installation
 against that lock. `uv` supports refusing implicit lock changes via `--locked`;
@@ -164,5 +191,5 @@ project's original code, documentation and synthetic fixture use the
 text and [direct runtime dependency notices](../THIRD_PARTY_NOTICES.md);
 dependencies retain their own terms.
 
-See the [first milestone proposal](first-milestone.md) for a candidate scope,
-and the [mode workflows](workflows.md) for the intended user experience.
+See the [first milestone](first-milestone.md) for the published Analyze scope,
+and the [mode workflows](workflows.md) for current and intended user experience.
