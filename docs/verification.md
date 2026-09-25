@@ -1,8 +1,8 @@
 # Verification and release checks
 
 Published UAV Debugger **0.1.0** provides the offline Analyze workflow. The
-unreleased development version **0.2.0.dev1** adds local synthetic and pinned
-ArduCopter SITL Experiment workflows.
+unreleased development version **0.2.0.dev2** adds local synthetic and pinned
+ArduCopter SITL Experiment workflows and offline inspection of saved run evidence.
 The verification target is Linux x86_64, Python 3.12 and Chromium. Installation
 metadata permits later Python versions; this does not establish their behavior
 or support for other operating systems.
@@ -105,6 +105,38 @@ review.
 
 ## Verification status and release conditions
 
+### Offline saved Experiment inspection
+
+The saved-run reader checks real synthetic output and constructed bounded v2
+traces, including grouped datagrams, opaque frames, legacy v1 clocks, duplicate
+references, damaged prefixes, missing artifacts, hash mismatches, invalid clocks,
+input bounds and file-type/path restrictions. A subprocess check imports and
+reads saved evidence while rejecting execution-module imports and socket creation.
+The report checks retain requested/applied/observed distinctions, original
+provenance, partial evidence and explicitly bounded detail.
+
+Four additional Chromium workflows cover synthetic directory upload, combined
+report export, the monotonic timeline, capture-point selection resets, missing
+receiver evidence, ambiguous directory replacement and recovery to ordinary
+recording Analyze. Two native SITL saved-directory workflows reuse the existing
+baseline and blackout fixtures and check startup clocks, datagram references,
+opaque records and selected ATTITUDE reports. Additional native simulator working files are listed as excluded from analysis
+and do not enter the run fingerprint or report.
+
+On 2026-09-25, the final **0.2.0.dev2** candidate passed **477 tests**, with no
+failures or skips, against its installed wheel in a fresh locked Python 3.12.3
+Linux x86_64 environment restricted to loopback networking. This includes
+**17 Chromium workflows**, 59 saved-run reader checks, 22 run-report checks and
+18 upload/timeline checks; the six native SITL checks were explicitly enabled.
+A saved native run was also inspected visually without launching a simulator.
+Ruff lint/format (49 files), deterministic fixture and lock checks passed.
+Final archives contain **59 source files / 22 wheel files**; their 16
+application/data members match the tested wheel. These are local checks of an
+uncommitted development increment; hosted verification requires its own result.
+
+See [saved Experiment inspection](saved-experiments.md) for the supported schemas,
+input limits and the distinction between declared outcome and evidence status.
+
 ### Browser synchronization and native SITL
 
 The hosted [run for the first Experiment commit](https://github.com/victormonnot/UAV-Debugger/actions/runs/36173071856)
@@ -112,8 +144,10 @@ on `b2fca3306b65db22a4b47b0605cde3c1018f4582` ended with four Chromium failures
 and 325 passing tests. The 329-test success below is separate local evidence.
 The failures concerned stale filter/report state and record-menu interactions;
 the browser checks now wait for semantic UI changes and finish scrolling
-before selecting the exact option. Application code is unchanged by this browser correction. A new
-hosted result is required after the corrected code is committed and pushed.
+before selecting the exact option. Application code is unchanged by this browser correction. The subsequent
+[hosted run](https://github.com/victormonnot/UAV-Debugger/actions/runs/36177692793)
+passed on commit `0bec4b1753ca6d2fb5aa01f6e716eb233f82158a`. This confirms the
+ordinary hosted suite for that commit; native SITL remains separately opt-in.
 
 The SITL profile has opt-in native checks. Ordinary CI does not download or
 install ArduPilot. The default tests cover framing, byte preservation, readiness,
@@ -247,5 +281,5 @@ and 5,000 selected ATTITUDE records per curve view. One historical producer
 attachment has complete traversal and partial decoding; current producer
 versions are not generally verified. The local synthetic Experiment runner is
 an unreleased development capability, with one pinned local ArduCopter SITL
-profile. Broader simulator/bench integration, an Experiment interface, automatic
+profile. Broader simulator/bench integration, active Experiment controls, automatic
 comparison and other formats remain future work.

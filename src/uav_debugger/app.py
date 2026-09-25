@@ -46,17 +46,21 @@ def _recording_widget_key(name: str) -> str:
     return f"analysis_{name}_{identity}"
 
 
-def _load_recording(data: bytes, source_name: str) -> tuple[ImportResult, str]:
-    token = hashlib.sha256(data).hexdigest() + ":" + source_name
+def _load_recording(
+    data: bytes, source_name: str, *, imported: ImportResult | None = None, identity: str = ""
+) -> tuple[ImportResult, str]:
+    token = hashlib.sha256(data).hexdigest() + ":" + source_name + ":" + identity
     if st.session_state.get("import_token") != token:
-        # Retain one recording per browser session, with no shared/disk cache.
+        # Retain one active capture view per session, with no shared/disk cache.
         for key in list(st.session_state):
             if key.startswith("analysis_"):
                 del st.session_state[key]
         st.session_state.pop("import_result", None)
         st.session_state.pop("import_token", None)
         with st.spinner("Reading the recording…"):
-            result = import_bytes(data, source_name=source_name)
+            result = (
+                imported if imported is not None else import_bytes(data, source_name=source_name)
+            )
         st.session_state.import_result = result
         st.session_state.import_token = token
         st.session_state.analysis_sources = sorted(
@@ -383,29 +387,80 @@ def main() -> None:
         st.title("UAV Debugger")
         st.caption("Recorded telemetry · local analysis")
         st.divider()
-        st.button(
-            "Load example",
-            on_click=_use_example,
-            disabled=st.session_state.get("example_active", False),
-            width="stretch",
-        )
-        st.caption("Synthetic recording · 12 messages · 2 sources. No file needed.")
-        if st.session_state.get("example_active", False):
-            st.button("Clear example", on_click=_use_upload, width="stretch")
-        uploaded = st.file_uploader(
-            "Open recording",
-            key=f"recording_upload_{st.session_state.get('upload_generation', 0)}",
-            on_change=_use_upload,
-            max_upload_size=11,
-            help="QGroundControl-style timestamps + unsigned MAVLink 1/2, "
-            "common dialect. Up to 10 MiB.",
-        )
-        st.caption("Analysis limit: 10 MiB (10,485,760 bytes).")
-        # Remove the previous download before any new selection is rendered.
-        # Large recordings can take time to produce the updated report.
+        input_kind = st.radio("Analyze input", ["Recording", "Saved experiment"])
+        if input_kind == "Recording":
+            st.button(
+                "Load example",
+                on_click=_use_example,
+                disabled=st.session_state.get("example_active", False),
+                width="stretch",
+            )
+            st.caption("Synthetic recording · 12 messages · 2 sources. No file needed.")
+            if st.session_state.get("example_active", False):
+                st.button("Clear example", on_click=_use_upload, width="stretch")
+            uploaded = st.file_uploader(
+                "Open recording",
+                key=f"recording_upload_{st.session_state.get('upload_generation', 0)}",
+                on_change=_use_upload,
+                max_upload_size=11,
+                help="QGroundControl-style timestamps + unsigned MAVLink 1/2, "
+                "common dialect. Up to 10 MiB.",
+            )
+            st.caption("Analysis limit: 10 MiB (10,485,760 bytes).")
+        # Remove any previous download before loading new evidence or rendering filters.
         export_area = st.empty()
+    if st.session_state.get("input_kind") != input_kind:
+        for key in list(st.session_state):
+            if key.startswith(("analysis_", "saved_run_")) or key in (
+                "import_result",
+                "import_token",
+            ):
+                del st.session_state[key]
+        st.session_state.input_kind = input_kind
     st.title("Analyze")
     st.caption("Trace an observation back to its recorded evidence.")
+    if input_kind == "Saved experiment":
+        from uav_debugger.run_report import build_run_markdown_report
+        from uav_debugger.run_view import POINT_LABELS, open_saved_run, present_run
+
+        run = open_saved_run()
+        if run is None:
+            return
+        present_run(run)
+        points = [point for point in POINT_LABELS if point in run.captures]
+        if not points:
+            st.info(
+                "No readable capture is available. The retained execution evidence can be exported."
+            )
+            with export_area.container():
+                st.download_button(
+                    "Download report",
+                    build_run_markdown_report(run),
+                    file_name=f"uav-debugger-{run.identity[:12]}.md",
+                    mime="text/markdown",
+                    on_click="ignore",
+                    type="primary",
+                    width="stretch",
+                )
+            return
+        with st.sidebar:
+            point = st.selectbox(
+                "Observation point",
+                points,
+                format_func=POINT_LABELS.get,
+                key=f"saved_run_point_{run.identity}",
+            )
+        st.divider()
+        st.subheader(f"Capture · {POINT_LABELS[point]}")
+        imported = run.captures[point]
+        result, _ = _load_recording(
+            imported.raw_bytes,
+            imported.source_name,
+            imported=imported,
+            identity=run.identity + ":" + point,
+        )
+        _render_recording(result, export_area, run=run, point=point)
+        return
     using_example = st.session_state.get("example_active", False)
     if uploaded is None and not using_example:
         for key in list(st.session_state):
@@ -436,6 +491,10 @@ def main() -> None:
     except (InputTooLargeError, ValueError) as error:
         st.error(str(error))
         return
+    _render_recording(result, export_area)
+
+
+def _render_recording(result: ImportResult, export_area, *, run=None, point=None) -> None:
     _provenance(result)
     if result.records:
         selection = _filters(result)
@@ -492,23 +551,39 @@ def main() -> None:
         chosen = _record_view(records, origin_us, selection, focused_record=focused_record)
     else:
         st.info("No records match these filters.")
-    report = build_markdown_report(
-        result,
-        selection,
-        selected_indices=() if chosen is None else (chosen,),
-        attitude_plot_gap_us=attitude_gap_us,
-    )
+    if run is None:
+        report = build_markdown_report(
+            result,
+            selection,
+            selected_indices=() if chosen is None else (chosen,),
+            attitude_plot_gap_us=attitude_gap_us,
+        )
+    else:
+        from uav_debugger.run_report import build_run_markdown_report
+
+        report = build_run_markdown_report(
+            run,
+            point=point,
+            selection=selection,
+            selected_indices=() if chosen is None else (chosen,),
+            attitude_plot_gap_us=attitude_gap_us,
+        )
+    report_identity = run.identity if run is not None else result.sha256
     with export_area.container():
         st.download_button(
             "Download report",
             report,
-            file_name=f"uav-debugger-{result.sha256[:12]}.md",
+            file_name=f"uav-debugger-{report_identity[:12]}.md",
             mime="text/markdown",
             on_click="ignore",
             type="primary",
             width="stretch",
         )
-        st.caption("Applied filters, source evidence and the inspected record.")
+        st.caption(
+            "Experiment evidence, selected capture filters and inspected record."
+            if run is not None
+            else "Applied filters, source evidence and the inspected record."
+        )
 
 
 if __name__ == "__main__":

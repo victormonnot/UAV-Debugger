@@ -8,8 +8,10 @@ and a Markdown evidence report. The same file-only importer is available through
 The optional [Experiment CLI](experiment.md) produces `relay-input.tlog` and
 `receiver.tlog` captures for this same workflow. Open them individually; their
 outer timestamps identify actual reads at different observation points. Analyze
-does not load the run's JSON action trace, align the captures or compare them
-automatically. Opening a capture never starts or resumes execution.
+also offers **Saved experiment** in the unreleased development version to
+[inspect a complete run directory](saved-experiments.md), including JSON traces
+and both capture points. Cross-run comparison remains future work. Opening
+a capture or saved run never starts or resumes execution.
 
 ## Install and launch
 

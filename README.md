@@ -7,11 +7,13 @@ their source frames and exporting analysis evidence.
 one timestamped MAVLink recording in a browser, filter sources and time, plot
 attitude, inspect message activity and raw frames, and download a Markdown report.
 A Python API and JSON command-line summary expose the same imported evidence.
-The current development version, **0.2.0.dev1**, includes an **unreleased
+The current development version, **0.2.0.dev2**, includes an **unreleased
 Experiment CLI** for a bounded synthetic sender → relay → receiver run on local
 UDP, with optional two-second forwarding interruption and captures for Analyze.
 A pinned ArduCopter SITL profile can supply the telemetry inside an isolated
-local network namespace.
+local network namespace. Analyze can also inspect a saved run directory, relate
+requested settings to applied actions and observations, and export its evidence.
+See [saved Experiment inspection](docs/saved-experiments.md).
 
 ## Quick start
 
@@ -44,8 +46,9 @@ see [access through SSH](docs/analyze.md#access-through-ssh).
 The launcher listens on `127.0.0.1` and disables usage statistics. Analysis
 requires no vehicle, simulator or ARGOS installation. Dependency installation
 can require network access. Recordings remain unchanged, and the application
-holds one recording per browser session in memory. The **10 MiB input limit**
-bounds file size, not total memory use or guaranteed performance.
+holds one recording or one saved run per browser session in memory. The
+**10 MiB capture limit** and **64 MiB saved-run limit** bound input bytes,
+not total memory use or guaranteed performance.
 
 See the [Analyze guide](docs/analyze.md) for filtering, reports, alternate ports
 and observation limits. For a command-line summary:
@@ -72,13 +75,14 @@ Each run defaults to six seconds and requires a new output directory. A syntheti
 20 Hz `ATTITUDE` sender, a byte-preserving relay and a receiver exchange UDP
 datagrams on `127.0.0.1` in one process. The relay input and receiver record
 messages they actually read as `relay-input.tlog` and `receiver.tlog`. Open each
-file separately in Analyze. Requested settings, applied actions and observations
-are also retained with explicit clocks; `Ctrl+C` stops cleanly.
+file independently in Analyze, or choose **Saved experiment** and open the run
+directory to inspect settings, applied actions and both capture points together.
+Their clocks remain explicit; `Ctrl+C` stops the runner cleanly.
 
 See the [Experiment guide](docs/experiment.md) for configuration, output files,
 termination and evidence limits. The optional [ArduCopter SITL guide](docs/sitl.md)
 describes the separately installed, fingerprinted simulator, startup readiness
-and mandatory network isolation. No Experiment interface or automatic comparison
+and mandatory network isolation. No active Experiment interface or automatic comparison
 is included. Experiment is not part of published v0.1.0.
 
 ## Current input support
@@ -135,6 +139,7 @@ for local reproduction, current development checks and published-release evidenc
 | Document | Contents |
 | --- | --- |
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
+| [Saved Experiment inspection](docs/saved-experiments.md) | Read a saved run, validate references and inspect requested, applied and observed evidence. |
 | [ArduCopter SITL](docs/sitl.md) | Pinned local simulator setup, isolation, timing and retained evidence. |
 | [Experiment guide](docs/experiment.md) | Run the local synthetic baseline/interruption, inspect captures and interpret execution evidence. |
 | [Importer guide](docs/importer.md) | Installation, input profile, API, CLI outcomes and limits. |

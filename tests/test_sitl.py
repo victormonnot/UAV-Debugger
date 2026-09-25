@@ -596,3 +596,98 @@ def test_opt_in_sitl_captures_open_independently_and_export_evidence(
         assert detail["raw_frame_hex"] == inspected.raw_frame.hex()
         assert detail["fields"] == dict(inspected.fields)
         assert capture.read_bytes() == original
+
+
+@pytest.mark.browser
+def test_opt_in_saved_sitl_directory_preserves_startup_and_capture_evidence(
+    real_sitl_run, analyze_page, tmp_path
+):
+    from test_saved_run_browser import (
+        apply_changed_filters,
+        await_saved_capture,
+        capture_report_blocks,
+        choose,
+        download_blocks,
+        metric,
+        run_report_block,
+        timeline_data,
+        upload_directory,
+    )
+
+    output, result = real_sitl_run
+    assert result["outcome"] == "completed", result["error"]
+    original = {
+        path.relative_to(output).as_posix(): path.read_bytes()
+        for path in output.rglob("*")
+        if path.is_file()
+    }
+    page, expect = analyze_page
+    upload_directory(page, output)
+    before = await_saved_capture(page, expect, output)
+    # Native working files are uploaded without extension errors, then explicitly
+    # excluded from the supported evidence set by the offline reader adapter.
+    expect(page.locator('[data-testid="stFileChip"][aria-invalid="true"]')).to_have_count(0)
+    ignored = [name for name in original if name.endswith((".bin", ".DAT"))]
+    assert ignored
+    excluded_files = page.get_by_text(
+        f"Other files excluded from analysis ({len(ignored)})", exact=True
+    )
+    expect(excluded_files).to_be_visible()
+    excluded_files.click()
+    for name in ignored:
+        expect(page.get_by_text(name, exact=True)).to_be_visible()
+    expect(metric(page, "Evidence status")).to_have_text("consistent")
+    choose(page, "Observation point", "Receiver")
+    after = await_saved_capture(page, expect, output, "receiver")
+    choose(page, "Source", "1 / 1")
+    choose(page, "Message type", "ATTITUDE")
+    apply_changed_filters(page)
+    selected = [
+        record
+        for record in after.records
+        if (record.system_id, record.component_id, record.message_id) == (1, 1, 30)
+    ]
+    expect(metric(page, "Selected records")).to_have_text(str(len(selected)))
+    inspected = selected[1]
+    choose(page, "Record", f"#{inspected.index} · ATTITUDE · 1 / 1")
+    report = tmp_path / f"{result['requested']['scenario']}-saved-sitl-report.md"
+    blocks = download_blocks(page, report)
+    provenance, selection, detail = capture_report_blocks(blocks, "receiver.tlog")
+    assert provenance["sha256"] == after.sha256
+    assert selection["sources"] == [[1, 1]]
+    assert selection["message_ids"] == [30]
+    assert detail["raw_frame_hex"] == inspected.raw_frame.hex()
+    run_provenance = run_report_block(blocks, "run_provenance")
+    assert run_provenance["schema"] == "uav-debugger-experiment-v2"
+    assert run_provenance["selected_point"] == "receiver"
+    assert "datagrams.jsonl" in run_provenance["files"]
+    assert "simulator/profile.parm" in run_provenance["files"]
+    assert not any(name.endswith((".bin", ".DAT")) for name in run_provenance["files"])
+    clocks = run_report_block(blocks, "clocks")
+    assert clocks["measurement_monotonic_ns"] == result["measurement_start"]["monotonic_ns"]
+    assert clocks["origin_monotonic_ns"] == result["origin_monotonic_ns"]
+    assert clocks["startup_duration_ns"] > 0
+    evidence = run_report_block(blocks, "observed_evidence")
+    for point in evidence["points"]:
+        assert point["datagram_trace_present"] is True
+        assert point["valid_datagram_count"] > 0
+        assert point["capture"]["opaque_count"] > 0
+        assert point["references"]
+        assert all("datagram_index" in reference for reference in point["references"])
+        assert all("datagram_offset" in reference for reference in point["references"])
+    timeline = timeline_data(page)
+    assert {trace["name"]: sum(trace["y"]) for trace in timeline["traces"]} == {
+        "Relay input": len(before.records),
+        "Receiver": len(after.records),
+    }
+    assert any(
+        shape["type"] == "rect"
+        and shape["x0"] == 0
+        and shape["x1"] == clocks["startup_duration_ns"] / 1e9
+        for shape in timeline["shapes"]
+    )
+    assert {
+        path.relative_to(output).as_posix(): path.read_bytes()
+        for path in output.rglob("*")
+        if path.is_file()
+    } == original

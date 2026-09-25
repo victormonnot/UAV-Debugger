@@ -44,8 +44,10 @@ capture contains only datagrams actually read downstream. Configuration alone
 does not establish that a transition occurred, and send success alone does not
 establish receiver observation. Exact counts and timing depend on scheduling.
 
-Analyze opens each capture independently. It does not import the JSON execution
-trace, align files or compare runs automatically. Opening any saved recording
+Analyze opens each capture independently. Alternatively, choose **Saved experiment**
+to [open the run directory](saved-experiments.md), check its evidence, inspect
+applied actions alongside both capture points and export a combined report.
+Cross-run alignment and automatic comparison remain future work. Opening any saved recording
 never starts or resumes an experiment. The [Experiment guide](experiment.md)
 defines the clocks, stop behavior, outcome codes and detailed usage.
 

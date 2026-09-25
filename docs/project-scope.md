@@ -12,7 +12,7 @@ bounded synthetic sender → relay → receiver path on local UDP, with a baseli
 and a two-second interruption in forwarding. A pinned ArduCopter SITL profile
 can replace the synthetic source inside a loopback-only network namespace. See the [Analyze guide](analyze.md)
 and [importer guide](importer.md) for tested inputs and limits. Video, session
-comparison, broader simulator/bench integrations and an Experiment interface remain future
+comparison, broader simulator/bench integrations and active Experiment controls remain future
 capabilities.
 
 ## Analyze
@@ -48,7 +48,9 @@ The synthetic CLI uses one process and two loopback UDP legs. The optional
 bounded startup and owned-process cleanup. It preserves the requested configuration, actual application records
 and captures of socket reads at the relay input and receiver. Its duration,
 shutdown, clocks and outcomes are explicit. Each capture opens independently
-in Analyze; JSON action traces and automatic comparison are not imported.
+in Analyze. The [saved-run view](saved-experiments.md) additionally checks JSON
+trace references and presents requested, applied and observed evidence.
+Automatic cross-run comparison remains future work.
 
 This establishes behavior on that synthetic local path. Integrating an actual
 additional simulation or bench target will need a separate bounded use case and its own

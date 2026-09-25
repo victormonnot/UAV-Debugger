@@ -130,8 +130,10 @@ source datagram; this is a bounded local setup, not authenticated transport.
 Open each capture independently in Analyze, choose source `1 / 1` and
 `ATTITUDE`, inspect records and export reports. The first observations may be
 from startup, so Analyze's relative time origin can precede `measurement_start`.
-Compare the explicit trace times when locating the applied interruption.
-No trace import, automatic comparison or Experiment browser controls are added.
+Choose **Saved experiment** to [inspect the complete run](saved-experiments.md),
+including startup, measurement origin, applied gate intervals and both capture
+points. No automatic cross-run comparison or active Experiment browser controls
+are added.
 
 ## References and verification
 

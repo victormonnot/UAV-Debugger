@@ -144,13 +144,14 @@ The unreleased [Experiment CLI](experiment.md) now forwards a synthetic local
 MAVLink stream through a bounded relay path, supports one two-second interruption
 in forwarding, and records actual actions and observations before and after the
 relay. Baseline and blackout runs use the same requested configuration apart
-from the selected scenario. Each capture opens independently in Analyze.
+from the selected scenario. Each capture opens independently in Analyze. The subsequent
+[saved-run view](saved-experiments.md) also inspects the full execution evidence.
 
 The Experiment guide defines its topology, scenario semantics, recording format,
 clocks and stop behavior. The optional [ArduCopter SITL profile](sitl.md) verifies
 a single pinned local autopilot as a telemetry source. The stream experiment establishes behavior on that
 configured local path; autopilot response would require an additional actual
-simulator/bench integration and its own evidence. The Experiment interface and
+simulator/bench integration and its own evidence. Active Experiment controls and
 automatic comparison remain later work.
 
 See [project scope](project-scope.md) and [architecture direction](architecture.md)

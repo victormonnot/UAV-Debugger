@@ -4,12 +4,16 @@
 
 ### Added
 
+- Offline saved Experiment inspection in Analyze: bounded synthetic v1/SITL v2
+  directory import, artifact fingerprints and capture/trace references, explicit
+  partial evidence, requested/applied/observed summary, within-run monotonic
+  timeline and combined Markdown report. Either capture reuses the existing
+  filters, plots and record inspector without starting execution.
 - An optional, fingerprinted ArduCopter 4.6.3 SITL telemetry source, with
   mandatory loopback-only network isolation, bounded readiness and owned-process
   shutdown. The external simulator is not bundled with the application.
 - Raw UDP datagram evidence, grouped-frame capture references, explicit handling
   of the pinned simulator's startup preamble, and a separate measurement origin.
-
 
 - A local **Experiment** CLI with a synthetic 20 Hz MAVLink 2 `ATTITUDE`
   sender, byte-preserving UDP relay and receiver restricted to `127.0.0.1`.
@@ -32,7 +36,8 @@
 
 - Analyze retains its independent file-only import and browser workflow.
   The optional simulator profile adds no physical vehicle connection, active
-  browser controls, trace import or automatic comparison.
+  browser controls or automatic comparison. Saved-run trace inspection is
+  available independently of experiment execution.
 - Local UDP observations establish behavior on the configured synthetic path;
   they do not establish physical link performance or autopilot/failsafe behavior.
   See the [Experiment guide](docs/experiment.md) for usage and clock limits.

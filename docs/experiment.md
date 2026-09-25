@@ -5,7 +5,7 @@ relay to a receiver. It supports a baseline and a run with a two-second
 interruption in relay forwarding. Both observation points produce saved files
 for the existing Analyze workflow.
 
-This feature is **unreleased**, in development version **0.2.0.dev1**. The
+This feature is **unreleased**, in development version **0.2.0.dev2**. The
 published v0.1.0 contains offline Analyze; use the current source checkout for
 Experiment. The initial target is Linux with Python 3.12. The synthetic workflow
 below needs no simulator or vehicle. The optional [ArduCopter SITL profile](sitl.md)
@@ -107,9 +107,10 @@ the frame starts at `offset + 8` and ends exclusively at
 Requested settings do not prove the gate was applied. Actions record what the
 runner did; observations record what arrived at a named point. Frame hashes
 and capture references support inspection without treating a wrapping MAVLink
-sequence number as a globally unique identity. The JSON files are separate
-evidence; Analyze currently opens the `.tlog` files only and does not import or
-align the action trace.
+sequence number as a globally unique identity. The JSON files remain separate
+evidence. Analyze can [inspect the complete saved run](saved-experiments.md),
+validate references and present its within-run monotonic timeline. Each `.tlog`
+also remains independently readable with its original capture clock.
 
 ## Clocks
 
@@ -182,7 +183,9 @@ Separate reports and their capture fingerprints preserve those distinctions.
 When Analyze runs through SSH, transfer captures to the browser computer before
 uploading; see the [Analyze access guide](analyze.md#access-through-ssh).
 
-Opening these files never starts or resumes Experiment. There is no Experiment
-interface, automatic multi-file comparison, physical
+Choose **Saved experiment** to open the complete directory and export settings,
+actions and observations together; see [saved-run inspection](saved-experiments.md).
+Opening these files never starts or resumes Experiment. There are no active Experiment
+controls, automatic cross-run comparison, physical
 link measurement or autopilot/failsafe validation in this increment. The
 [verification guide](verification.md) records the checks actually performed.

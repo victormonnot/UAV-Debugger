@@ -21,11 +21,16 @@ flowchart LR
     path --> captures["Two timestamped MAVLink captures"]
     captures --> import
     runner --> trace["JSON manifest, actions and observations"]
+    trace --> saved["Saved-run reader: check evidence references"]
+    captures --> saved
+    saved --> analyze
 ```
 
-The runner's two captures use the existing import profile. Analyze opens one
-file at a time; JSON execution traces stay alongside the captures and are not
-imported or automatically aligned. File analysis has no operational dependency
+The runner's two captures use the existing import profile. Analyze opens an
+individual recording or [one saved experiment](saved-experiments.md). The latter
+checks manifest, trace and capture references without importing execution modules.
+Its run timeline uses observed monotonic stamps; capture plots retain their
+original wall-clock meaning. No clock conversion or cross-run alignment is inferred. File analysis has no operational dependency
 on the runner. The explicit Experiment command is the only entry point that
 starts the local sender and relay.
 
@@ -37,11 +42,23 @@ starts the local sender and relay.
 | Session evidence | Preserve source identity, original ordering, timestamps with their meaning, decoded observations and references to original records. |
 | Analysis | Select sources and intervals, inspect recorded measurements and preserve original meaning. Automatic comparison remains future work. |
 | Experiment execution | Apply the baseline or blackout scenario to the local synthetic path and record actual actions, observations, termination and failures. |
-| Reports | Present imported observations and limitations with references to their sources. Experiment outcome remains in the separate run manifest. |
+| Reports | Present imported observations and limitations with references to their sources. Saved-run reports also distinguish declared outcome, evidence consistency, requested settings, applied gate intervals and observations. |
 
 The importer now represents file bytes, decoded records and import issues in
 `ImportResult`, `Record` and `ImportIssue`. This concrete recording model does
 not depend on the runner's JSON event schema.
+
+## Saved-run analysis boundary
+
+`saved_run.py` reads fixed, bounded artifact names, retains bytes and fingerprints,
+validates trace clocks and capture references, and preserves usable prefixes with
+issues. It uses the existing importer and has no dependency on `experiment.py`,
+`sitl.py`, subprocesses or network transports. `run_report.py` builds a bounded
+Markdown summary and can append the existing selected-capture report.
+`run_view.py` presents uploaded directory evidence, a within-run activity timeline
+and paged trace references. `app.py` reuses the ordinary capture filters and
+inspector for either observation point. A changed run or point invalidates the
+previous selection; unreadable replacement evidence removes the previous export.
 
 ## Local execution boundary
 
@@ -106,7 +123,7 @@ profile and synthetic runner do not implement time synchronization or commands.
 | MAVLink recordings | Implemented bounded QGroundControl-style timestamped profile, unsigned MAVLink 1/2, pinned `common` dialect; checked with synthetic inputs and [one public producer recording](recording-validation.md) with partial decoding coverage. |
 | Onboard flight logs | Possible later integration; no formats selected or implemented. |
 | Video and associated timing | Intended analysis capability; encoding and synchronization support remain open. |
-| Experiment captures and traces | Two local timestamped MAVLink captures feed the existing importer; JSON settings/actions/observations are retained separately and have no Analyze trace-import interface. |
+| Experiment captures and traces | Two local timestamped MAVLink captures feed the existing importer; Saved-run analysis validates the separate manifest/actions/observations and links them to both captures; raw datagrams support SITL references. |
 | ARGOS recordings | Possible adapter; core analysis remains independent of ARGOS. |
 
 Different input adapters may describe different observations. Converting them
