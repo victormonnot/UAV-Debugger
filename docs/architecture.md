@@ -5,8 +5,8 @@ activity and attitude plots, record inspection, Markdown reports and a JSON
 command. The unreleased Experiment CLI adds a bounded synthetic local UDP path
 and saves captures for those same analysis components. See the
 [Analyze guide](analyze.md), [importer guide](importer.md) and
-[Experiment guide](experiment.md) for current use. Simulator integration and
-cross-session comparison remain future work.
+[Experiment guide](experiment.md) for current use. A pinned [ArduCopter SITL profile](sitl.md) adds one external local source;
+broader integrations and cross-session comparison remain future work.
 
 ## Shared analysis, optional experiment execution
 
@@ -17,7 +17,7 @@ flowchart LR
     session --> analyze["Analyze"]
     analyze --> report["Evidence report"]
     scenario["Baseline or blackout settings"] --> runner["Optional local Experiment CLI"]
-    runner --> path["Synthetic sender → relay → receiver"]
+    runner --> path["Synthetic or SITL source → relay → receiver"]
     path --> captures["Two timestamped MAVLink captures"]
     captures --> import
     runner --> trace["JSON manifest, actions and observations"]
@@ -46,8 +46,12 @@ not depend on the runner's JSON event schema.
 ## Local execution boundary
 
 `experiment.py` owns configuration validation, the synthetic MAVLink encoder,
-four loopback UDP sockets, selector scheduling, capture writing, JSON evidence
-and shutdown. Sender, relay and receiver share one process. The relay input is
+loopback UDP sockets, selector scheduling, capture writing, JSON evidence
+and shutdown. The synthetic sender, relay and receiver share one process. For the SITL
+profile, `sitl.py` launches one verified native subprocess with its own working
+directory and process group, and requires a loopback-only network namespace.
+Startup readiness and the measured phase have separate timing; original
+datagrams, including the pinned startup preamble, are retained before framing. The relay input is
 observed before its forwarding/drop decision; the receiver is observed only
 after an actual socket read. Captures preserve original datagram frame bytes.
 No network or serial transport factory is exposed to file analysis.

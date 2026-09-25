@@ -7,10 +7,11 @@ their source frames and exporting analysis evidence.
 one timestamped MAVLink recording in a browser, filter sources and time, plot
 attitude, inspect message activity and raw frames, and download a Markdown report.
 A Python API and JSON command-line summary expose the same imported evidence.
-The current development version, **0.2.0.dev0**, includes an **unreleased
+The current development version, **0.2.0.dev1**, includes an **unreleased
 Experiment CLI** for a bounded synthetic sender → relay → receiver run on local
-UDP, with optional two-second
-forwarding interruption and captures for Analyze.
+UDP, with optional two-second forwarding interruption and captures for Analyze.
+A pinned ArduCopter SITL profile can supply the telemetry inside an isolated
+local network namespace.
 
 ## Quick start
 
@@ -75,8 +76,10 @@ file separately in Analyze. Requested settings, applied actions and observations
 are also retained with explicit clocks; `Ctrl+C` stops cleanly.
 
 See the [Experiment guide](docs/experiment.md) for configuration, output files,
-termination and evidence limits. This first increment has no simulator,
-Experiment interface or automatic comparison. It is not included in v0.1.0.
+termination and evidence limits. The optional [ArduCopter SITL guide](docs/sitl.md)
+describes the separately installed, fingerprinted simulator, startup readiness
+and mandatory network isolation. No Experiment interface or automatic comparison
+is included. Experiment is not part of published v0.1.0.
 
 ## Current input support
 
@@ -100,7 +103,7 @@ cause.
 | Mode | Direction | Current implementation |
 | --- | --- | --- |
 | **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown report, Python API and JSON import summary. |
-| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Unreleased CLI: synthetic sender, relay and receiver on local UDP; baseline and two-second forwarding interruption; separate action and observation evidence. |
+| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Unreleased CLI: synthetic or pinned ArduCopter SITL source, local UDP relay and receiver; baseline and two-second interruption; explicit startup, action and observation evidence. |
 
 Analyze remains independently usable from saved files. Opening a recording never
 starts an experiment or sends vehicle commands. Video, session comparison and
@@ -132,6 +135,7 @@ for local reproduction, current development checks and published-release evidenc
 | Document | Contents |
 | --- | --- |
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
+| [ArduCopter SITL](docs/sitl.md) | Pinned local simulator setup, isolation, timing and retained evidence. |
 | [Experiment guide](docs/experiment.md) | Run the local synthetic baseline/interruption, inspect captures and interpret execution evidence. |
 | [Importer guide](docs/importer.md) | Installation, input profile, API, CLI outcomes and limits. |
 | [Public recording verification](docs/recording-validation.md) | Download source, exact fingerprint, observed coverage and a reproducible browser case. |

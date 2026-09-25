@@ -147,7 +147,8 @@ relay. Baseline and blackout runs use the same requested configuration apart
 from the selected scenario. Each capture opens independently in Analyze.
 
 The Experiment guide defines its topology, scenario semantics, recording format,
-clocks and stop behavior. The stream experiment establishes behavior on that
+clocks and stop behavior. The optional [ArduCopter SITL profile](sitl.md) verifies
+a single pinned local autopilot as a telemetry source. The stream experiment establishes behavior on that
 configured local path; autopilot response would require an additional actual
 simulator/bench integration and its own evidence. The Experiment interface and
 automatic comparison remain later work.

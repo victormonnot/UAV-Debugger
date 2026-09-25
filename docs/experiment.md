@@ -5,10 +5,12 @@ relay to a receiver. It supports a baseline and a run with a two-second
 interruption in relay forwarding. Both observation points produce saved files
 for the existing Analyze workflow.
 
-This feature is **unreleased**, in development version **0.2.0.dev0**. The
+This feature is **unreleased**, in development version **0.2.0.dev1**. The
 published v0.1.0 contains offline Analyze; use the current source checkout for
-Experiment. The initial target is Linux with Python 3.12. No simulator or
-vehicle is involved.
+Experiment. The initial target is Linux with Python 3.12. The synthetic workflow
+below needs no simulator or vehicle. The optional [ArduCopter SITL profile](sitl.md)
+uses a separately installed autopilot executable inside a loopback-only network
+namespace, with an explicit startup phase before measurement.
 
 ## Run the baseline and interruption
 
@@ -181,6 +183,6 @@ When Analyze runs through SSH, transfer captures to the browser computer before
 uploading; see the [Analyze access guide](analyze.md#access-through-ssh).
 
 Opening these files never starts or resumes Experiment. There is no Experiment
-interface, automatic multi-file comparison, simulator integration, physical
+interface, automatic multi-file comparison, physical
 link measurement or autopilot/failsafe validation in this increment. The
 [verification guide](verification.md) records the checks actually performed.

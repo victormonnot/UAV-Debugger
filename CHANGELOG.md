@@ -4,6 +4,13 @@
 
 ### Added
 
+- An optional, fingerprinted ArduCopter 4.6.3 SITL telemetry source, with
+  mandatory loopback-only network isolation, bounded readiness and owned-process
+  shutdown. The external simulator is not bundled with the application.
+- Raw UDP datagram evidence, grouped-frame capture references, explicit handling
+  of the pinned simulator's startup preamble, and a separate measurement origin.
+
+
 - A local **Experiment** CLI with a synthetic 20 Hz MAVLink 2 `ATTITUDE`
   sender, byte-preserving UDP relay and receiver restricted to `127.0.0.1`.
   One process runs a baseline or a two-second interruption in forwarding;
@@ -16,11 +23,16 @@
 - Orderly `SIGINT`/`SIGTERM` handling, bounded draining, explicit completed,
   interrupted and failed outcomes, and rejection of existing output directories.
 
+### Fixed
+
+- Browser workflow checks now wait for the applied filter range, replaced record
+  selector and current recording before inspecting or downloading evidence.
+
 ### Scope
 
 - Analyze retains its independent file-only import and browser workflow.
-  Experiment does not add a simulator, vehicle connection, active browser
-  controls, trace import or automatic comparison.
+  The optional simulator profile adds no physical vehicle connection, active
+  browser controls, trace import or automatic comparison.
 - Local UDP observations establish behavior on the configured synthetic path;
   they do not establish physical link performance or autopilot/failsafe behavior.
   See the [Experiment guide](docs/experiment.md) for usage and clock limits.

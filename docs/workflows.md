@@ -3,8 +3,9 @@
 The current [Analyze interface](analyze.md) covers opening one supported file,
 filtering observations, inspecting records and exporting evidence. The
 unreleased [Experiment CLI](experiment.md) runs a bounded local synthetic path
-and produces captures for that same analysis. Video, session comparison and
-simulator integration remain future capabilities.
+and produces captures for that same analysis. A pinned [ArduCopter SITL profile](sitl.md)
+can supply telemetry after explicit local setup and isolation. Video, session
+comparison and broader simulator/bench integrations remain future capabilities.
 
 ## Analyze an existing session
 
@@ -48,7 +49,16 @@ trace, align files or compare runs automatically. Opening any saved recording
 never starts or resumes an experiment. The [Experiment guide](experiment.md)
 defines the clocks, stop behavior, outcome codes and detailed usage.
 
-## Later simulation or bench workflow
+## Run the pinned local simulator
+
+Follow the [ArduCopter SITL guide](sitl.md) to install the exact executable and
+run the same baseline/blackout scenarios inside a loopback-only namespace. The
+runner records startup observations, waits for source `1 / 1` HEARTBEAT and
+ATTITUDE, then begins the configured duration. Review readiness, measurement
+start, applied gate transitions and simulator termination before opening the
+captures. A telemetry forwarding gap does not establish an autopilot failsafe.
+
+## Later simulation or bench workflows
 
 1. State the behavior to investigate and the observations needed to assess it.
 2. Identify the simulation or bench setup and the MAVLink path under test.

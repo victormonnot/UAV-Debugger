@@ -1,7 +1,8 @@
 # Verification and release checks
 
 Published UAV Debugger **0.1.0** provides the offline Analyze workflow. The
-unreleased development version **0.2.0.dev0** adds the local Experiment CLI.
+unreleased development version **0.2.0.dev1** adds local synthetic and pinned
+ArduCopter SITL Experiment workflows.
 The verification target is Linux x86_64, Python 3.12 and Chromium. Installation
 metadata permits later Python versions; this does not establish their behavior
 or support for other operating systems.
@@ -104,6 +105,62 @@ review.
 
 ## Verification status and release conditions
 
+### Browser synchronization and native SITL
+
+The hosted [run for the first Experiment commit](https://github.com/victormonnot/UAV-Debugger/actions/runs/36173071856)
+on `b2fca3306b65db22a4b47b0605cde3c1018f4582` ended with four Chromium failures
+and 325 passing tests. The 329-test success below is separate local evidence.
+The failures concerned stale filter/report state and record-menu interactions;
+the browser checks now wait for semantic UI changes and finish scrolling
+before selecting the exact option. Application code is unchanged by this browser correction. A new
+hosted result is required after the corrected code is committed and pushed.
+
+The SITL profile has opt-in native checks. Ordinary CI does not download or
+install ArduPilot. The default tests cover framing, byte preservation, readiness,
+startup preambles, failure outcomes, isolation checks and owned-child cleanup
+using explicitly synthetic subprocesses. To additionally test the verified
+native executable, install it as in the [SITL guide](sitl.md), then run the
+installed verification environment inside its isolated namespace:
+
+```sh
+UAV_DEBUGGER_SITL_BINARY="$PWD/local/sitl/arducopter" \
+  unshare --user --map-root-user --net sh -c '
+    set -eu
+    ip link set dev lo up
+    exec "$@"
+  ' sh "$UAV_VERIFY_DIR/.venv/bin/python" -m pytest --run-browser
+```
+
+With the variable supplied, a missing/wrong executable or absent isolation fails
+the native checks instead of silently skipping them. Native baseline and blackout
+runs are shared by their capture checks and two browser workflows, which open
+both captures, select ATTITUDE, inspect raw fields and export reports. Captures
+include startup; assertions use the separate measurement origin for gate timing.
+
+On 2026-09-25, the complete **0.2.0.dev1** suite passed against an installed
+wheel in a fresh locked Linux x86_64 / Python 3.12.3 environment with only
+loopback networking: **372 passed**, including eleven Chromium workflows and
+the two native SITL scenarios. The browser correction separately passed all nine
+original browser workflows and all four formerly failing cases with WebSocket
+responses delayed by 300 ms; that delayed setup reproduced three failures before
+the correction. Assertions were retained without retries or fixed sleeps.
+
+In the installed-wheel SITL runs, readiness took about **2.45 seconds**. The
+baseline retained **343 input / 343 receiver frames**. The blackout retained
+**343 input / 217 receiver frames**, recording **126 dropped frames** and a
+**2.002045110-second** monotonic gate interval. The four captures traversed
+completely; the baseline had 142 decoded and 201 opaque frames at each point.
+Opaque message IDs 164 and 178 remained byte-preserved. Receiver frames matched
+the recorded forward decisions. All captured HEARTBEATs were disarmed; both
+owned simulator processes exited with code 0 without kill escalation. Counts
+include startup and describe these runs, not guaranteed rates or vehicle effects.
+
+Ruff, fixture and lock checks passed. Final archives contain **51 source files /
+19 wheel files**, with the guide and source tests included, but no simulator
+binary, recordings or private notes. The application/data bytes match the
+tested wheel. A focused shutdown test also verifies kill escalation after
+telemetry readiness, avoiding assumptions about subprocess startup speed.
+
 ### Local Experiment development checks
 
 On 2026-09-25, development version **0.2.0.dev0** was built and installed in a
@@ -189,5 +246,6 @@ unsigned MAVLink 1/2 and pinned `common` definitions, with a 10 MiB file limit
 and 5,000 selected ATTITUDE records per curve view. One historical producer
 attachment has complete traversal and partial decoding; current producer
 versions are not generally verified. The local synthetic Experiment runner is
-an unreleased development capability. Simulator/bench integration, an Experiment
-interface, automatic comparison and other formats remain future work.
+an unreleased development capability, with one pinned local ArduCopter SITL
+profile. Broader simulator/bench integration, an Experiment interface, automatic
+comparison and other formats remain future work.

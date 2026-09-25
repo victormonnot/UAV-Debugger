@@ -9,9 +9,10 @@ message and time filters, activity and attitude plots, record inspection and Mar
 evidence export. The same importer is available through Python and a JSON
 command-line summary. The unreleased [Experiment CLI](experiment.md) adds a
 bounded synthetic sender → relay → receiver path on local UDP, with a baseline
-and a two-second interruption in forwarding. See the [Analyze guide](analyze.md)
+and a two-second interruption in forwarding. A pinned ArduCopter SITL profile
+can replace the synthetic source inside a loopback-only network namespace. See the [Analyze guide](analyze.md)
 and [importer guide](importer.md) for tested inputs and limits. Video, session
-comparison, simulator integration and an Experiment interface remain future
+comparison, broader simulator/bench integrations and an Experiment interface remain future
 capabilities.
 
 ## Analyze
@@ -42,14 +43,15 @@ An experiment should preserve its scenario, configuration, timing and execution
 evidence so that another run can use the same conditions. Reproducing the
 perturbation does not guarantee an identical vehicle response.
 
-The first CLI uses one process and two loopback UDP legs, with no vehicle or
-simulator. It preserves the requested configuration, actual application records
+The synthetic CLI uses one process and two loopback UDP legs. The optional
+[SITL profile](sitl.md) runs one fingerprinted ArduCopter subprocess, with
+bounded startup and owned-process cleanup. It preserves the requested configuration, actual application records
 and captures of socket reads at the relay input and receiver. Its duration,
 shutdown, clocks and outcomes are explicit. Each capture opens independently
 in Analyze; JSON action traces and automatic comparison are not imported.
 
 This establishes behavior on that synthetic local path. Integrating an actual
-simulation or bench target will need a separate bounded use case and its own
+additional simulation or bench target will need a separate bounded use case and its own
 verification. Reusing settings cannot guarantee identical timing or outcomes.
 
 ## Product boundaries
@@ -57,8 +59,8 @@ verification. Reusing settings cannot guarantee identical timing or outcomes.
 - The initial vehicle scope is UAVs.
 - The product focuses on observation, investigation and controlled experiments;
   it is not a general flight-control station or an autonomy system.
-- Experiment currently executes only the local synthetic path. Its intended
-  target integrations concern simulation and bench work; live-flight fault
+- Experiment currently executes the local synthetic path and one pinned
+  ArduCopter SITL profile. Further target integrations concern simulation and bench work; live-flight fault
   injection is outside the current scope.
 - ARGOS is a possible integration case, not a runtime dependency. Importers and
   experiment connections should allow use by other UAV projects.
