@@ -1,6 +1,6 @@
 # Run an Experiment from the local interface
 
-Development version **0.2.0rc2.dev0** provides explicit **Experiment** controls beside
+Development version **0.2.0rc2.dev1** provides explicit **Experiment** controls beside
 the independent **Analyze** mode. Start a bounded synthetic or pinned ArduCopter
 SITL run, stop it if needed, then open its saved observations in Analyze or
 compare a baseline and blackout. This version is unpublished; v0.1.0 remains
@@ -33,10 +33,13 @@ Changing modes or settings does not start a run.
    filters and original records, then download the report.
 
 For a blackout, choose **Blackout** and set **Blackout start (s)**, which defaults
-to two seconds after measurement start. The requested interruption is always
-two seconds. Keep at least 0.1 second before and after its requested interval;
-the default six-second duration satisfies this. Accepted duration is 0.1–60
-seconds. Invalid settings are rejected before creating a run.
+to two seconds after measurement start. **Blackout duration (s)** defaults to
+two seconds and accepts 0.1–59.8 seconds. Keep at least 0.1 second before and
+after its requested interval within **Duration (s)**, which accepts 0.1–60
+seconds. For example, duration 3, blackout start 0.4 and blackout duration 0.5
+request a half-second interruption. Invalid combinations are rejected before
+creating a run; no setting is silently shortened to fit. Blackout controls are
+disabled for a baseline and all execution settings are disabled during a run.
 
 Requested timing is distinct from the actual gate transitions recorded by the
 runner. **Stop experiment** can interrupt an active gate. The

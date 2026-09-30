@@ -2,11 +2,19 @@
 
 ## Unreleased
 
-Development version **0.2.0rc2.dev0** extends the separately verified rc1
+Development version **0.2.0rc2.dev1** extends the separately verified rc1
 candidate; it has not been published.
 
 ### Added
 
+- Configurable blackout duration through `--blackout-duration` and the browser's
+  **Blackout duration (s)** control, retaining the two-second default. The
+  0.1–59.8-second interval must fit within the bounded measurement with 0.1-second
+  margins. Controller requests and runner manifests retain the requested value;
+  traces and reports retain the actual transitions, including early shutdown.
+- Comparison validates each blackout against its own requested duration.
+  Existing two-second synthetic and SITL evidence remains readable and comparable
+  under the existing profile and evidence checks.
 - **Local experiments** in Analyze: browse CLI and browser run directories
   under the configured `--experiment-root`, including after a server restart.
   Browsing reads declared manifest metadata; opening or comparing selected runs

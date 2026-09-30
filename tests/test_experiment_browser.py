@@ -140,12 +140,23 @@ def wait_for_new_run(root, before):
     pytest.fail("Start did not create an experiment manifest.")
 
 
-def start_run(page, expect, root, *, duration=3.0, scenario="Baseline", source="Synthetic"):
+def start_run(
+    page,
+    expect,
+    root,
+    *,
+    duration=3.0,
+    scenario="Baseline",
+    source="Synthetic",
+    blackout_duration=None,
+):
     select_option(page, expect, "Experiment source", source)
     select_option(page, expect, "Scenario", scenario)
     set_number(page, "Duration (s)", duration)
     if scenario == "Blackout":
         set_number(page, "Blackout start (s)", 0.4)
+        if blackout_duration is not None:
+            set_number(page, "Blackout duration (s)", blackout_duration)
     before = run_directories(root)
     page.get_by_role("button", name="Start experiment", exact=True).click()
     directory = wait_for_new_run(root, before)

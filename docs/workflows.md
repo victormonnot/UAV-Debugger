@@ -1,6 +1,6 @@
 # Workflows
 
-The unpublished **0.2.0rc2.dev0** development version's [Analyze interface](analyze.md) covers
+The unpublished **0.2.0rc2.dev1** development version's [Analyze interface](analyze.md) covers
 opening supported recordings and saved experiments, filtering observations,
 inspecting records and exporting evidence. The
 [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
@@ -75,8 +75,10 @@ observed evidence remain distinct; there are no inferred live telemetry counts.
 5. Follow capture references in `observations.jsonl` to relate actual reads to
    the run's monotonic and wall-clock evidence. Retain the full run directory.
 
-The blackout suppresses relay forwarding for two seconds from actual gate
-activation. The input capture keeps recording received datagrams; the receiver
+The blackout suppresses relay forwarding for the requested duration from actual
+gate activation, defaulting to two seconds. Change **Blackout duration (s)** or
+`--blackout-duration` within the [bounded settings](experiment.md).
+The input capture keeps recording received datagrams; the receiver
 capture contains only datagrams actually read downstream. Configuration alone
 does not establish that a transition occurred, and send success alone does not
 establish receiver observation. Exact counts and timing depend on scheduling.

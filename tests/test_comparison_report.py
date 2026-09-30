@@ -5,6 +5,7 @@ import re
 from dataclasses import replace
 
 import pytest
+from test_comparison import fixture_run as comparison_fixture_run
 from test_run_report import finalize, fixture_files, lines
 
 from uav_debugger.comparison import ConfigurationDifference, compare_runs
@@ -164,6 +165,52 @@ def test_actual_gate_boundaries_are_not_shifted_to_requested_or_selected_window(
     assert gate["start"]["line_number"] == pair[1].gate_intervals[0].start.line_number
     assert result["comparison_selection"]["window"]["start_ns"] == 2_350_000_000
     assert result["baseline_applied_actions"]["interval_count"] == 0
+
+
+@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize("requested_s", [0.35, 4.0])
+def test_configurable_gate_report_keeps_requested_duration_separate_from_actual(
+    version, requested_s
+):
+    baseline = comparison_fixture_run("baseline", version=version, duration_s=6)
+    actual_ns = round(requested_s * 1e9) + 30_000_000
+    blackout = comparison_fixture_run(
+        "blackout",
+        version=version,
+        duration_s=6,
+        blackout_duration_s=requested_s,
+        gate_start_ns=250_000_000,
+        gate_end_ns=250_000_000 + actual_ns,
+    )
+    comparison = compare((baseline, blackout))
+    result = summaries(build_comparison_markdown_report(comparison))
+    assert result["blackout_requested"]["blackout_duration_s"] == requested_s
+    difference = next(
+        item
+        for item in result["comparison_differences"]["items"]
+        if item["field"] == "requested.blackout_duration_s"
+    )
+    assert difference["blackout"] == requested_s
+    assert difference["blocking"] is False
+    gate = result["blackout_applied_actions"]["intervals"][0]
+    assert gate["start"]["measurement_ns"] == 250_000_000
+    assert gate["duration_ns"] == actual_ns
+    assert gate["end"]["monotonic_ns"] - gate["start"]["monotonic_ns"] == actual_ns
+    assert gate["start"]["line_number"] == blackout.gate_intervals[0].start.line_number
+    assert result["comparison_metrics"]["available"] is True
+
+
+def test_report_for_applied_gate_shorter_than_requested_keeps_evidence_and_blocks_metrics():
+    baseline = comparison_fixture_run("baseline")
+    blackout = comparison_fixture_run("blackout", blackout_duration_s=0.5, gate_end_ns=699_999_999)
+    comparison = compare_runs(baseline, blackout)
+    assert not comparison.comparable
+    result = summaries(build_comparison_markdown_report(comparison))
+    assert result["blackout_requested"]["blackout_duration_s"] == 0.5
+    assert result["blackout_applied_actions"]["intervals"][0]["duration_ns"] == 499_999_999
+    assert any(item["code"] == "blackout_gate" for item in result["comparison_status"]["reasons"])
+    assert result["comparison_metrics"]["available"] is False
+    assert all(item["delta"] is None for item in result["comparison_metrics"]["points"])
 
 
 def test_empty_eligible_window_has_zero_counts_and_unknown_intervals(pair):

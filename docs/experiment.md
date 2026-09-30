@@ -1,11 +1,11 @@
 # Run a local Experiment
 
 The Experiment CLI sends synthetic MAVLink messages through a local UDP
-relay to a receiver. It supports a baseline and a run with a two-second
-interruption in relay forwarding. Both observation points produce saved files
-for the existing Analyze workflow.
+relay to a receiver. It supports a baseline and a run with a configurable
+interruption in relay forwarding, defaulting to two seconds. Both observation
+points produce saved files for the existing Analyze workflow.
 
-This guide describes the unpublished **0.2.0rc2.dev0** development version. Version
+This guide describes the unpublished **0.2.0rc2.dev1** development version. Version
 **0.1.0** remains the latest published release and contains offline Analyze;
 use the development source checkout for Experiment. The initial target is Linux
 with Python 3.12. The synthetic workflow below needs no simulator or vehicle.
@@ -42,9 +42,25 @@ uv run --locked python -m uav_debugger.experiment --output local/experiments/ano
 | --- | --- |
 | `--output PATH` | Required new directory for this run's evidence. |
 | `--scenario baseline` | Forward each datagram observed at the relay input; the default scenario. |
-| `--scenario blackout` | Suppress forwarding during one two-second gate interval; continue observing the relay input. |
+| `--scenario blackout` | Suppress forwarding during one gate interval; continue observing the relay input. |
 | `--duration SECONDS` | Run duration, default `6`; accepted range `0.1`–`60` seconds. |
-| `--blackout-at SECONDS` | Requested gate activation time relative to run start; blackout only, default `2`. At least `0.1` second must remain before and after the requested two-second interval. |
+| `--blackout-at SECONDS` | Requested gate activation time relative to measurement start; blackout only, default `2`. |
+| `--blackout-duration SECONDS` | Requested gate duration, blackout only, default `2`; accepted range `0.1`–`59.8` seconds. |
+
+The requested blackout must leave at least 0.1 second before activation and after
+its end within `--duration`. For example, a half-second interruption in a
+three-second run is:
+
+```sh
+uv run --locked uav-debugger-experiment \
+  --output local/experiments/short-blackout --scenario blackout \
+  --duration 3 --blackout-at 0.4 --blackout-duration 0.5
+```
+
+Both blackout options are rejected for a baseline. Non-finite, out-of-range or
+non-fitting settings are rejected before creating the output or opening sockets.
+Scheduling compares seconds rounded to integer nanoseconds, including at the
+decimal margin boundaries. These input bounds do not guarantee timer accuracy.
 
 The sender requests 20 messages per second and generates unsigned MAVLink 2
 `ATTITUDE` frames from system/component `1 / 1`, using the pinned `common`
@@ -82,7 +98,8 @@ successful send establishes that the local kernel accepted the datagram; only
 the receiver capture establishes observation at the receiver.
 
 Scheduling uses the process's monotonic clock. The blackout requests activation
-at `--blackout-at`, then holds the gate for two seconds from the actual activation.
+at `--blackout-at`, then holds the gate for `--blackout-duration` seconds from
+the actual activation, rather than from its requested deadline.
 Gate transitions and individual forwarding/drop decisions are recorded at their
 actual application times. Scheduling delays can move either transition; this is
 not a real-time runner. The run deadline remains bounded. A run that reaches
@@ -115,6 +132,11 @@ sequence number as a globally unique identity. The JSON files remain separate
 evidence. Analyze can [inspect the complete saved run](saved-experiments.md),
 validate references and present its within-run monotonic timeline. Each `.tlog`
 also remains independently readable with its original capture clock.
+
+The existing v1 synthetic and v2 SITL schemas retain
+`requested.blackout_duration_s` as the numeric requested value for blackouts and
+`null` for baselines. Configurable duration changes that value, not the file
+layout or clock meanings. Previously saved two-second runs remain supported.
 
 ## Clocks
 
@@ -178,11 +200,14 @@ point or select **Record**, then download a report. The baseline should show
 observations at both points throughout the run. In the blackout run, the relay
 input continues observing messages while the receiver has an interval without
 observations around the actual gate application. Analyze's default one-second
-maximum line gap leaves that receiver interval disconnected.
+maximum line gap leaves the default two-second blackout disconnected. A shorter
+interruption may remain connected at that display threshold; reduce **Maximum
+line gap (s)** to show shorter recorded gaps. This setting controls drawing,
+not the evidence or a packet-loss classification.
 
-Use the stored results to assess each run: requested 20 Hz and two seconds do
-not imply an exact 40-message difference. Analyze time filters are relative to
-the first observation in each opened file, not to the experiment run origin.
+Use the stored results to assess each run: a requested 20 Hz rate and gate
+duration do not imply an exact message-count difference. Analyze time filters
+are relative to the first observation in each opened file, not to the experiment run origin.
 Separate reports and their capture fingerprints preserve those distinctions.
 When Analyze runs through SSH, transfer captures to the browser computer before
 uploading; see the [Analyze access guide](analyze.md#access-through-ssh).

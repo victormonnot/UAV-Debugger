@@ -1,6 +1,6 @@
 # Local ArduCopter SITL experiment
 
-The unpublished **0.2.0rc2.dev0** development version's Experiment interface and CLI support one
+The unpublished **0.2.0rc2.dev1** development version's Experiment interface and CLI support one
 pinned ArduCopter SITL profile on Linux x86_64. The autopilot runs as an owned
 local subprocess and emits telemetry
 through the same relay and receiver used for synthetic experiments. The runner
@@ -90,9 +90,11 @@ The runner waits at most `--startup-timeout` seconds (default 15, range 0.1–60
 for valid `HEARTBEAT` and `ATTITUDE` messages from source `1 / 1`. Their receipt
 establishes readiness for this telemetry experiment, not flight readiness.
 Then the configured `--duration` begins (default six seconds). The blackout
-requests activation two seconds after that measurement start and lasts two
-seconds from actual gate activation. Existing duration and blackout constraints
-from the [Experiment guide](experiment.md) apply.
+defaults to activation two seconds after that measurement start and two seconds
+of interruption from actual gate activation. `--blackout-at` and
+`--blackout-duration`, or the corresponding browser controls, change those
+requested values. The same bounds and measurement margins from the
+[Experiment guide](experiment.md) apply to both synthetic and SITL sources.
 
 Startup observations remain in the captures. `measurement_start` in `run.json`
 and `measurement_started` in the action trace identify the start of the measured

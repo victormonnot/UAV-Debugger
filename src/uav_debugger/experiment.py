@@ -25,7 +25,6 @@ from .importer import MAX_INPUT_BYTES, import_bytes
 
 RATE_HZ = 20
 PERIOD_NS = 1_000_000_000 // RATE_HZ
-BLACKOUT_NS = 2_000_000_000
 DRAIN_NS = 200_000_000
 
 
@@ -36,6 +35,7 @@ class ExperimentConfig:
     blackout_at_s: float | None = None
     sitl_binary: Path | None = None
     startup_timeout_s: float = 15.0
+    blackout_duration_s: float | None = None
 
     def validate(self) -> None:
         if not math.isfinite(self.startup_timeout_s) or not 0.1 <= self.startup_timeout_s <= 60:
@@ -46,21 +46,38 @@ class ExperimentConfig:
             raise ValueError("duration must be finite and between 0.1 and 60 seconds")
         if self.scenario == "baseline" and self.blackout_at_s is not None:
             raise ValueError("blackout-at is only valid for the blackout scenario")
+        if self.scenario == "baseline" and self.blackout_duration_s is not None:
+            raise ValueError("blackout-duration is only valid for the blackout scenario")
         if self.scenario == "blackout":
             at = self.blackout_at
-            # Compare integer scheduling values, including decimal boundary inputs.
+            duration = self.blackout_duration
             if (
-                not math.isfinite(at)
-                or at < 0.1
-                or round(at * 1e9) + BLACKOUT_NS + 100_000_000 > round(self.duration_s * 1e9)
+                type(duration) not in (int, float)
+                or not 0.1 <= duration <= 59.8
+                or not math.isfinite(duration)
             ):
                 raise ValueError(
-                    "blackout requires at least 0.1 seconds before and after its 2s window"
+                    "blackout-duration must be finite and between 0.1 and 59.8 seconds"
+                )
+            # Compare integer scheduling values, including decimal boundary inputs.
+            if (
+                type(at) not in (int, float)
+                or not 0.1 <= at <= 60
+                or not math.isfinite(at)
+                or round(at * 1e9) + round(duration * 1e9) + 100_000_000
+                > round(self.duration_s * 1e9)
+            ):
+                raise ValueError(
+                    "blackout requires at least 0.1 seconds before and after its requested window"
                 )
 
     @property
     def blackout_at(self) -> float:
         return 2.0 if self.blackout_at_s is None else self.blackout_at_s
+
+    @property
+    def blackout_duration(self) -> float:
+        return 2.0 if self.blackout_duration_s is None else self.blackout_duration_s
 
     def requested(self) -> dict:
         self.validate()
@@ -71,7 +88,7 @@ class ExperimentConfig:
             "startup_timeout_s": self.startup_timeout_s if self.sitl_binary else None,
             "rate_hz": None if self.sitl_binary else RATE_HZ,
             "blackout_at_s": self.blackout_at if self.scenario == "blackout" else None,
-            "blackout_duration_s": 2.0 if self.scenario == "blackout" else None,
+            "blackout_duration_s": self.blackout_duration if self.scenario == "blackout" else None,
             "drain_timeout_s": DRAIN_NS / 1e9,
             "transport": "UDP IPv4 loopback only",
             "message": "autopilot telemetry" if self.sitl_binary else "ATTITUDE",
@@ -207,7 +224,9 @@ class _Runner:
                     + round(config.blackout_at * 1e9),
                 )
                 self.gate_started_ns = applied["monotonic_ns"]
-        elif self.gate_closed and now >= self.gate_started_ns + BLACKOUT_NS:
+        elif self.gate_closed and now >= self.gate_started_ns + round(
+            config.blackout_duration * 1e9
+        ):
             self.open_gate("blackout_elapsed")
 
     def stop_producer(self, reason: str) -> None:
@@ -406,7 +425,7 @@ class _Runner:
                 gate_deadline = (
                     self.measurement_ns + round(config.blackout_at * 1e9)
                     if self.gate_started_ns is None
-                    else self.gate_started_ns + BLACKOUT_NS
+                    else self.gate_started_ns + round(config.blackout_duration * 1e9)
                 )
                 if self.gate_started_ns is None or self.gate_closed:
                     deadline = min(deadline, gate_deadline)
@@ -567,6 +586,11 @@ def main(argv: list[str] | None = None) -> int:
         "--blackout-at", type=float, help="Requested blackout start in seconds (default: 2)"
     )
     parser.add_argument(
+        "--blackout-duration",
+        type=float,
+        help="Blackout duration, 0.1–59.8s, with 0.1s before and after (default: 2)",
+    )
+    parser.add_argument(
         "--sitl-binary",
         type=Path,
         help="Use the pinned local ArduCopter SITL executable instead of the synthetic sender",
@@ -579,7 +603,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     config = ExperimentConfig(
-        args.scenario, args.duration, args.blackout_at, args.sitl_binary, args.startup_timeout
+        args.scenario,
+        args.duration,
+        args.blackout_at,
+        args.sitl_binary,
+        args.startup_timeout,
+        args.blackout_duration,
     )
     try:
         config.validate()

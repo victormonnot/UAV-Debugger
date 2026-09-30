@@ -1,6 +1,6 @@
 # Inspect a saved Experiment
 
-Development version **0.2.0rc2.dev0** includes offline inspection of one saved
+Development version **0.2.0rc2.dev1** includes offline inspection of one saved
 Experiment directory in Analyze. It brings requested settings, applied actions
 and observed captures into one view and report. The published v0.1.0 remains
 single-recording Analyze; the development version is unpublished. **Local

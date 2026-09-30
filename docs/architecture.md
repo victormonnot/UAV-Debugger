@@ -1,6 +1,6 @@
 # Architecture
 
-The unpublished **0.2.0rc2.dev0** development version implements a Python file importer,
+The unpublished **0.2.0rc2.dev1** development version implements a Python file importer,
 in-memory evidence, exact filters, activity and attitude plots, record inspection,
 Markdown reports and a JSON command. The Experiment interface and CLI add a bounded synthetic
 local UDP path and save captures for those same analysis components. See the
@@ -147,8 +147,13 @@ after an actual socket read. Captures preserve original datagram frame bytes.
 No network or serial transport factory is exposed to file analysis.
 
 The runner schedules using monotonic nanoseconds and records elapsed time from
-the run origin. Capture timestamps use host wall-clock Unix microseconds sampled
-after the read. The synthetic payload's `time_boot_ms` is sender elapsed time;
+the run origin. The blackout's requested duration sets a deadline relative to
+its actual disable action, while the overall measurement deadline stays bounded.
+An orderly stop can reopen the gate early and retains an interrupted outcome.
+The comparator checks the actual interval against the saved requested duration;
+it does not infer gate timing from settings. Capture timestamps use host
+wall-clock Unix microseconds sampled after the read. The synthetic payload's
+`time_boot_ms` is sender elapsed time;
 it stays separate from those capture clocks. Requested gate timing, actual gate
 transitions and socket observations are different evidence. The implementation
 does not measure kernel receive timestamps or infer exact transport latency.

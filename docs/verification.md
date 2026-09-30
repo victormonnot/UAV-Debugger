@@ -6,6 +6,8 @@ ArduCopter SITL Experiment workflows, offline saved-run inspection, bounded
 baseline/blackout comparison and explicit browser Start/Stop controls.
 Development version **0.2.0rc2.dev0** adds read-only local experiment browsing;
 its verification is separate from the retained rc1 results below.
+Development version **0.2.0rc2.dev1** adds bounded configurable blackout duration
+while retaining the existing evidence layouts and the two-second default.
 The verification target is Linux x86_64, Python 3.12 and Chromium. Installation
 metadata permits later Python versions; this does not establish their behavior
 or support for other operating systems.
@@ -108,6 +110,51 @@ review.
 
 ## Verification status and release conditions
 
+### Configurable blackout duration in 0.2.0rc2.dev1
+
+The CLI and browser accept a requested blackout duration from 0.1 to 59.8 seconds,
+subject to the existing measurement bound and 0.1-second margins. Controller
+requests preserve the setting; actual gate actions and observation clocks remain
+separate. Saved comparison validates the actual interval against that run's
+requested duration, including older two-second runs.
+
+On 2026-09-30, the installed **0.2.0rc2.dev1** wheel passed **758 tests in
+353.41 seconds**, with no failures or skips, in a fresh locked Python 3.12.3
+environment with only loopback networking. This includes **36 Chromium
+workflows** and all **13 explicitly enabled native SITL cases**.
+
+New checks cover invalid and non-fitting requests before output creation,
+decimal boundary rounding, CLI and controller-to-worker propagation, scheduling
+from actual gate activation, and orderly stop during a longer requested gate.
+Controlled-clock checks include the 59.8-second boundary without claiming a
+60-second real-time run. Offline comparisons cover short, long and legacy
+two-second gates, applied intervals one nanosecond below the request, missing
+timing and invalid baseline requests. Reports preserve requested values and
+actual action references for both synthetic and SITL schemas.
+
+Real browser workflows exercise a half-second blackout through saved analysis
+and comparison reports, an early stop during a requested ten-second blackout,
+and disabled baseline controls with invalid combinations rejected before launch.
+In the full run, the half-second synthetic gate recorded **500,761,702 ns** and
+60/49 relay-input/receiver records. The interrupted ten-second request retained
+a **100,011,513 ns** gate, its interrupted outcome and a blocked comparison.
+These observations are evidence from those runs, not timer or message-count
+guarantees.
+
+The pinned native source also completed a half-second blackout: its recorded
+gate lasted **500,623,161 ns**, with 343/310 retained capture records. Both capture
+and complete-directory browser inspection passed, and subsequent offline
+comparison with the actual native baseline was eligible. Reading and reporting
+those files retained their original bytes and launched no simulator. Default
+two-second native and synthetic paths, the catalog and independent Analyze
+checks remain covered by the same full suite.
+
+Ruff lint/format, fixture, lock, distribution contents and public Markdown
+links/anchors pass. Final archives contain **80 source files** and **30 wheel
+members**; all 24 application/data members match the fully tested wheel.
+No hosted CI result is recorded for this development increment. The retained
+results below apply to their identified earlier versions.
+
 ### Local experiment catalog in 0.2.0rc2.dev0
 
 The development scope adds declared-metadata browsing under `--experiment-root`,
@@ -139,8 +186,11 @@ guard also rejects socket creation. Filesystem checks cover byte/count limits,
 strict JSON, symlinks, FIFOs and directory replacement during an open. Existing
 reader behavior and the independent recording workflow remain covered.
 Ruff lint/format, deterministic fixture, lock, distribution-content and public
-Markdown link/anchor checks pass. No hosted CI result is recorded for this
-development increment; the rc1 results below apply to that earlier candidate.
+Markdown link/anchor checks pass. The subsequent
+[hosted catalog Verification run](https://github.com/victormonnot/UAV-Debugger/actions/runs/36717123676)
+passed on commit `34bfb56f0d32e66a5464879f070c733b296d522d` with **651 tests passed
+and ten expected native SITL skips in 274.05 seconds**. These results apply to
+the catalog version; the rc1 results below apply to that earlier candidate.
 
 ### 0.2.0rc1 candidate scope
 

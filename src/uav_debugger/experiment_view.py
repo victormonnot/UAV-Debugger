@@ -259,7 +259,7 @@ def present_experiment() -> None:
             "Synthetic ATTITUDE · source 1 / 1 · 20 Hz · sender → relay → receiver on loopback"
         )
     with st.form("experiment_configuration"):
-        duration_column, blackout_column = st.columns(2)
+        duration_column, blackout_column, length_column = st.columns(3)
         duration = duration_column.number_input(
             "Duration (s)",
             min_value=0.1,
@@ -271,12 +271,22 @@ def present_experiment() -> None:
         blackout_at = blackout_column.number_input(
             "Blackout start (s)",
             min_value=0.1,
-            max_value=57.9,
+            max_value=59.8,
             value=2.0,
             step=0.1,
             disabled=active is not None or scenario != "blackout",
-            help="Requested two-second forwarding interruption. "
-            "Keep at least 0.1 s before and after it.",
+            help="Requested seconds after measurement start. "
+            "Keep at least 0.1 s before and after the interruption.",
+        )
+        blackout_duration = length_column.number_input(
+            "Blackout duration (s)",
+            min_value=0.1,
+            max_value=59.8,
+            value=2.0,
+            step=0.1,
+            disabled=active is not None or scenario != "blackout",
+            help="Requested duration from actual forwarding disable. "
+            "The full interval must fit inside the measurement duration with 0.1 s margins.",
         )
         startup = 15.0
         if source == "ArduCopter SITL":
@@ -307,6 +317,7 @@ def present_experiment() -> None:
                     blackout_at_s=blackout_at if scenario == "blackout" else None,
                     sitl_binary=Path(binary) if binary else None,
                     startup_timeout_s=startup,
+                    blackout_duration_s=blackout_duration if scenario == "blackout" else None,
                 )
             )
         except (ValueError, RuntimeError, OSError) as error:

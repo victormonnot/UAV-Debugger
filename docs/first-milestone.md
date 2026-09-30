@@ -141,9 +141,9 @@ not a guarantee for all producers, message mixes or hardware.
 ## Subsequent increment: one controlled experiment
 
 The unreleased [Experiment CLI](experiment.md) now forwards a synthetic local
-MAVLink stream through a bounded relay path, supports one two-second interruption
-in forwarding, and records actual actions and observations before and after the
-relay. Baseline and blackout runs use the same requested configuration apart
+MAVLink stream through a bounded relay path, supports one configurable
+interruption in forwarding (two seconds by default), and records actual actions
+and observations before and after the relay. Baseline and blackout runs use the same requested configuration apart
 from the selected scenario. Each capture opens independently in Analyze. The subsequent
 [saved-run view](saved-experiments.md) also inspects the full execution evidence.
 

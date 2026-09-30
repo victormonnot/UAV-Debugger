@@ -1,6 +1,6 @@
 # Compare saved experiments
 
-The unpublished **0.2.0rc2.dev0** development version supports a bounded offline comparison of one
+The unpublished **0.2.0rc2.dev1** development version supports a bounded offline comparison of one
 baseline and one blackout run in Analyze. Both runs must use the same synthetic
 source or the same supported ArduCopter SITL profile. No simulator or running
 experiment is needed to read their saved evidence.
@@ -85,9 +85,17 @@ observation references at both capture points, a measurement origin, production
 lifecycle coverage and the expected baseline/blackout scenarios. A missing or
 invalid artifact, ambiguous lifecycle, unavailable origin or incomplete gate
 prevents aggregate comparison. The original runs and their issues remain
-inspectable and exportable. The baseline must have no applied gate. The blackout
-must request two seconds and contain one closed gate lasting at least two
-seconds, no earlier than its requested deadline and within its measurement phase.
+inspectable and exportable. The baseline must have no applied gate and must not
+declare non-null blackout timing settings; absent or null fields remain valid
+for older baselines. The blackout
+must declare a finite requested gate duration of 0.1–59.8 seconds and leave at
+least 0.1 second before and after that interval in its requested measurement.
+It must contain one closed gate lasting at least its own requested duration,
+no earlier than its requested deadline and within its measurement phase.
+Missing or invalid requested timing blocks comparison; no default duration is
+invented when reading saved evidence. Existing two-second v1/v2 runs remain
+supported. A short requested interruption is eligible when these checks pass;
+an early-stopped longer interruption is not treated as a completed short one.
 
 Synthetic and SITL sources cannot be mixed. Legacy v1 without an explicit source
 field is interpreted as synthetic. For SITL, the declared executable profile and

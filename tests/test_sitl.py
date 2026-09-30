@@ -363,15 +363,19 @@ def test_sitl_startup_preamble_is_rejected_after_first_frame(tmp_path, fake_simu
     assert [record.raw_frame for record in captured.records] == [HEARTBEAT_V1]
 
 
-def test_sitl_blackout_starts_after_readiness_and_drops_whole_datagrams(tmp_path, fake_simulator):
+@pytest.mark.parametrize("blackout_duration", [2.0, 0.3])
+def test_sitl_blackout_starts_after_readiness_and_drops_whole_datagrams(
+    tmp_path, fake_simulator, blackout_duration
+):
     make, children = fake_simulator
     output = tmp_path / "blackout"
     result = run_experiment(
         output,
         ExperimentConfig(
             scenario="blackout",
-            duration_s=2.4,
+            duration_s=blackout_duration + 0.4,
             blackout_at_s=0.2,
+            blackout_duration_s=blackout_duration,
             sitl_binary=make(),
             startup_timeout_s=2,
         ),
@@ -385,7 +389,8 @@ def test_sitl_blackout_starts_after_readiness_and_drops_whole_datagrams(tmp_path
     measurement = result["measurement_start"]["monotonic_ns"]
     assert disabled["monotonic_ns"] > measurement
     assert disabled["measurement_elapsed_ns"] >= 200_000_000
-    assert enabled["monotonic_ns"] - disabled["monotonic_ns"] >= 2_000_000_000
+    assert result["requested"]["blackout_duration_s"] == blackout_duration
+    assert enabled["monotonic_ns"] - disabled["monotonic_ns"] >= round(blackout_duration * 1e9)
     observations = {
         item["record_index"]: item
         for item in read_lines(output / "observations.jsonl")
@@ -491,20 +496,24 @@ def test_sitl_stop_escalates_and_reaps_an_unresponsive_owned_child(tmp_path, fak
     assert len(children) == 1 and children[0].poll() == -signal.SIGKILL
 
 
-@pytest.fixture(scope="module", params=["baseline", "blackout"])
+@pytest.fixture(scope="module", params=["baseline", "blackout", "short-blackout"])
 def real_sitl_run(tmp_path_factory, request):
     if not os.environ.get("UAV_DEBUGGER_SITL_BINARY"):
         pytest.skip("Set UAV_DEBUGGER_SITL_BINARY inside a loopback-only network namespace")
-    scenario = request.param
-    output = tmp_path_factory.mktemp("real-sitl") / scenario
+    scenario = "blackout" if request.param == "short-blackout" else request.param
+    blackout_duration = 0.5 if request.param == "short-blackout" else None
+    output = tmp_path_factory.mktemp("real-sitl") / request.param
     result = run_experiment(
         output,
         ExperimentConfig(
             scenario=scenario,
             duration_s=6,
             sitl_binary=Path(os.environ["UAV_DEBUGGER_SITL_BINARY"]),
+            blackout_duration_s=blackout_duration,
         ),
     )
+    if blackout_duration is not None:
+        assert result["requested"]["blackout_duration_s"] == blackout_duration
     return output, result
 
 
@@ -541,7 +550,9 @@ def test_opt_in_pinned_sitl_produces_analyzable_captures(real_sitl_run):
         disabled = next(item for item in actions if item["action"] == "forwarding_disabled")
         enabled = next(item for item in actions if item["action"] == "forwarding_enabled")
         assert disabled["measurement_elapsed_ns"] >= 2_000_000_000
-        assert enabled["monotonic_ns"] - disabled["monotonic_ns"] >= 2_000_000_000
+        assert enabled["monotonic_ns"] - disabled["monotonic_ns"] >= round(
+            result["requested"]["blackout_duration_s"] * 1e9
+        )
     else:
         assert result["counters"]["relay_dropped"] == 0
 

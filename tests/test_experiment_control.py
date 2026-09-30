@@ -112,9 +112,15 @@ def test_stop_is_idempotent_and_separate_from_applied_runner_action(controller):
     assert controller.stop(initial.run_id) == snapshot
 
 
-def test_stop_during_blackout_preserves_actual_shortened_gate(controller):
+@pytest.mark.parametrize("length", [None, 4.0])
+def test_stop_during_blackout_preserves_actual_shortened_gate(controller, length):
     initial = controller.start(
-        ExperimentConfig(scenario="blackout", duration_s=6, blackout_at_s=0.1)
+        ExperimentConfig(
+            scenario="blackout",
+            duration_s=6,
+            blackout_at_s=0.1,
+            blackout_duration_s=length,
+        )
     )
     actions = initial.output / "actions.jsonl"
     eventually(lambda: actions.exists() and '"forwarding_disabled"' in actions.read_text())
@@ -122,9 +128,32 @@ def test_stop_during_blackout_preserves_actual_shortened_gate(controller):
     snapshot = finished(controller, initial.run_id)
     run = load_run_directory(snapshot.output)
     assert run.declared_outcome == "interrupted"
-    assert 0 < run.gate_intervals[0].duration_ns < 2_000_000_000
+    requested_length = 2.0 if length is None else length
+    assert 0 < run.gate_intervals[0].duration_ns < round(requested_length * 1e9)
     assert run.gate_intervals[0].end.data["reason"] == "shutdown"
-    assert snapshot.requested["blackout_duration_s"] == 2.0
+    assert snapshot.requested["blackout_duration_s"] == requested_length
+    assert run.requested["blackout_duration_s"] == requested_length
+
+
+def test_custom_blackout_is_transmitted_to_real_owned_worker_and_final_evidence(controller):
+    initial = controller.start(
+        ExperimentConfig(
+            scenario="blackout",
+            duration_s=0.9,
+            blackout_at_s=0.1,
+            blackout_duration_s=0.35,
+        )
+    )
+    snapshot = finished(controller, initial.run_id)
+    assert snapshot.state == "finished", snapshot.error
+    assert snapshot.declared_outcome == "completed"
+    run = load_run_directory(snapshot.output)
+    assert run.evidence_status == "consistent"
+    assert run.requested["blackout_duration_s"] == snapshot.requested["blackout_duration_s"] == 0.35
+    assert run.gate_intervals[0].duration_ns >= 350_000_000
+    assert len(run.captures["relay-input"].records) > len(run.captures["receiver"].records) > 0
+    stored_control = json.loads(snapshot.control_file.read_text())
+    assert stored_control["requested"]["blackout_duration_s"] == 0.35
 
 
 def test_one_active_worker_and_sequential_unique_outputs(controller):
@@ -164,7 +193,10 @@ def test_concurrent_start_calls_serialize_launches(controller):
         ExperimentConfig(duration_s=61),
         ExperimentConfig(scenario="other"),
         ExperimentConfig(blackout_at_s=1),
+        ExperimentConfig(blackout_duration_s=2),
         ExperimentConfig(scenario="blackout", duration_s=2),
+        ExperimentConfig(scenario="blackout", blackout_duration_s=float("inf")),
+        ExperimentConfig(scenario="blackout", blackout_duration_s=4),
     ),
 )
 def test_invalid_configuration_does_not_create_output_or_worker(controller, config):

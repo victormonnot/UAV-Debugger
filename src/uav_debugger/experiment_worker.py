@@ -33,6 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scenario", choices=("baseline", "blackout"), required=True)
     parser.add_argument("--duration", type=float, required=True)
     parser.add_argument("--blackout-at", type=float)
+    parser.add_argument("--blackout-duration", type=float)
     parser.add_argument("--sitl-binary", type=Path)
     parser.add_argument("--startup-timeout", type=float, default=15.0)
     parser.add_argument("--isolated", action="store_true")
@@ -47,7 +48,12 @@ def main(argv: list[str] | None = None) -> int:
         signal.signal(signum, request_stop)
     threading.Thread(target=_watch_owner, args=(stop,), daemon=True).start()
     config = ExperimentConfig(
-        args.scenario, args.duration, args.blackout_at, args.sitl_binary, args.startup_timeout
+        args.scenario,
+        args.duration,
+        args.blackout_at,
+        args.sitl_binary,
+        args.startup_timeout,
+        args.blackout_duration,
     )
     try:
         config.validate()

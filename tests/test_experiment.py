@@ -1,6 +1,7 @@
 """Verify real loopback experiments and their independently imported evidence."""
 
 import hashlib
+import io
 import itertools
 import json
 import signal
@@ -179,6 +180,10 @@ def test_blackout_records_actual_drop_window_and_resumption_without_replay(black
         {"scenario": "blackout", "duration_s": 2},
         {"scenario": "blackout", "blackout_at_s": 0},
         {"scenario": "blackout", "blackout_at_s": float("nan")},
+        {"scenario": "blackout", "blackout_at_s": 1e308},
+        {"scenario": "blackout", "blackout_at_s": 10**500},
+        {"scenario": "blackout", "blackout_at_s": True},
+        {"scenario": "blackout", "blackout_at_s": "0.5"},
         {"scenario": "blackout", "duration_s": 3, "blackout_at_s": 1},
     ],
 )
@@ -187,6 +192,113 @@ def test_invalid_settings_do_not_create_output(tmp_path, settings):
     with pytest.raises(ValueError):
         run_experiment(output, ExperimentConfig(**settings))
     assert not output.exists()
+
+
+@pytest.mark.parametrize(
+    "duration",
+    [0, -1, 0.099, 59.8001, float("nan"), float("inf"), float("-inf"), True, "0.5", 10**500],
+)
+def test_invalid_blackout_duration_is_rejected_before_output_and_transports(
+    tmp_path, monkeypatch, duration
+):
+    def no_socket(*args, **kwargs):
+        raise AssertionError("Invalid blackout settings opened a transport")
+
+    monkeypatch.setattr(experiment.socket, "socket", no_socket)
+    output = tmp_path / "invalid-duration"
+    with pytest.raises(ValueError, match="blackout-duration"):
+        run_experiment(
+            output,
+            ExperimentConfig(
+                scenario="blackout",
+                duration_s=60,
+                blackout_at_s=0.1,
+                blackout_duration_s=duration,
+            ),
+        )
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("duration", [0.1, 2.0, float("nan")])
+def test_baseline_rejects_explicit_blackout_duration(tmp_path, duration):
+    output = tmp_path / "baseline-option"
+    with pytest.raises(ValueError, match="blackout-duration is only valid"):
+        run_experiment(output, ExperimentConfig(blackout_duration_s=duration))
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("total,start,length", [(0.3, 0.1, 0.1), (0.8, 0.1, 0.6), (60, 0.1, 59.8)])
+def test_blackout_margins_accept_decimal_boundaries(total, start, length):
+    config = ExperimentConfig(
+        scenario="blackout",
+        duration_s=total,
+        blackout_at_s=start,
+        blackout_duration_s=length,
+    )
+    config.validate()
+    assert config.requested()["blackout_duration_s"] == length
+
+
+@pytest.mark.parametrize(
+    "total,start,length", [(0.299999999, 0.1, 0.1), (0.8, 0.099999999, 0.6), (6, 2, 4)]
+)
+def test_blackout_margins_reject_outside_nanosecond_schedule(tmp_path, total, start, length):
+    output = tmp_path / "missing-margin"
+    with pytest.raises(ValueError, match="before and after"):
+        run_experiment(
+            output,
+            ExperimentConfig(
+                scenario="blackout",
+                duration_s=total,
+                blackout_at_s=start,
+                blackout_duration_s=length,
+            ),
+        )
+    assert not output.exists()
+
+
+def test_existing_five_positional_config_arguments_keep_the_default_blackout():
+    config = ExperimentConfig("blackout", 6, 2, Path("/explicit-simulator"), 12)
+    assert config.sitl_binary == Path("/explicit-simulator")
+    assert config.startup_timeout_s == 12
+    assert config.blackout_duration_s is None
+    assert config.blackout_duration == 2.0
+    assert config.requested()["blackout_duration_s"] == 2.0
+
+
+@pytest.mark.parametrize("length", [0.1, 3.25, 59.8])
+def test_gate_holds_requested_duration_from_actual_delayed_activation(monkeypatch, length):
+    now = 1_000_000_000
+    monkeypatch.setattr(experiment.time, "monotonic_ns", lambda: now)
+    runner = experiment._Runner({}, threading.Event())
+    runner.actions = io.StringIO()
+    runner.measurement_ns = 2_000_000_000
+    config = ExperimentConfig(
+        scenario="blackout",
+        duration_s=60,
+        blackout_at_s=0.1,
+        blackout_duration_s=length,
+    )
+    config.validate()
+    requested_start = runner.measurement_ns + 100_000_000
+    now = requested_start - 1
+    runner.update_gate(now, config)
+    assert not runner.gate_closed and not runner.actions.getvalue()
+    now = requested_start + 50_000_000
+    runner.update_gate(now, config)
+    assert runner.gate_closed and runner.gate_started_ns == now
+    actual_start = now
+    now = actual_start + round(length * 1e9) - 1
+    runner.update_gate(now, config)
+    assert runner.gate_closed
+    now += 1
+    runner.update_gate(now, config)
+    assert not runner.gate_closed
+    disabled, enabled = map(json.loads, runner.actions.getvalue().splitlines())
+    assert disabled["requested_elapsed_ns"] == requested_start - runner.origin_ns
+    assert disabled["monotonic_ns"] > requested_start
+    assert enabled["monotonic_ns"] - disabled["monotonic_ns"] == round(length * 1e9)
+    assert enabled["reason"] == "blackout_elapsed"
 
 
 def test_existing_output_is_preserved(tmp_path):
@@ -402,12 +514,52 @@ def test_cli_creates_a_run_and_captures_can_be_imported_in_separate_processes(tm
         assert json.loads(imported.stdout)["decoded_count"] > 0
 
 
+def test_cli_custom_blackout_retains_actual_gate_and_byte_preserving_observations(tmp_path):
+    output = tmp_path / "custom-cli"
+    process = invoke(
+        "--output",
+        output,
+        "--scenario",
+        "blackout",
+        "--duration",
+        "1",
+        "--blackout-at",
+        "0.2",
+        "--blackout-duration",
+        "0.4",
+    )
+    assert process.returncode == 0, process.stderr
+    result = json.loads(process.stdout)
+    assert result["schema"] == "uav-debugger-experiment-v1"
+    assert result["outcome"] == "completed"
+    assert result["requested"]["blackout_duration_s"] == 0.4
+    actions = read_lines(output / "actions.jsonl")
+    disabled = next(item for item in actions if item["action"] == "forwarding_disabled")
+    enabled = next(item for item in actions if item["action"] == "forwarding_enabled")
+    assert enabled["monotonic_ns"] - disabled["monotonic_ns"] >= 400_000_000
+    assert enabled["reason"] == "blackout_elapsed"
+    before = import_file(output / "relay-input.tlog")
+    after = import_file(output / "receiver.tlog")
+    forwards = [item for item in actions if item["action"] == "relay_forwarded"]
+    drops = [item for item in actions if item["action"] == "relay_dropped"]
+    assert drops and any(item["monotonic_ns"] >= enabled["monotonic_ns"] for item in forwards)
+    assert [item.raw_frame for item in after.records] == [
+        before.records[item["record_index"]].raw_frame for item in forwards
+    ]
+
+
 @pytest.mark.parametrize(
     "arguments",
     [
         ("--duration", "nan"),
         ("--duration", "61"),
         ("--scenario", "baseline", "--blackout-at", "1"),
+        ("--scenario", "baseline", "--blackout-duration", "2"),
+        ("--scenario", "blackout", "--blackout-duration", "nan"),
+        ("--scenario", "blackout", "--blackout-duration", "0"),
+        ("--scenario", "blackout", "--blackout-duration", "60"),
+        ("--scenario", "blackout", "--blackout-duration", "4"),
+        ("--scenario", "blackout", "--blackout-at", "1e308"),
         ("--scenario", "blackout", "--duration", "2"),
     ],
 )

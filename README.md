@@ -11,8 +11,8 @@ a local UDP relay to a receiver. Explicit Start/Stop controls and a CLI produce
 captures before and after the relay, retaining requested settings, applied
 actions and actual observations separately.
 
-**0.2.0rc2.dev0 is an unpublished development version.** It adds a read-only
-catalog of experiments saved under the configured local output root. Version
+**0.2.0rc2.dev1 is an unpublished development version.** It includes a read-only
+local experiment catalog and configurable forwarding interruptions. Version
 **0.1.0** remains the latest published release and provides single-recording
 offline Analyze; **0.2.0rc1** remains an unpublished, separately verified candidate.
 The commands below use this development checkout. See
@@ -106,6 +106,12 @@ file independently in Analyze, or choose **Saved experiment** and open the run
 directory to inspect settings, applied actions and both capture points together.
 Their clocks remain explicit; `Ctrl+C` stops the runner cleanly.
 
+Blackout duration defaults to two seconds. Set **Blackout duration (s)** in the
+interface or `--blackout-duration SECONDS` in the CLI to change it. The accepted
+range is 0.1–59.8 seconds, with at least 0.1 second before and after the requested
+interval inside the measurement duration. Analyze retains requested timing and
+actual gate transitions separately, including interruptions stopped early.
+
 See the [Experiment guide](docs/experiment.md) for configuration, output files,
 termination and evidence limits. The optional [ArduCopter SITL guide](docs/sitl.md)
 describes the separately installed, fingerprinted simulator, startup readiness
@@ -137,7 +143,7 @@ cause.
 | Mode | Direction | Current implementation |
 | --- | --- | --- |
 | **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown reports, local saved-run browsing, inspection and bounded baseline/blackout comparison, Python API and JSON import summary. |
-| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Browser Start/Stop and CLI; synthetic or pinned ArduCopter SITL source, local UDP relay and receiver; baseline and two-second interruption; saved evidence opens in Analyze or comparison. |
+| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Browser Start/Stop and CLI; synthetic or pinned ArduCopter SITL source, local UDP relay and receiver; baseline and configurable interruption (two seconds by default); saved evidence opens in Analyze or comparison. |
 
 Analyze remains independently usable from saved files. Opening a recording never
 starts an experiment or sends vehicle commands. Video, broader session comparison and

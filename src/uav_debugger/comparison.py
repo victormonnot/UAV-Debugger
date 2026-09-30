@@ -114,8 +114,8 @@ def _source_kind(run: SavedRun) -> object:
     return run.requested.get("source", fallback)
 
 
-def _duration_ns(value: object) -> int | None:
-    if type(value) not in (int, float) or not 0.1 <= value <= 60 or not math.isfinite(value):
+def _duration_ns(value: object, *, maximum_s: float = 60) -> int | None:
+    if type(value) not in (int, float) or not 0.1 <= value <= maximum_s or not math.isfinite(value):
         return None
     return round(value * 1_000_000_000)
 
@@ -350,28 +350,38 @@ def _eligibility(
             "The comparison window exceeds the requested measurement phase; "
             "startup and drain are excluded.",
         )
-    if role == "baseline" and run.gate_intervals:
-        reject("baseline_gate", "The baseline contains an applied forwarding interruption.")
+    if role == "baseline":
+        if any(
+            run.requested.get(field) is not None
+            for field in ("blackout_at_s", "blackout_duration_s")
+        ):
+            reject("baseline_request", "The baseline must not request blackout timing settings.")
+        if run.gate_intervals:
+            reject("baseline_gate", "The baseline contains an applied forwarding interruption.")
     if role == "blackout":
         gates = run.gate_intervals
         requested_at = _duration_ns(run.requested.get("blackout_at_s"))
-        requested_length = run.requested.get("blackout_duration_s")
+        requested_length = _duration_ns(run.requested.get("blackout_duration_s"), maximum_s=59.8)
         if (
             requested_at is None
-            or type(requested_length) not in (int, float)
-            or requested_length != 2
+            or requested_length is None
             or duration_ns is None
-            or requested_at + 2_100_000_000 > duration_ns
+            or requested_at + requested_length + 100_000_000 > duration_ns
         ):
             reject(
                 "blackout_request",
-                "The supported blackout requests a two-second gate with time before and after it.",
+                "The blackout must request a 0.1 to 59.8 second gate with at least "
+                "0.1 seconds before and after it within the measurement duration.",
             )
-        if len(gates) != 1 or gates[0].end is None or gates[0].duration_ns < 2_000_000_000:
+        if (
+            len(gates) != 1
+            or gates[0].end is None
+            or (requested_length is not None and gates[0].duration_ns < requested_length)
+        ):
             reject(
                 "blackout_gate",
                 "The blackout requires one actual, closed interruption "
-                "lasting at least two seconds.",
+                "lasting at least its requested duration.",
             )
         elif run.measurement_monotonic_ns is not None:
             start = gates[0].start.monotonic_ns - run.measurement_monotonic_ns

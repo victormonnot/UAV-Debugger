@@ -4,6 +4,7 @@ import hashlib
 import json
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -41,8 +42,10 @@ def fixture_files(
     startup_ns=1_000_000_000,
     producer_stop_ns=None,
     wall_regresses=False,
+    blackout_at_s=0.2,
+    blackout_duration_s=2.0,
     gate_start_ns=200_000_000,
-    gate_end_ns=2_200_000_000,
+    gate_end_ns=None,
 ):
     """Construct evidence from public fixture frames; never claim native execution."""
     capture = import_bytes((ROOT / "tests/fixtures/telemetry-gap.tlog").read_bytes())
@@ -54,6 +57,8 @@ def fixture_files(
     origin = origin_ns
     measurement = startup_ns if version == 2 else 0
     duration = round(duration_s * 1e9)
+    if gate_end_ns is None:
+        gate_end_ns = gate_start_ns + round(blackout_duration_s * 1e9)
 
     def stamp(elapsed):
         unix = 1_700_000_000_000_000 + (-1 if wall_regresses else 1) * elapsed // 1000
@@ -70,7 +75,7 @@ def fixture_files(
             [
                 {
                     "action": "forwarding_disabled",
-                    "requested_elapsed_ns": measurement + 200_000_000,
+                    "requested_elapsed_ns": measurement + round(blackout_at_s * 1e9),
                     **stamp(measurement + gate_start_ns),
                 },
                 {
@@ -80,7 +85,11 @@ def fixture_files(
                 },
             ]
         )
-    times = [0, 100_000_000, 250_000_000, 1_000_000_000, 2_100_000_000, 2_500_000_000, duration]
+    times = [
+        value
+        for value in (0, 100_000_000, 250_000_000, 1_000_000_000, 2_100_000_000, 2_500_000_000)
+        if value < duration
+    ] + [duration]
     if version == 2:
         times = [-100_000_000, *times, duration + 50_000_000]
     drops = 0
@@ -143,8 +152,8 @@ def fixture_files(
             "scenario": scenario,
             "duration_s": duration_s,
             "source": "synthetic" if version == 1 else "arducopter-sitl",
-            "blackout_at_s": 0.2 if scenario == "blackout" else None,
-            "blackout_duration_s": 2.0 if scenario == "blackout" else None,
+            "blackout_at_s": blackout_at_s if scenario == "blackout" else None,
+            "blackout_duration_s": blackout_duration_s if scenario == "blackout" else None,
             "rate_hz": 20 if version == 1 else None,
         },
         "counters": {
@@ -341,7 +350,7 @@ def test_corrupt_reference_excludes_entire_aggregate_comparison(pair):
         (lambda manifest: manifest["requested"].update(scenario="baseline"), "scenario"),
         (lambda manifest: manifest["requested"].update(rate_hz=10), "configuration_difference"),
         (lambda manifest: manifest["requested"].update(source="unknown"), "source_profile"),
-        (lambda manifest: manifest["requested"].update(blackout_duration_s=1), "blackout_request"),
+        (lambda manifest: manifest["requested"].update(blackout_duration_s=0), "blackout_request"),
     ],
 )
 def test_invalid_or_incompatible_settings_have_explicit_reasons(pair, change, code):
@@ -378,6 +387,144 @@ def test_actual_gate_must_follow_request_and_cover_full_two_seconds(pair, start,
     result = compare_runs(pair[0], fixture_run("blackout", gate_start_ns=start, gate_end_ns=end))
     assert not result.comparable
     assert any(issue.code == "blackout_gate" for issue in result.issues)
+
+
+@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize("field", ["blackout_at_s", "blackout_duration_s"])
+def test_baseline_with_requested_blackout_timing_blocks_comparison(version, field):
+    baseline = edited(
+        fixture_run("baseline", version=version),
+        lambda manifest: manifest["requested"].update({field: 0.5}),
+    )
+    assert baseline.evidence_status == "consistent"
+    result = compare_runs(baseline, fixture_run("blackout", version=version))
+    assert not result.comparable
+    assert result.metrics == {}
+    assert any(
+        item.code == "baseline_request" and item.run_role == "baseline" for item in result.issues
+    )
+
+
+@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize("missing", [False, True])
+def test_baseline_null_or_absent_legacy_blackout_settings_remain_comparable(version, missing):
+    baseline = fixture_run("baseline", version=version)
+    if missing:
+
+        def omit_timing(manifest):
+            for field in ("blackout_at_s", "blackout_duration_s"):
+                del manifest["requested"][field]
+
+        baseline = edited(baseline, omit_timing)
+    result = compare_runs(baseline, fixture_run("blackout", version=version))
+    assert result.comparable, result.issues
+
+
+@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize("length_s", [0.1, 0.35, 2.0, 4.0, 59.8])
+def test_configurable_gate_durations_and_legacy_two_seconds_remain_comparable(version, length_s):
+    duration_s = max(3, length_s + 0.2)
+    baseline = fixture_run("baseline", version=version, duration_s=duration_s)
+    blackout = fixture_run(
+        "blackout",
+        version=version,
+        duration_s=duration_s,
+        blackout_at_s=0.1,
+        blackout_duration_s=length_s,
+        gate_start_ns=100_000_000,
+    )
+    result = compare_runs(baseline, blackout)
+    assert result.comparable, result.issues
+    assert result.gates["blackout"][0].duration_ns == round(length_s * 1e9)
+    difference = next(
+        item for item in result.differences if item.field == "requested.blackout_duration_s"
+    )
+    assert difference.baseline is None
+    assert difference.blackout == length_s
+    assert not difference.blocking
+
+
+@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize("length_s", [0.1, 0.1000000006, 0.35, 4.0])
+def test_applied_gate_one_nanosecond_shorter_than_requested_blocks_comparison(version, length_s):
+    duration_s = max(3, length_s + 0.3)
+    requested_ns = round(length_s * 1e9)
+    baseline = fixture_run("baseline", version=version, duration_s=duration_s)
+    blackout = fixture_run(
+        "blackout",
+        version=version,
+        duration_s=duration_s,
+        blackout_duration_s=length_s,
+        gate_end_ns=200_000_000 + requested_ns - 1,
+    )
+    result = compare_runs(baseline, blackout)
+    assert not result.comparable
+    assert result.metrics == {}
+    assert result.gates["blackout"][0].duration_ns == requested_ns - 1
+    assert any(item.code == "blackout_gate" for item in result.issues)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        None,
+        True,
+        False,
+        float("nan"),
+        float("inf"),
+        -float("inf"),
+        "2",
+        [],
+        0,
+        -0.1,
+        0.0999999999,
+        59.8000000001,
+        60,
+        1e200,
+        10**400,
+    ],
+)
+def test_invalid_requested_gate_length_never_falls_back_to_two_seconds(pair, value):
+    # Nonfinite JSON is rejected earlier by the reader; the comparison API also
+    # validates directly supplied SavedRun values without trusting a numeric type.
+    blackout = replace(
+        pair[1],
+        manifest={
+            **pair[1].manifest,
+            "requested": {**pair[1].requested, "blackout_duration_s": value},
+        },
+    )
+    result = compare_runs(pair[0], blackout)
+    assert not result.comparable
+    assert result.metrics == {}
+    assert any(item.code == "blackout_request" for item in result.issues)
+    assert result.gates["blackout"][0].duration_ns == 2_000_000_000
+
+
+def test_absent_requested_gate_length_is_not_a_legacy_two_second_default(pair):
+    blackout = edited(pair[1], lambda manifest: manifest["requested"].pop("blackout_duration_s"))
+    result = compare_runs(pair[0], blackout)
+    assert not result.comparable
+    assert result.metrics == {}
+    assert any(item.code == "blackout_request" for item in result.issues)
+
+
+@pytest.mark.parametrize(
+    "at_s,length_s,expected",
+    [(0.1, 2.8, True), (0.2, 2.7, True), (0.0999999999, 2, False), (0.2, 2.700000001, False)],
+)
+def test_requested_gate_margins_use_exact_bounded_nanoseconds(pair, at_s, length_s, expected):
+    blackout = fixture_run(
+        "blackout",
+        blackout_at_s=at_s,
+        blackout_duration_s=length_s,
+        gate_start_ns=round(at_s * 1e9),
+    )
+    result = compare_runs(pair[0], blackout)
+    assert result.comparable is expected, result.issues
+    if not expected:
+        assert result.metrics == {}
+        assert any(item.code == "blackout_request" for item in result.issues)
 
 
 def test_mixed_source_families_block_metrics():

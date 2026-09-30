@@ -89,6 +89,8 @@ def _command(output: Path, config: ExperimentConfig) -> list[str]:
     ]
     if config.blackout_at_s is not None:
         command.extend(("--blackout-at", str(config.blackout_at_s)))
+    if config.blackout_duration_s is not None:
+        command.extend(("--blackout-duration", str(config.blackout_duration_s)))
     if config.sitl_binary is not None:
         command.extend(
             (

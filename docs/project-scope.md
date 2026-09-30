@@ -4,12 +4,13 @@ UAV Debugger is a standalone tool for understanding UAV recordings and running
 controlled protocol experiments. It has two modes:
 **Analyze** and **Experiment**, built around the same session evidence.
 
-The unpublished **0.2.0rc2.dev0** development version provides an offline Analyze interface with
+The unpublished **0.2.0rc2.dev1** development version provides an offline Analyze interface with
 source, message and time filters, activity and attitude plots, record inspection
 and Markdown evidence export. The same importer is available through Python and
 a JSON command-line summary. The [Experiment interface](experiment-ui.md) and
 [CLI](experiment.md) add a bounded synthetic sender → relay → receiver path on
-local UDP, with a baseline and a two-second interruption in forwarding. A pinned ArduCopter SITL profile
+local UDP, with a baseline and a bounded interruption in forwarding, defaulting
+to two seconds. A pinned ArduCopter SITL profile
 can replace the synthetic source inside a loopback-only network namespace. See the [Analyze guide](analyze.md)
 and [importer guide](importer.md) for tested inputs and limits. Analyze also
 supports a bounded [saved baseline/blackout comparison](comparison.md).
