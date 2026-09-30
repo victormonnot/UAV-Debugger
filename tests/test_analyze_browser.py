@@ -381,6 +381,9 @@ def test_bundled_example_without_upload_and_explicit_source_switches(analyze_pag
     upload(page, FIXTURE.read_bytes()[:25], name="uploaded-short.tlog")
     expect(metric(page, "Imported records")).to_have_text("1")
     expect(metric(page, "Selected records")).to_have_text("1")
+    # New metrics arrive before Streamlit removes the previous input's controls.
+    # First identify the replacement above, then await its completed render.
+    wait_for_render(page)
     expect(page.get_by_role("combobox", name="Source", exact=True)).to_have_value("All sources")
     expect(page.get_by_role("button", name="Clear example", exact=True)).to_have_count(0)
     expect(page.get_by_text("telemetry-gap.tlog (synthetic example)", exact=True)).to_have_count(0)
