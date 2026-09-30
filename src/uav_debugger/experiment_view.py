@@ -97,7 +97,7 @@ def _status_metrics(snapshot) -> None:
     columns[2].metric(
         "Controller elapsed", f"{max(0, end - snapshot.created.monotonic_ns) / 1e9:.1f} s"
     )
-    st.caption(f"Run ID: {snapshot.run_id}")
+    st.text(f"Run ID: {snapshot.run_id}")
     st.text(f"Evidence directory: {snapshot.output}")
 
 
@@ -199,9 +199,9 @@ def _finished_results(controller: ExperimentController, history) -> None:
         assigned = st.session_state.get(f"experiment_{role}_id")
         if assigned in by_id:
             pair[role] = assigned
-            st.caption(f"Selected {role}: {assigned}")
+            st.text(f"Selected {role}: {assigned}")
         else:
-            st.caption(f"Selected {role}: none")
+            st.text(f"Selected {role}: none")
     st.button(
         "Compare selected runs",
         disabled=len(pair) != 2,
@@ -304,8 +304,8 @@ def present_experiment() -> None:
             type="primary",
         )
     output_root = os.environ.get("UAV_DEBUGGER_EXPERIMENT_ROOT", "local/experiments")
+    st.text(f"Output directory: {output_root}")
     st.caption(
-        f"New runs are saved under {output_root}. "
         "Each run gets a new directory; saved files are never replaced or automatically deleted."
     )
     if start:

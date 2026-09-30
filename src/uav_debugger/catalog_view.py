@@ -143,7 +143,7 @@ def present_catalog() -> None:
         assigned = st.session_state.get(f"catalog_{role}")
         if assigned is not None:
             pair[role] = assigned
-        st.caption(f"Selected {role}: {assigned or 'none'}")
+        st.text(f"Selected {role}: {assigned or 'none'}")
     st.button(
         "Compare selected runs",
         disabled=len(pair) != 2,

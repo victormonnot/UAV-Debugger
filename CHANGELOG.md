@@ -52,6 +52,8 @@ for package checks, hosted CI and publication status.
 
 ### Fixed
 
+- Experiment identifiers and selected catalog paths retain literal punctuation
+  instead of interpreting underscores or other Markdown characters as formatting.
 - Experiment history selection keeps the selected run, displayed outcome and
   Analyze handoff consistent after another run finishes, including interruption
   after returning from saved analysis or comparison.

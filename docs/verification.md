@@ -114,12 +114,12 @@ review.
 
 ### 0.2.0 release preparation
 
-The 0.2.0 package retains the application code, evidence schemas and locked
-dependencies of 0.2.0rc2.dev1. Preparation updates version metadata and public
-documentation and consolidates the release notes without adding features.
+The initial 0.2.0 preparation retained the application code, evidence schemas
+and locked dependencies of 0.2.0rc2.dev1, updating version metadata and public
+documentation. The identifier-rendering correction below follows that initial check.
 Analyze remains usable independently of experiment execution.
 
-On 2026-09-30, the installed **0.2.0** wheel passed **758 tests in 354.21 seconds**,
+On 2026-09-30, the initial installed **0.2.0** wheel passed **758 tests in 354.21 seconds**,
 with no failures or skips, in a fresh locked Linux x86_64 / Python 3.12.3
 environment restricted to loopback networking. All **36 Chromium workflows**
 and **13 explicitly enabled native SITL cases** ran. The suite covers independent
@@ -133,9 +133,39 @@ The comparison was eligible and its report identified version 0.2.0.
 
 Ruff lint/format (70 files), deterministic fixture, lock, archive contents and
 public Markdown links/anchors pass. The archives contain **80 source files**
-and **30 wheel members**. All 24 application/data members are byte-identical to
-the previously tested development wheel; dependency versions are unchanged.
-Only the verification documentation changed after the complete package test run.
+and **30 wheel members**. All 24 application/data members of that initial wheel
+were byte-identical to the previously tested development wheel. Only verification
+documentation changed before the preparation commit; these archive identities
+precede the identifier-rendering correction below.
+
+The first [hosted 0.2.0 preparation run](https://github.com/victormonnot/UAV-Debugger/actions/runs/36725637626)
+on commit `c042c91ac771a1b30a1187245e2338aaa90f5e3a` failed one browser check:
+**744 passed, one failed and 13 expected native SITL skips in 329.07 seconds**.
+The check could not find the exact displayed run identifier `run-_z6bg9i_`.
+The interface rendered identifiers as Markdown, interpreting paired underscores
+as formatting. Deterministic browser checks against the original installed
+wheel reproduced the problem for both `run-_z6bg9i_` and `run-__gap___`: the
+rendered text lost delimiter characters to italic or bold formatting.
+
+Experiment identifiers, selected comparison identifiers, output paths and
+selected catalog keys now use literal text rendering. Identifier generation,
+saved evidence and execution behavior are unchanged. Three focused Chromium
+workflows passed in 58.81 seconds on the corrected installed wheel, including
+the originally failing workflow and both deterministic identifier cases.
+The new cases verify exact identifiers after Start and completion, assignment,
+Analyze/comparison handoffs, catalog selection, exported evidence fingerprints
+and unchanged original files. Existing exact identity assertions and timeouts
+are retained.
+
+The corrected installed **0.2.0** wheel subsequently passed **760 tests in
+398.48 seconds**, with no failures or skips, in a fresh locked Python 3.12.3
+environment restricted to loopback networking. All **38 Chromium workflows**
+and **13 native SITL cases** ran. This result includes the final regression
+checks without relying on a short-lived intermediate process state. The final
+archives contain **81 source files** and **30 wheel members**; the final wheel
+members match the corrected, fully tested wheel. Ruff lint/format (71 files),
+fixture, lock, archive and public link checks pass. These corrected artifacts
+supersede the initial preparation archives.
 
 Publication requires a successful hosted Verification run on the exact release
 commit. The release notes identify that commit and run when published; the

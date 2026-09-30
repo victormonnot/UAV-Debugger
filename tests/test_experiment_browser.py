@@ -42,8 +42,7 @@ def analyze_server(experiment_root, experiment_server, tmp_path):
     base_url = f"http://127.0.0.1:{port}"
     command = [
         sys.executable,
-        "-m",
-        "uav_debugger.analyze",
+        *experiment_server.get("launcher", ["-m", "uav_debugger.analyze"]),
         "--port",
         str(port),
         "--experiment-root",
