@@ -1,10 +1,10 @@
 # Run an Experiment from the local interface
 
-Development version **0.2.0.dev4** adds explicit **Experiment** controls beside
+Release candidate **0.2.0rc1** provides explicit **Experiment** controls beside
 the independent **Analyze** mode. Start a bounded synthetic or pinned ArduCopter
 SITL run, stop it if needed, then open its saved observations in Analyze or
-compare a baseline and blackout. This workflow is unreleased; published v0.1.0
-contains offline Analyze.
+compare a baseline and blackout. This candidate is unpublished; v0.1.0 remains
+the latest published release and contains offline Analyze.
 
 ## Launch and run
 

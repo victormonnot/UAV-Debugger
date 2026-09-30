@@ -555,7 +555,7 @@ def test_opt_in_sitl_captures_open_independently_and_export_evidence(
         attitude_plot,
         choose,
         download_blocks,
-        metric,
+        expect_metric,
         upload,
     )
 
@@ -574,11 +574,11 @@ def test_opt_in_sitl_captures_open_independently_and_export_evidence(
         assert len(selected) > 1
         upload(page, original, name=capture.name)
         expect(page.locator("code").filter(has_text=imported.sha256)).to_have_count(1)
-        expect(metric(page, "Imported records")).to_have_text(str(len(imported.records)))
+        expect_metric(page, expect, "Imported records", str(len(imported.records)))
         choose(page, "Source", "1 / 1")
         choose(page, "Message type", "ATTITUDE")
         apply_changed_filters(page)
-        expect(metric(page, "Selected records")).to_have_text(str(len(selected)))
+        expect_metric(page, expect, "Selected records", str(len(selected)))
         expect(attitude_plot(page)).to_be_visible()
         inspected = selected[1]
         choose(page, "Record", f"#{inspected.index} · ATTITUDE · 1 / 1")
@@ -608,7 +608,7 @@ def test_opt_in_saved_sitl_directory_preserves_startup_and_capture_evidence(
         capture_report_blocks,
         choose,
         download_blocks,
-        metric,
+        expect_metric,
         run_report_block,
         timeline_data,
         upload_directory,
@@ -636,7 +636,7 @@ def test_opt_in_saved_sitl_directory_preserves_startup_and_capture_evidence(
     excluded_files.click()
     for name in ignored:
         expect(page.get_by_text(name, exact=True)).to_be_visible()
-    expect(metric(page, "Evidence status")).to_have_text("consistent")
+    expect_metric(page, expect, "Evidence status", "consistent")
     choose(page, "Observation point", "Receiver")
     after = await_saved_capture(page, expect, output, "receiver")
     choose(page, "Source", "1 / 1")
@@ -647,7 +647,7 @@ def test_opt_in_saved_sitl_directory_preserves_startup_and_capture_evidence(
         for record in after.records
         if (record.system_id, record.component_id, record.message_id) == (1, 1, 30)
     ]
-    expect(metric(page, "Selected records")).to_have_text(str(len(selected)))
+    expect_metric(page, expect, "Selected records", str(len(selected)))
     inspected = selected[1]
     choose(page, "Record", f"#{inspected.index} · ATTITUDE · 1 / 1")
     report = tmp_path / f"{result['requested']['scenario']}-saved-sitl-report.md"

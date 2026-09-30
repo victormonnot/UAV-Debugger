@@ -1,8 +1,8 @@
-# Architecture direction
+# Architecture
 
-UAV Debugger implements a Python file importer, in-memory evidence, exact filters,
-activity and attitude plots, record inspection, Markdown reports and a JSON
-command. The unreleased Experiment interface and CLI add a bounded synthetic
+The unpublished **0.2.0rc1** candidate implements a Python file importer,
+in-memory evidence, exact filters, activity and attitude plots, record inspection,
+Markdown reports and a JSON command. The Experiment interface and CLI add a bounded synthetic
 local UDP path and save captures for those same analysis components. See the
 [Analyze guide](analyze.md), [importer guide](importer.md) and
 [Experiment guide](experiment.md) for current use. A pinned [ArduCopter SITL profile](sitl.md) adds one external local source;
@@ -182,11 +182,12 @@ Different input adapters may describe different observations. Converting them
 into one interface must not invent missing fields or equate their timing and
 measurement semantics. An initial importer does not imply all UAVs are supported.
 
-## Recommended starting stack
+## Implementation stack
 
-These choices implement the [v0.1 workflow](first-milestone.md). Python 3.12,
-pymavlink 2.4.49, Streamlit 1.63.0, Plotly 7.0.0, in-memory records, uv, pytest
-and Ruff are in use. Playwright is an optional browser-test dependency.
+The candidate retains Python 3.12, pymavlink 2.4.49, Streamlit 1.63.0,
+Plotly 7.0.0, in-memory records, uv, pytest and Ruff. Playwright is an optional
+browser-test dependency. The [first milestone](first-milestone.md) documents
+the original v0.1.0 Analyze scope.
 
 | Concern | Implementation | Reason |
 | --- | --- | --- |
@@ -200,17 +201,16 @@ and Ruff are in use. Playwright is an optional browser-test dependency.
 | Environment and checks | `pyproject.toml`, `uv.lock`, pytest and Ruff | Reproducible dependencies, behavioral tests and basic source checks. |
 
 Streamlit runs the Python backend on the host and presents the interface in a
-browser. For this release both run on the same machine. Configure its listener
-for loopback and disable usage statistics; bundle required display assets and
-verify operation without external networking after installation. See
-[Streamlit architecture](https://docs.streamlit.io/develop/concepts/architecture/architecture)
+browser. The launcher binds to loopback and disables usage statistics; display
+assets are bundled. Browser access can also use [SSH forwarding](analyze.md#access-through-ssh).
+See [Streamlit architecture](https://docs.streamlit.io/develop/concepts/architecture/architecture)
 and [configuration](https://docs.streamlit.io/develop/api-reference/configuration/config.toml).
 
-Keep four concrete responsibilities within one Python package: reading the
+File analysis has four responsibilities within one Python package: reading the
 recording container, representing imported evidence, querying that evidence,
-and presenting/exporting results. The first three must be callable without
-Streamlit. Read input bytes through a file-only boundary and use the generated
-MAVLink decoder directly; user input must not reach a factory that also opens
+and presenting/exporting results. The first three are callable without
+Streamlit. The importer reads bytes through a file-only boundary and uses the
+generated MAVLink decoder directly; it does not call a factory that opens
 network or serial transports. See the
 [pymavlink guide](https://mavlink.io/en/mavgen_python/).
 
@@ -237,11 +237,12 @@ identity, decoded fields and per-record issues. Keep traversal completion
 separate from decoding coverage and integrity/authenticity status. Tables and
 plots are derived views; device-time fields do not silently replace capture time.
 
-Streamlit reruns application code on interaction. Retain an import result in
-browser-session state so changing filters does not parse the file again. Inputs
-and decoded data occupy memory, so capacity must be bounded and measured before
-release. The Record control or an attitude point selection chooses the inspected
-message; point selection also navigates to its table page. Plot widgets are keyed
+Streamlit reruns application code on interaction. The app retains an import
+result in browser-session state so changing filters does not parse the file again.
+Input bytes and plot selections have explicit [capacity limits](analyze.md#input-and-capacity-boundaries);
+those limits do not bound total process memory. The Record control or an attitude
+point selection chooses the inspected message. Selecting an attitude point also
+navigates to its table page. Plot widgets are keyed
 by recording, applied filters and line-gap setting so stale events cannot attach
 an earlier point to a new view. Explicit interval controls remain the source of
 filter state. Plot zoom only changes the display.
@@ -255,9 +256,9 @@ Database storage, native packaging and separate execution services would follow
 demonstrated needs. The local Experiment schema covers the implemented path;
 unused adapters and a general target framework are outside this increment.
 
-Lock concrete dependency versions when implementing and validate installation
-against that lock. `uv` supports refusing implicit lock changes via `--locked`;
-see [locking and syncing](https://docs.astral.sh/uv/concepts/projects/sync/).
+Dependency versions are pinned in `uv.lock`. Installation uses `--locked` to
+reject implicit lock changes; see
+[locking and syncing](https://docs.astral.sh/uv/concepts/projects/sync/).
 The source distribution uses an explicit public-file inclusion list. The
 project's original code, documentation and synthetic fixture use the
 [MIT License](../LICENSE). Source and wheel distributions include the license

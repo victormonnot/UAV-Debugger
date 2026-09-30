@@ -124,8 +124,17 @@ def _finished_results(controller: ExperimentController, history) -> None:
     identifiers = [snapshot.run_id for snapshot in history]
     by_id = {snapshot.run_id: snapshot for snapshot in history}
     selected = st.session_state.get("experiment_selected_run")
-    if selected not in by_id:
-        st.session_state.experiment_selected_run = identifiers[0]
+    newest = identifiers[0]
+    if st.session_state.get("experiment_history_head") != newest or selected not in by_id:
+        selected = newest
+        st.session_state.experiment_history_head = newest
+    # The selector disappears during execution and Analyze handoffs. A reused
+    # frontend widget can retain an older choice even after its session value
+    # changes. New history gets a new widget identity; the separate selection
+    # survives widget cleanup when the user opens Analyze and returns.
+    widget_key = f"experiment_run_choice_{newest}"
+    if widget_key not in st.session_state:
+        st.session_state[widget_key] = selected
     identifier = st.selectbox(
         "Run",
         identifiers,
@@ -133,8 +142,9 @@ def _finished_results(controller: ExperimentController, history) -> None:
             f"{by_id[value].requested['scenario']} · "
             f"{by_id[value].declared_outcome or by_id[value].state} · {value}"
         ),
-        key="experiment_selected_run",
+        key=widget_key,
     )
+    st.session_state.experiment_selected_run = identifier
     snapshot = by_id[identifier]
     _status_metrics(snapshot)
     if snapshot.error:

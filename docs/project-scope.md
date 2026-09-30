@@ -4,13 +4,12 @@ UAV Debugger is a standalone tool for understanding UAV recordings and running
 controlled protocol experiments. It has two modes:
 **Analyze** and **Experiment**, built around the same session evidence.
 
-The current implementation provides an offline Analyze interface with source,
-message and time filters, activity and attitude plots, record inspection and Markdown
-evidence export. The same importer is available through Python and a JSON
-command-line summary. The unreleased [Experiment interface](experiment-ui.md)
-and [CLI](experiment.md) add a
-bounded synthetic sender → relay → receiver path on local UDP, with a baseline
-and a two-second interruption in forwarding. A pinned ArduCopter SITL profile
+The unpublished **0.2.0rc1** candidate provides an offline Analyze interface with
+source, message and time filters, activity and attitude plots, record inspection
+and Markdown evidence export. The same importer is available through Python and
+a JSON command-line summary. The [Experiment interface](experiment-ui.md) and
+[CLI](experiment.md) add a bounded synthetic sender → relay → receiver path on
+local UDP, with a baseline and a two-second interruption in forwarding. A pinned ArduCopter SITL profile
 can replace the synthetic source inside a loopback-only network namespace. See the [Analyze guide](analyze.md)
 and [importer guide](importer.md) for tested inputs and limits. Analyze also
 supports a bounded [saved baseline/blackout comparison](comparison.md).
@@ -20,17 +19,17 @@ integrations remain future capabilities.
 
 ## Analyze
 
-Analyze is intended to help users:
+Analyze provides:
 
-- Import supported recordings and preserve their source information.
-- Explore telemetry, events and available video along a timeline.
-- Relate commands, reported vehicle state and external observations.
-- Compare sessions, including a baseline and an experimental run.
-- Record findings with references to the evidence and its limitations.
+- Import of supported recordings with retained bytes, timestamps and source information.
+- Source/type/time filtering, message activity, attitude plots and original frame inspection.
+- Saved-run inspection of requested settings, applied actions and observed captures.
+- Bounded comparison of a baseline and blackout with compatible profiles and evidence.
+- Reports with references to the evidence and its limitations.
 
 Analyze must be usable with saved files alone, without ARGOS, a connected UAV,
-a simulator or an active experiment. Missing video or other optional sources
-must not prevent analysis of the evidence that is available.
+a simulator or an active experiment. Video and additional external observations
+remain future inputs; they are not required by the implemented analysis.
 
 Compatibility will be defined by implemented and documented importers. The
 project does not currently promise support for every UAV, autopilot or log

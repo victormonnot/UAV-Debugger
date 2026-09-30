@@ -23,6 +23,13 @@ def metric(page, label):
     )
 
 
+def expect_metric(page, expect, label, value, *, timeout=None):
+    # Streamlit can briefly retain old and new metrics during a rerender. A
+    # one-item list retries until cardinality AND text match; it never picks
+    # one of several metrics or accepts a persistent duplicate.
+    expect(metric(page, label)).to_have_text([value], timeout=timeout)
+
+
 def wait_for_render(page):
     page.locator('[data-testid="stApp"][data-test-script-state="notRunning"]').wait_for()
     page.wait_for_function("!document.querySelector('[data-testid=stSkeleton]')")
@@ -144,11 +151,11 @@ def test_experiment_captures_open_independently_and_export_evidence(
         upload(page, capture.read_bytes(), name=capture.name)
         # The second capture can have the same record count as the first one.
         expect(page.locator("code").filter(has_text=imported.sha256)).to_have_count(1)
-        expect(metric(page, "Imported records")).to_have_text(str(len(imported.records)))
+        expect_metric(page, expect, "Imported records", str(len(imported.records)))
         choose(page, "Source", "1 / 1")
         choose(page, "Message type", "ATTITUDE")
         apply_changed_filters(page)
-        expect(metric(page, "Selected records")).to_have_text(str(len(imported.records)))
+        expect_metric(page, expect, "Selected records", str(len(imported.records)))
         expect(attitude_plot(page)).to_be_visible()
         inspected = imported.records[1]
         choose(page, "Record", f"#{inspected.index} · ATTITUDE · 1 / 1")
@@ -169,9 +176,9 @@ def test_upload_filter_inspect_and_download(analyze_page, tmp_path):
     page, expect = analyze_page
     original = FIXTURE.read_bytes()
     page.locator('input[type="file"]').set_input_files(FIXTURE)
-    expect(metric(page, "Imported records")).to_have_text("12")
-    expect(metric(page, "Sources")).to_have_text("2")
-    expect(metric(page, "Selected records")).to_have_text("12")
+    expect_metric(page, expect, "Imported records", "12")
+    expect_metric(page, expect, "Sources", "2")
+    expect_metric(page, expect, "Selected records", "12")
     expect(page.get_by_role("combobox", name="Source", exact=True)).to_have_value("All sources")
     expect(page.get_by_role("combobox", name="Message type", exact=True)).to_have_value(
         "All message types"
@@ -180,13 +187,13 @@ def test_upload_filter_inspect_and_download(analyze_page, tmp_path):
     choose(page, "Source", "1 / 1")
     choose(page, "Message type", "ATTITUDE")
     apply_changed_filters(page)
-    expect(metric(page, "Selected records")).to_have_text("2")
+    expect_metric(page, expect, "Selected records", "2")
     set_interval(page, 1, 5)
-    expect(metric(page, "Selected records")).to_have_text("2")
+    expect_metric(page, expect, "Selected records", "2")
     expect(page.get_by_role("combobox", name="Record", exact=True)).to_have_value(
         "#2 · ATTITUDE · 1 / 1"
     )
-    expect(metric(page, "Longest observed interval")).to_have_text("4 s")
+    expect_metric(page, expect, "Longest observed interval", "4 s")
     expect(activity_plot(page)).to_be_visible()
     expect(
         page.get_by_text("Showing 1–2 of 2 records in original file order.", exact=True)
@@ -240,7 +247,7 @@ def test_upload_filter_inspect_and_download(analyze_page, tmp_path):
     assert FIXTURE.read_bytes() == original
 
     set_interval(page, 2, 4)
-    expect(metric(page, "Selected records")).to_have_text("0")
+    expect_metric(page, expect, "Selected records", "0")
     expect(page.get_by_text("No records match these filters.", exact=True)).to_be_visible()
     expect(page.get_by_role("combobox", name="Record", exact=True)).to_have_count(0)
     with page.expect_download() as pending:
@@ -253,7 +260,7 @@ def test_upload_filter_inspect_and_download(analyze_page, tmp_path):
     choose(page, "Source", "All sources")
     choose(page, "Message type", "All message types")
     set_interval(page, 0, 6)
-    expect(metric(page, "Selected records")).to_have_text("12")
+    expect_metric(page, expect, "Selected records", "12")
     expect(activity_plot(page)).to_be_visible()
     page.get_by_role("heading", name="Analyze", exact=True).scroll_into_view_if_needed()
 
@@ -261,11 +268,11 @@ def test_upload_filter_inspect_and_download(analyze_page, tmp_path):
 def test_changed_bytes_reset_filters_and_record_selection(analyze_page):
     page, expect = analyze_page
     upload(page, FIXTURE.read_bytes())
-    expect(metric(page, "Imported records")).to_have_text("12")
+    expect_metric(page, expect, "Imported records", "12")
     choose(page, "Source", "2 / 1")
     choose(page, "Message type", "ATTITUDE")
     set_interval(page, 1, 5)
-    expect(metric(page, "Selected records")).to_have_text("5")
+    expect_metric(page, expect, "Selected records", "5")
     expect(page.get_by_role("combobox", name="Record", exact=True)).to_have_value(
         "#3 · ATTITUDE · 2 / 1"
     )
@@ -274,9 +281,9 @@ def test_changed_bytes_reset_filters_and_record_selection(analyze_page):
 
     # Keep the filename: a changed fingerprint must invalidate prior widget state.
     upload(page, FIXTURE.read_bytes()[:25])
-    expect(metric(page, "Imported records")).to_have_text("1")
-    expect(metric(page, "Sources")).to_have_text("1")
-    expect(metric(page, "Selected records")).to_have_text("1")
+    expect_metric(page, expect, "Imported records", "1")
+    expect_metric(page, expect, "Sources", "1")
+    expect_metric(page, expect, "Selected records", "1")
     expect(page.get_by_role("combobox", name="Source", exact=True)).to_have_value("All sources")
     expect(page.get_by_role("combobox", name="Message type", exact=True)).to_have_value(
         "All message types"
@@ -291,26 +298,26 @@ def test_changed_bytes_reset_filters_and_record_selection(analyze_page):
 def test_empty_and_truncated_uploads_show_outcomes_without_crashing(analyze_page):
     page, expect = analyze_page
     upload(page, b"", name="empty.tlog")
-    expect(metric(page, "Imported records")).to_have_text("0")
+    expect_metric(page, expect, "Imported records", "0")
     page.get_by_text("Import issues (1)", exact=True).click()
     expect(page.get_by_text("empty_input", exact=False).first).to_be_visible()
     expect(page.get_by_test_id("stException")).to_have_count(0)
 
     upload(page, FIXTURE.read_bytes()[:-1], name="truncated.tlog")
-    expect(metric(page, "Imported records")).to_have_text("11")
+    expect_metric(page, expect, "Imported records", "11")
     expect(page.get_by_text("Import issues (5)", exact=True)).to_be_visible()
     if not page.get_by_text("incomplete_frame", exact=False).first.is_visible():
         page.get_by_text("Import issues (5)", exact=True).click()
     expect(page.get_by_text("incomplete_frame", exact=False).first).to_be_visible()
     expect(page.get_by_text("stopped", exact=False).first).to_be_visible()
-    expect(metric(page, "Selected records")).to_have_text("11")
+    expect_metric(page, expect, "Selected records", "11")
     expect(page.get_by_test_id("stException")).to_have_count(0)
 
 
 def test_oversized_upload_removes_stale_results_and_allows_recovery(analyze_page):
     page, expect = analyze_page
     upload(page, FIXTURE.read_bytes())
-    expect(metric(page, "Imported records")).to_have_text("12")
+    expect_metric(page, expect, "Imported records", "12")
     upload(page, bytes(10 * 1024 * 1024 + 1), name="oversized.tlog")
     expect(
         page.get_by_text("Input exceeds the 10485760-byte size limit.", exact=True)
@@ -320,8 +327,8 @@ def test_oversized_upload_removes_stale_results_and_allows_recovery(analyze_page
     expect(page.get_by_role("button", name="Download report", exact=True)).to_have_count(0)
 
     upload(page, FIXTURE.read_bytes()[:25], name="recovered.tlog")
-    expect(metric(page, "Imported records")).to_have_text("1")
-    expect(metric(page, "Selected records")).to_have_text("1")
+    expect_metric(page, expect, "Imported records", "1")
+    expect_metric(page, expect, "Selected records", "1")
     expect(page.get_by_role("combobox", name="Source", exact=True)).to_have_value("All sources")
 
 
@@ -330,9 +337,9 @@ def test_bundled_example_without_upload_and_explicit_source_switches(analyze_pag
     expect(page.get_by_test_id("stMetric")).to_have_count(0)
     expect(page.locator('input[type="file"]')).to_have_value("")
     page.get_by_role("button", name="Load example", exact=True).click()
-    expect(metric(page, "Imported records")).to_have_text("12")
-    expect(metric(page, "Sources")).to_have_text("2")
-    expect(metric(page, "Selected records")).to_have_text("12")
+    expect_metric(page, expect, "Imported records", "12")
+    expect_metric(page, expect, "Sources", "2")
+    expect_metric(page, expect, "Selected records", "12")
     expect(page.locator('input[type="file"]')).to_have_value("")
     expect(page.get_by_role("button", name="Clear example", exact=True)).to_be_visible()
     expect(page.get_by_text(re.compile(r"^Synthetic example —"))).to_be_visible()
@@ -340,8 +347,8 @@ def test_bundled_example_without_upload_and_explicit_source_switches(analyze_pag
     choose(page, "Source", "1 / 1")
     choose(page, "Message type", "ATTITUDE")
     set_interval(page, 1, 5)
-    expect(metric(page, "Selected records")).to_have_text("2")
-    expect(metric(page, "Longest observed interval")).to_have_text("4 s")
+    expect_metric(page, expect, "Selected records", "2")
+    expect_metric(page, expect, "Longest observed interval", "4 s")
     expect(page.get_by_role("combobox", name="Record", exact=True)).to_have_value(
         "#2 · ATTITUDE · 1 / 1"
     )
@@ -379,8 +386,8 @@ def test_bundled_example_without_upload_and_explicit_source_switches(analyze_pag
         (FIXTURE.parents[2] / "local" / "example-report.md").write_text(report, encoding="utf-8")
 
     upload(page, FIXTURE.read_bytes()[:25], name="uploaded-short.tlog")
-    expect(metric(page, "Imported records")).to_have_text("1")
-    expect(metric(page, "Selected records")).to_have_text("1")
+    expect_metric(page, expect, "Imported records", "1")
+    expect_metric(page, expect, "Selected records", "1")
     # New metrics arrive before Streamlit removes the previous input's controls.
     # First identify the replacement above, then await its completed render.
     wait_for_render(page)
@@ -396,10 +403,10 @@ def test_bundled_example_without_upload_and_explicit_source_switches(analyze_pag
     expect(page.get_by_role("button", name="Clear example", exact=True)).to_have_count(0)
 
     upload(page, FIXTURE.read_bytes()[:25], name="uploaded-short.tlog")
-    expect(metric(page, "Imported records")).to_have_text("1")
+    expect_metric(page, expect, "Imported records", "1")
     page.get_by_role("button", name="Load example", exact=True).click()
-    expect(metric(page, "Imported records")).to_have_text("12")
-    expect(metric(page, "Selected records")).to_have_text("12")
+    expect_metric(page, expect, "Imported records", "12")
+    expect_metric(page, expect, "Selected records", "12")
     expect(page.locator('input[type="file"]')).to_have_value("")
     expect(page.get_by_role("button", name="Remove uploaded-short.tlog", exact=True)).to_have_count(
         0
@@ -415,13 +422,13 @@ def test_bundled_example_without_upload_and_explicit_source_switches(analyze_pag
 def test_attitude_points_gap_settings_and_inspector_stay_consistent(analyze_page, tmp_path):
     page, expect = analyze_page
     page.get_by_role("button", name="Load example", exact=True).click()
-    expect(metric(page, "Imported records")).to_have_text("12")
+    expect_metric(page, expect, "Imported records", "12")
     # Two independent attitude sources must not be joined in a single plot.
     expect(attitude_plot(page)).to_have_count(0)
     choose(page, "Source", "1 / 1")
     choose(page, "Message type", "ATTITUDE")
     set_interval(page, 1, 5)
-    expect(metric(page, "Selected records")).to_have_text("2")
+    expect_metric(page, expect, "Selected records", "2")
     expect(attitude_plot(page)).to_be_visible()
 
     traces = attitude_traces(page)
@@ -473,7 +480,7 @@ def test_attitude_points_gap_settings_and_inspector_stay_consistent(analyze_page
     expect(page.get_by_role("heading", name="Record #8", exact=True)).to_be_visible()
     choose(page, "Message type", "HEARTBEAT")
     set_interval(page, 0, 6)
-    expect(metric(page, "Selected records")).to_have_text("2")
+    expect_metric(page, expect, "Selected records", "2")
     expect(attitude_plot(page)).to_have_count(0)
     expect(page.get_by_role("heading", name="Record #0", exact=True)).to_be_visible()
     _, _, coverage, _, detail = download_blocks(page, tmp_path / "heartbeat-selection.md")
@@ -481,7 +488,7 @@ def test_attitude_points_gap_settings_and_inspector_stay_consistent(analyze_page
     assert detail["index"] == 0
 
     upload(page, FIXTURE.read_bytes()[:25], name="replacement.tlog")
-    expect(metric(page, "Imported records")).to_have_text("1")
+    expect_metric(page, expect, "Imported records", "1")
     expect(gap).to_have_value("1")
     expect(attitude_plot(page)).to_have_count(0)
     _, _, coverage, _, detail = download_blocks(page, tmp_path / "replacement.md")
@@ -499,7 +506,7 @@ def test_attitude_point_opens_its_original_record_on_another_page(analyze_page, 
         (origin_us + index * 100_000).to_bytes(8, "big") + frame for index in range(count)
     )
     upload(page, content, name="paged-attitude.tlog")
-    expect(metric(page, "Imported records")).to_have_text(str(count))
+    expect_metric(page, expect, "Imported records", str(count))
     expect(attitude_plot(page)).to_be_visible()
     expect(page.get_by_role("spinbutton", name="Page", exact=True)).to_have_value("1")
     expect(page.get_by_role("heading", name="Record #0", exact=True)).to_be_visible()
@@ -525,7 +532,7 @@ def test_attitude_point_opens_its_original_record_on_another_page(analyze_page, 
 
     # Applying new bounds cannot reuse the point selected in the previous view.
     set_interval(page, 0, 1)
-    expect(metric(page, "Selected records")).to_have_text("11")
+    expect_metric(page, expect, "Selected records", "11")
     expect(page.get_by_role("spinbutton", name="Page", exact=True)).to_have_value("1")
     expect(page.get_by_role("heading", name="Record #0", exact=True)).to_be_visible()
     _, _, coverage, _, detail = download_blocks(page, tmp_path / "narrowed-attitude.md")

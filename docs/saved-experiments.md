@@ -1,9 +1,9 @@
 # Inspect a saved Experiment
 
-Development version **0.2.0.dev4** includes offline inspection of one saved
+Release candidate **0.2.0rc1** includes offline inspection of one saved
 Experiment directory in Analyze. It brings requested settings, applied actions
 and observed captures into one view and report. The published v0.1.0 remains
-single-recording Analyze; this capability is unreleased.
+single-recording Analyze; the candidate is unpublished.
 
 The reader supports the actual `uav-debugger-experiment-v1` synthetic format and
 `uav-debugger-experiment-v2` pinned SITL format. Neither a simulator installation

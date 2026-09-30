@@ -12,7 +12,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 import pytest
-from test_analyze_browser import download_blocks, metric, wait_for_render
+from test_analyze_browser import download_blocks, expect_metric, wait_for_render
 from test_comparison_browser import chart_data
 from test_saved_run_browser import await_saved_capture, run_report_block
 
@@ -87,7 +87,14 @@ def analyze_server(experiment_root, experiment_server, tmp_path):
 
 def settle_controls(page):
     """Await completed widget replacement; Experiment has no report while running."""
-    page.locator('[data-testid="stApp"][data-test-script-state="notRunning"]').wait_for()
+    # Locator retries eventually poll every 500 ms, the same period as the
+    # history fragment. Check each animation frame so short idle windows are
+    # not repeatedly missed while the fragment keeps refreshing.
+    page.wait_for_function(
+        """() => document.querySelector(
+            '[data-testid="stApp"][data-test-script-state="notRunning"]'
+        )?.checkVisibility()"""
+    )
     page.wait_for_function("!document.querySelector('[data-testid=stSkeleton]')")
 
 
@@ -142,12 +149,17 @@ def start_run(page, expect, root, *, duration=3.0, scenario="Baseline", source="
     before = run_directories(root)
     page.get_by_role("button", name="Start experiment", exact=True).click()
     directory = wait_for_new_run(root, before)
+    # Disk creation precedes rendering. Completion must belong to this run,
+    # rather than a finished predecessor still visible during the Start rerun.
+    expected_id = f"Run ID: {directory.parent.name}"
+    expect(page.get_by_text(expected_id, exact=True)).to_have_text([expected_id])
+    settle_controls(page)
     return directory
 
 
 def await_finished(page, expect, outcome="completed"):
-    expect(metric(page, "Process state")).to_have_text("finished", timeout=30_000)
-    expect(metric(page, "Declared outcome")).to_have_text(outcome)
+    expect_metric(page, expect, "Process state", "finished", timeout=30_000)
+    expect_metric(page, expect, "Declared outcome", outcome)
     settle_controls(page)
     expect(page.get_by_role("button", name="Start experiment", exact=True)).to_be_enabled()
 
@@ -256,7 +268,7 @@ def test_stop_preserves_interrupted_evidence_and_opens_it_in_analyze(
     page.get_by_role("button", name="Open in Analyze", exact=True).click()
     captured = await_saved_capture(page, expect, directory)
     assert captured.records
-    expect(metric(page, "Declared outcome")).to_have_text("interrupted")
+    expect_metric(page, expect, "Declared outcome", "interrupted")
     report_path = tmp_path / "interrupted.md"
     blocks = download_blocks(page, report_path)
     assert run_report_block(blocks, "status")["declared_outcome"] == "interrupted"
@@ -292,18 +304,18 @@ def test_shared_server_prevents_concurrent_starts_and_analyze_never_restarts_run
         second.goto(analyze_server, wait_until="domcontentloaded")
         expect(second.get_by_role("heading", name="Analyze", exact=True)).to_be_visible()
         open_experiment(second, expect)
-        expect(metric(second, "Process state")).to_have_text("idle")
+        expect_metric(second, expect, "Process state", "idle")
         # An already-open idle peer must discover another tab's launch without
         # a manual refresh or another Start request.
         directory = start_run(page, expect, experiment_root, duration=30)
         wait_for_measurement(directory)
         expect(second.get_by_role("button", name="Start experiment", exact=True)).to_be_disabled()
-        expect(metric(second, "Process state")).to_have_text(re.compile("starting|running"))
+        expect_metric(second, expect, "Process state", re.compile("starting|running"))
         expect(second.get_by_role("button", name="Stop experiment", exact=True)).to_be_visible()
         second.get_by_test_id("stRadio").get_by_text("Analyze", exact=True).click()
         expect(second.get_by_role("heading", name="Analyze", exact=True)).to_be_visible()
         second.get_by_role("button", name="Load example", exact=True).click()
-        expect(metric(second, "Imported records")).to_have_text("12")
+        expect_metric(second, expect, "Imported records", "12")
         wait_for_render(second)
         page.get_by_test_id("stRadio").get_by_text("Analyze", exact=True).click()
         expect(page.get_by_role("heading", name="Analyze", exact=True)).to_be_visible()

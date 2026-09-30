@@ -5,7 +5,7 @@ import re
 import shutil
 
 import pytest
-from test_analyze_browser import choose, download_blocks, metric, wait_for_render
+from test_analyze_browser import choose, download_blocks, expect_metric, wait_for_render
 
 from uav_debugger.comparison import compare_runs
 from uav_debugger.experiment import ExperimentConfig, run_experiment
@@ -148,7 +148,7 @@ def test_clear_comparison_and_return_to_independent_analyze(analyze_page, compar
     expect(page.get_by_role("button", name="Download report", exact=True)).to_have_count(0)
     page.get_by_test_id("stRadio").get_by_text("Recording", exact=True).click()
     page.get_by_role("button", name="Load example", exact=True).click()
-    expect(metric(page, "Imported records")).to_have_text("12")
+    expect_metric(page, expect, "Imported records", "12")
     wait_for_render(page)
     expect(page.get_by_role("combobox", name="Source", exact=True)).to_have_value("All sources")
     expect(page.get_by_role("heading", name="Compare experiments", exact=True)).to_have_count(0)

@@ -1,18 +1,22 @@
 # UAV Debugger
 
-A standalone tool for inspecting UAV recordings, following observations back to
-their source frames and exporting analysis evidence.
+A local tool for inspecting UAV recordings and running bounded MAVLink
+experiments, with original frames, explicit clocks and evidence reports.
 
-**Version 0.1.0: offline Analyze.** Use the local **Analyze** workflow to open
-one timestamped MAVLink recording in a browser, filter sources and time, plot
-attitude, inspect message activity and raw frames, and download a Markdown report.
-A Python API and JSON command-line summary expose the same imported evidence.
-The current development version, **0.2.0.dev4**, includes an **unreleased
-Experiment mode and CLI** for a bounded synthetic sender → relay → receiver run on local
-UDP, with optional two-second forwarding interruption and captures for Analyze.
-A pinned ArduCopter SITL profile can supply the telemetry inside an isolated
-local network namespace. Analyze can also inspect a saved run directory, relate
-requested settings to applied actions and observations, and export its evidence.
+**Analyze** opens saved recordings, filters sources and time, plots attitude,
+inspects message activity and raw frames, and exports Markdown reports. It also
+inspects saved experiments and compares a baseline with a blackout.
+**Experiment** runs a synthetic sender or pinned ArduCopter SITL source through
+a local UDP relay to a receiver. Explicit Start/Stop controls and a CLI produce
+captures before and after the relay, retaining requested settings, applied
+actions and actual observations separately.
+
+**0.2.0rc1 is an unpublished release candidate.** Version **0.1.0** remains the
+latest published release and provides single-recording offline Analyze. The
+commands below use this candidate source checkout. See
+[verification and release preparation](docs/verification.md) for actual checks
+and hosted CI status.
+
 See the [Experiment interface](docs/experiment-ui.md),
 [saved Experiment inspection](docs/saved-experiments.md) and
 [baseline/blackout comparison](docs/comparison.md).
@@ -63,7 +67,7 @@ The [importer guide](docs/importer.md) documents the Python API, JSON output and
 exit codes; the [fixture documentation](tests/fixtures/README.md) records the
 example's provenance and expected observations.
 
-## Local Experiment preview
+## Run a local Experiment
 
 In the current source checkout, choose **Experiment** under **Mode** in the
 local interface. Select **Synthetic**, keep the six-second duration and click
@@ -124,7 +128,7 @@ cause.
 | Mode | Direction | Current implementation |
 | --- | --- | --- |
 | **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown reports, saved-run inspection and bounded baseline/blackout comparison, Python API and JSON import summary. |
-| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Unreleased browser Start/Stop and CLI; synthetic or pinned ArduCopter SITL source, local UDP relay and receiver; baseline and two-second interruption; saved evidence opens in Analyze or comparison. |
+| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Candidate browser Start/Stop and CLI; synthetic or pinned ArduCopter SITL source, local UDP relay and receiver; baseline and two-second interruption; saved evidence opens in Analyze or comparison. |
 
 Analyze remains independently usable from saved files. Opening a recording never
 starts an experiment or sends vehicle commands. Video, broader session comparison and
@@ -166,10 +170,10 @@ for local reproduction, current development checks and published-release evidenc
 | [Synthetic fixture](tests/fixtures/README.md) | Provenance, byte references and expected observations. |
 | [Project scope](docs/project-scope.md) | Users, boundaries and product principles. |
 | [Mode workflows](docs/workflows.md) | Current Analyze and Experiment workflows and later capabilities. |
-| [Architecture direction](docs/architecture.md) | Imported evidence, analysis, local presentation and optional execution. |
+| [Architecture](docs/architecture.md) | Imported evidence, analysis, local presentation and optional execution. |
 | [First milestone](docs/first-milestone.md) | Delivered v0.1.0 Analyze workflow and its verification boundary. |
 | [Verification and release preparation](docs/verification.md) | Automated checks, distribution contents, installed-package testing and release evidence. |
-| [Changelog](CHANGELOG.md) | Published and unreleased features and limitations. |
+| [Changelog](CHANGELOG.md) | Candidate and published features and limitations. |
 | [Dependency notices](THIRD_PARTY_NOTICES.md) | Licensing information for the pinned direct runtime dependencies. |
 
 ## License

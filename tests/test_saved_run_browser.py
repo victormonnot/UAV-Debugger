@@ -12,6 +12,7 @@ from test_analyze_browser import (
     apply_changed_filters,
     choose,
     download_blocks,
+    expect_metric,
     metric,
     set_interval,
     wait_for_render,
@@ -52,7 +53,7 @@ def await_saved_capture(page, expect, directory: Path, point="relay-input"):
     expect(page.get_by_role("heading", name="Saved experiment", exact=True)).to_be_visible()
     expect(page.get_by_text(re.compile(r"^Run fingerprint: [0-9a-f]{64}$"))).to_be_visible()
     expect(page.locator("code").filter(has_text=imported.sha256)).to_have_count(1)
-    expect(metric(page, "Imported records")).to_have_text(str(len(imported.records)))
+    expect_metric(page, expect, "Imported records", str(len(imported.records)))
     wait_for_render(page)
     return imported
 
@@ -85,10 +86,10 @@ def test_saved_baseline_directory_inspection_exports_run_and_capture_evidence(
     upload_directory(page, directory)
     imported = await_saved_capture(page, expect, directory)
 
-    expect(metric(page, "Declared outcome")).to_have_text("completed")
-    expect(metric(page, "Evidence status")).to_have_text("consistent")
-    expect(metric(page, "Relay input records")).to_have_text(str(len(imported.records)))
-    expect(metric(page, "Receiver records")).to_have_text(str(len(imported.records)))
+    expect_metric(page, expect, "Declared outcome", "completed")
+    expect_metric(page, expect, "Evidence status", "consistent")
+    expect_metric(page, expect, "Relay input records", str(len(imported.records)))
+    expect_metric(page, expect, "Receiver records", str(len(imported.records)))
     inspected = imported.records[1]
     choose(page, "Record", f"#{inspected.index} · ATTITUDE · 1 / 1")
     report_path = tmp_path / "baseline-report.md"
@@ -136,7 +137,7 @@ def test_saved_blackout_point_switch_resets_selection_and_keeps_applied_evidence
     choose(page, "Message type", "ATTITUDE")
     apply_changed_filters(page)
     set_interval(page, 0, 0)
-    expect(metric(page, "Selected records")).to_have_text("1")
+    expect_metric(page, expect, "Selected records", "1")
 
     choose(page, "Observation point", "Receiver")
     after = await_saved_capture(page, expect, directory, "receiver")
@@ -144,9 +145,9 @@ def test_saved_blackout_point_switch_resets_selection_and_keeps_applied_evidence
     expect(page.get_by_role("combobox", name="Message type", exact=True)).to_have_value(
         "All message types"
     )
-    expect(metric(page, "Selected records")).to_have_text(str(len(after.records)))
-    expect(metric(page, "Relay input records")).to_have_text(str(len(before.records)))
-    expect(metric(page, "Receiver records")).to_have_text(str(len(after.records)))
+    expect_metric(page, expect, "Selected records", str(len(after.records)))
+    expect_metric(page, expect, "Relay input records", str(len(before.records)))
+    expect_metric(page, expect, "Receiver records", str(len(after.records)))
     assert len(before.records) > len(after.records) > 1
     inspected = after.records[1]
     choose(page, "Record", f"#{inspected.index} · ATTITUDE · 1 / 1")
@@ -210,9 +211,9 @@ def test_partial_saved_run_reports_missing_capture_without_claiming_completion(
     expect(excluded_files).to_be_visible()
     excluded_files.click()
     expect(page.get_by_text("working-cache.bin", exact=True)).to_be_visible()
-    expect(metric(page, "Declared outcome")).to_have_text("running")
-    expect(metric(page, "Evidence status")).to_have_text(re.compile("incomplete|invalid", re.I))
-    expect(metric(page, "Receiver records")).to_have_text(re.compile("^(Unavailable|—)$", re.I))
+    expect_metric(page, expect, "Declared outcome", "running")
+    expect_metric(page, expect, "Evidence status", re.compile("incomplete|invalid", re.I))
+    expect_metric(page, expect, "Receiver records", re.compile("^(Unavailable|—)$", re.I))
     expect(
         page.get_by_test_id("stAlert").filter(has_text="evidence is incomplete or inconsistent")
     ).to_be_visible()
@@ -270,7 +271,7 @@ def test_invalid_directory_replacement_removes_stale_export_and_clear_restores_r
     ).to_be_visible()
     page.get_by_test_id("stRadio").get_by_text("Recording", exact=True).click()
     page.locator('input[type="file"]:not([webkitdirectory])').set_input_files(FIXTURE)
-    expect(metric(page, "Imported records")).to_have_text("12")
+    expect_metric(page, expect, "Imported records", "12")
     expect(page.get_by_role("combobox", name="Observation point", exact=True)).to_have_count(0)
     wait_for_render(page)
     report_path = tmp_path / "standalone-recording-report.md"

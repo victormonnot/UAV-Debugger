@@ -7,9 +7,9 @@ and a Markdown evidence report. The same file-only importer is available through
 
 The optional [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
 produce `relay-input.tlog` and `receiver.tlog` captures for this same workflow.
-Open them individually; their
-outer timestamps identify actual reads at different observation points. Analyze
-also offers **Saved experiment** in the unreleased development version to
+Open them individually; their outer timestamps identify actual reads at different
+observation points. Analyze
+also offers **Saved experiment** in the unpublished **0.2.0rc1** candidate to
 [inspect a complete run directory](saved-experiments.md), including JSON traces
 and both capture points. **Compare experiments** provides a bounded
 [baseline/blackout comparison](comparison.md) with explicit windows and evidence
@@ -47,6 +47,30 @@ experiment.
 Dependency installation can require network access. The application uses local
 files and bundled display components after installation; it needs no simulator,
 ARGOS installation or external service to analyze a recording.
+
+### Install the candidate wheel
+
+The **0.2.0rc1** wheel can be built locally from this source checkout; the
+candidate has not been published:
+
+```sh
+uv build --out-dir local/candidate-dist
+```
+
+From an empty directory outside the checkout, create an environment and install
+that wheel. Replace the absolute path below with the generated artifact's path:
+
+```sh
+uv venv --python 3.12
+uv pip install --python .venv/bin/python /absolute/path/to/uav_debugger-0.2.0rc1-py3-none-any.whl
+.venv/bin/uav-debugger-analyze --experiment-root ./experiments
+```
+
+The installed launcher includes the bundled example and optional Experiment
+interface. New browser runs use the explicitly selected `experiments` root;
+the root is created only by Start. Dependency installation may need network
+access. The source quick start above remains the path for installing from the
+repository's complete dependency lock.
 
 ## Access through SSH
 

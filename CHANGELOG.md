@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.0rc1 — release candidate, unpublished
+
+This candidate retains the implemented Analyze / Experiment feature set for
+release verification. It has not been published; **0.1.0** remains the latest
+published release. See [verification and release preparation](docs/verification.md)
+for the candidate's actual checks and hosted CI status.
 
 ### Added
 
@@ -26,7 +31,6 @@
   shutdown. The external simulator is not bundled with the application.
 - Raw UDP datagram evidence, grouped-frame capture references, explicit handling
   of the pinned simulator's startup preamble, and a separate measurement origin.
-
 - A local **Experiment** CLI with a synthetic 20 Hz MAVLink 2 `ATTITUDE`
   sender, byte-preserving UDP relay and receiver restricted to `127.0.0.1`.
   One process runs a baseline or a two-second interruption in forwarding;
@@ -41,9 +45,14 @@
 
 ### Fixed
 
+- Experiment history selection keeps the selected run, displayed outcome and
+  Analyze handoff consistent after another run finishes, including interruption
+  after returning from saved analysis or comparison.
 - Browser workflow checks now wait for the applied filter range, replaced record
   selector and current recording before inspecting or downloading evidence.
   Source replacement also waits for stale controls to leave the completed render.
+  Metric assertions wait for one current value through temporary render
+  duplicates; experiment completion checks follow the newly started run.
 
 ### Scope
 

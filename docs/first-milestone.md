@@ -89,7 +89,7 @@ See the [MAVProxy logger source](https://github.com/ArduPilot/MAVProxy/blob/mast
 
 The implementation uses Python, `pymavlink`, Streamlit and Plotly in one local application, with
 in-memory session data and Markdown export. The
-[architecture proposal](architecture.md#recommended-starting-stack) explains the
+[implementation stack](architecture.md#implementation-stack) explains the
 responsibilities and tradeoffs. Target Linux with Python 3.12 for initial
 verification; other platforms would require their own checks.
 

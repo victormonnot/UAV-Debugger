@@ -1,8 +1,9 @@
 # Workflows
 
-The current [Analyze interface](analyze.md) covers opening one supported file,
-filtering observations, inspecting records and exporting evidence. The
-unreleased [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
+The unpublished **0.2.0rc1** candidate's [Analyze interface](analyze.md) covers
+opening supported recordings and saved experiments, filtering observations,
+inspecting records and exporting evidence. The
+[Experiment interface](experiment-ui.md) and [CLI](experiment.md)
 run a bounded local synthetic path and produce captures for that same analysis.
 A pinned [ArduCopter SITL profile](sitl.md) can supply telemetry after explicit
 local setup and isolation. A bounded [saved baseline/blackout comparison](comparison.md)

@@ -1,7 +1,7 @@
 # Verification and release checks
 
 Published UAV Debugger **0.1.0** provides the offline Analyze workflow. The
-unreleased development version **0.2.0.dev4** adds local synthetic and pinned
+unpublished release candidate **0.2.0rc1** adds local synthetic and pinned
 ArduCopter SITL Experiment workflows, offline saved-run inspection, bounded
 baseline/blackout comparison and explicit browser Start/Stop controls.
 The verification target is Linux x86_64, Python 3.12 and Chromium. Installation
@@ -106,6 +106,81 @@ review.
 
 ## Verification status and release conditions
 
+### 0.2.0rc1 candidate scope
+
+The candidate retains the existing Analyze workflow and the complete bounded
+local Experiment path: explicit CLI or browser launch, synthetic or pinned
+ArduCopter SITL source, baseline or two-second forwarding interruption, saved
+capture inspection, compatible baseline/blackout comparison and Markdown export.
+No runtime dependency, input format or experiment scenario is added for the
+candidate. The application continues to start in file-only Analyze.
+
+Candidate preparation identified a history-selection defect after returning
+from analysis or comparison: the Run selector could identify the new run while
+the summary and Analyze handoff still targeted an older result. Selection is
+now retained separately from the widget state, and the selector's identity
+changes when the newest saved run changes. The browser regression follows the
+baseline-to-analysis, blackout-to-comparison and third-run interruption sequence,
+then checks historical selection and the corresponding Analyze evidence.
+
+The acceptance path from an installed wheel is:
+
+1. Launch the local interface outside the source checkout, load the packaged
+   example, apply the documented filters and export its report.
+2. Start the default six-second synthetic baseline in Experiment and open its
+   actual saved observations in Analyze.
+3. Run the matching blackout, assign both comparison roles and export a report
+   retaining the two identities, actual gate transitions and observed metrics.
+4. Stop another active run and inspect its retained interrupted evidence.
+5. Restart the server and reopen a saved evidence directory through Analyze,
+   without starting another run. Server history is transient; saved files persist.
+6. Verify the optional native profile separately with its pinned local executable,
+   keeping its namespace requirements and observation limits explicit.
+
+See [installation and launch](analyze.md#install-and-launch), the
+[Experiment interface](experiment-ui.md), [saved-run inspection](saved-experiments.md)
+and [comparison](comparison.md) for the corresponding user controls. This is a
+release candidate, not a published v0.2.0 release; the published baseline remains
+v0.1.0. Hosted verification must apply to the eventual candidate commit.
+
+On 2026-09-30, the corrected candidate passed **605 tests in 255.93 seconds**,
+with no failures or skips, against its installed wheel in a fresh locked
+Python 3.12.3 environment with only loopback networking. This includes
+**28 Chromium workflows** and all ten explicitly enabled native SITL cases.
+The history-selection regression failed before the application correction and
+passed afterwards. Ruff lint/format, fixture and lock checks also passed.
+
+After the full suite, a final test-only adjustment changed Experiment's idle-state
+wait to sample on animation frames. Its previous 500 ms retry interval could
+repeatedly miss short idle windows between 500 ms polling fragments; the required
+visible state and skeleton checks are unchanged. All **seven affected Experiment
+browser checks**, including native SITL and history selection, then passed in
+59.93 seconds. The two affected execution/handoff workflows also passed with
+ordered WebSocket delivery delays and fourfold CPU throttling in 53.81 seconds.
+Metric checks retain exact expected values and require exactly one matching
+element after transient duplicates disappear.
+
+The final source archive contains **75 files** and the wheel **28 files**.
+Their 22 application/data members match the wheel used for the full suite;
+only verification code and documentation changed afterwards. Public Markdown
+links and heading anchors resolve. No hosted success is claimed for the
+uncommitted candidate; the dev4 failure below remains the latest hosted evidence.
+
+On 2026-09-30, a separate fresh runtime environment installed the candidate wheel
+with ordinary dependency resolution and launched the three installed console
+commands from an empty directory outside the repository. The browser workflow
+ran with only loopback networking and exported five reports: the packaged
+example, baseline, comparison, interrupted run and baseline reopened after
+server restart. All reports identified **0.2.0rc1**; reopening created no new
+experiment and preserved every saved file's bytes.
+
+In that six-second baseline/blackout pair, the relay input and receiver recorded
+**120/120** and **120/79** messages respectively. The measured forwarding gate
+lasted **2.000934989 seconds**. These are observations from that execution;
+scheduling can change counts and timing. These results do not imply physical
+packet loss or vehicle behavior. This runtime installation check is separate from the complete
+suite's locked verification environment.
+
 ### Local Experiment controls
 
 The controller checks explicit launch, configuration rejection before output
@@ -137,7 +212,14 @@ preview runs completed normally.
 Ruff lint/format, fixture and lock checks passed. The final source archive
 contains 74 files and the wheel 28 files; all 22 application/data members match
 the tested wheel. Public documentation links resolve. These are local checks
-of an unreleased increment; no hosted result or publication is claimed for dev4.
+of the development increment. The subsequent
+[hosted run](https://github.com/victormonnot/UAV-Debugger/actions/runs/36692647332)
+on `757a48a820da3f342d3eb4d89e0700a818d763c2` failed two browser assertions, with
+592 passes and ten expected native SITL skips. Both assertions encountered old
+and current metrics during a Streamlit render transition: example-to-upload
+replacement and completion of a second Experiment run. That failure is separate
+from the retained local 604-test success and must not be described as a passing
+candidate check.
 
 See the [Experiment interface guide](experiment-ui.md) for lifecycle states,
 ownership, isolation, clocks and partial-evidence limits.
@@ -361,7 +443,8 @@ The current input remains the bounded QGroundControl-style timestamped profile,
 unsigned MAVLink 1/2 and pinned `common` definitions, with a 10 MiB file limit
 and 5,000 selected ATTITUDE records per curve view. One historical producer
 attachment has complete traversal and partial decoding; current producer
-versions are not generally verified. The local synthetic Experiment runner is
-an unreleased development capability, with one pinned local ArduCopter SITL
+versions are not generally verified. The candidate includes browser and CLI
+Experiment controls, the local synthetic path, one pinned ArduCopter SITL
 profile and bounded offline pair comparison. Broader simulator/bench integration,
-active Experiment controls, broader session comparison and other formats remain future work.
+additional perturbations, persistent run browsing, broader session comparison
+and other formats remain future work.

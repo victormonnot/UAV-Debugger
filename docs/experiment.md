@@ -1,14 +1,15 @@
 # Run a local Experiment
 
-The first Experiment CLI sends synthetic MAVLink messages through a local UDP
+The Experiment CLI sends synthetic MAVLink messages through a local UDP
 relay to a receiver. It supports a baseline and a run with a two-second
 interruption in relay forwarding. Both observation points produce saved files
 for the existing Analyze workflow.
 
-This feature is **unreleased**, in development version **0.2.0.dev4**. The
-published v0.1.0 contains offline Analyze; use the current source checkout for
-Experiment. The initial target is Linux with Python 3.12. The synthetic workflow
-below needs no simulator or vehicle. The optional [ArduCopter SITL profile](sitl.md)
+This guide describes the unpublished **0.2.0rc1** release candidate. Version
+**0.1.0** remains the latest published release and contains offline Analyze;
+use the candidate source checkout for Experiment. The initial target is Linux
+with Python 3.12. The synthetic workflow below needs no simulator or vehicle.
+The optional [ArduCopter SITL profile](sitl.md)
 uses a separately installed autopilot executable inside a loopback-only network
 namespace, with an explicit startup phase before measurement.
 The [Experiment interface](experiment-ui.md) runs these same scenarios through
