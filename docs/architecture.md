@@ -6,7 +6,8 @@ command. The unreleased Experiment CLI adds a bounded synthetic local UDP path
 and saves captures for those same analysis components. See the
 [Analyze guide](analyze.md), [importer guide](importer.md) and
 [Experiment guide](experiment.md) for current use. A pinned [ArduCopter SITL profile](sitl.md) adds one external local source;
-broader integrations and cross-session comparison remain future work.
+a bounded [saved baseline/blackout comparison](comparison.md) reuses the same
+validated evidence. Broader integrations remain future work.
 
 ## Shared analysis, optional experiment execution
 
@@ -40,7 +41,7 @@ starts the local sender and relay.
 | --- | --- |
 | Import | Identify a supported format and its version, validate the input and retain its origin. Unsupported or damaged input produces an explicit outcome. |
 | Session evidence | Preserve source identity, original ordering, timestamps with their meaning, decoded observations and references to original records. |
-| Analysis | Select sources and intervals, inspect recorded measurements and preserve original meaning. Automatic comparison remains future work. |
+| Analysis | Select sources and intervals, inspect recorded measurements and preserve original meaning. Compare eligible saved runs on an explicit common measurement-relative window. |
 | Experiment execution | Apply the baseline or blackout scenario to the local synthetic path and record actual actions, observations, termination and failures. |
 | Reports | Present imported observations and limitations with references to their sources. Saved-run reports also distinguish declared outcome, evidence consistency, requested settings, applied gate intervals and observations. |
 
@@ -59,6 +60,18 @@ Markdown summary and can append the existing selected-capture report.
 and paged trace references. `app.py` reuses the ordinary capture filters and
 inspector for either observation point. A changed run or point invalidates the
 previous selection; unreadable replacement evidence removes the previous export.
+
+## Saved-run comparison boundary
+
+`comparison.py` consumes two validated `SavedRun` values. It checks source/profile
+compatibility, production lifecycle consistency and stop coverage before selecting
+observations on a
+common half-open window relative to each measurement origin. It retains original
+references, computes counts/rates/intervals and projects actual gate timing.
+`comparison_report.py` preserves both runs and bounded evidence in Markdown;
+`comparison_view.py` owns two directory uploads, selectors and shared activity bins.
+Blocked comparisons retain reasons and provenance without invented metrics.
+These modules import neither execution code nor telemetry transports.
 
 ## Local execution boundary
 

@@ -4,8 +4,8 @@ The current [Analyze interface](analyze.md) covers opening one supported file,
 filtering observations, inspecting records and exporting evidence. The
 unreleased [Experiment CLI](experiment.md) runs a bounded local synthetic path
 and produces captures for that same analysis. A pinned [ArduCopter SITL profile](sitl.md)
-can supply telemetry after explicit local setup and isolation. Video, session
-comparison and broader simulator/bench integrations remain future capabilities.
+can supply telemetry after explicit local setup and isolation. A bounded
+[saved baseline/blackout comparison](comparison.md) is available in Analyze. Video and broader simulator/bench integrations remain future capabilities.
 
 ## Analyze an existing session
 
@@ -18,7 +18,7 @@ comparison and broader simulator/bench integrations remain future capabilities.
 For example, a user investigating a telemetry gap can inspect the last and next
 available messages from a selected source. If the recording contains no
 evidence of the vehicle during the gap, the tool shows that absence without
-inferring what the UAV did. Correlating video or comparing sessions is a later
+inferring what the UAV did. Correlating video or arbitrary sessions is a later
 workflow.
 
 Sources may have different clocks or incomplete timestamps. An aligned view
@@ -47,7 +47,8 @@ establish receiver observation. Exact counts and timing depend on scheduling.
 Analyze opens each capture independently. Alternatively, choose **Saved experiment**
 to [open the run directory](saved-experiments.md), check its evidence, inspect
 applied actions alongside both capture points and export a combined report.
-Cross-run alignment and automatic comparison remain future work. Opening any saved recording
+Choose **Compare experiments** for an explicit measurement-relative comparison
+of a saved baseline and blackout. Opening any saved recording
 never starts or resumes an experiment. The [Experiment guide](experiment.md)
 defines the clocks, stop behavior, outcome codes and detailed usage.
 
@@ -100,6 +101,8 @@ conditions while retaining the actual application record for each run.
 
 An independently imported recording and a capture produced by Experiment use
 the same analysis components. The current CLI defines a concrete local trace;
-broader target configuration and automatic comparison remain future work. See
+the [comparison view](comparison.md) compares two saved runs from the same profile
+without inferring clock synchronization. Broader target configuration remains
+future work. See
 [architecture](architecture.md) and the [first milestone](first-milestone.md)
 for the implementation boundary.

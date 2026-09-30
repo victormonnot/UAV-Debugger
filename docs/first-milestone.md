@@ -151,8 +151,9 @@ The Experiment guide defines its topology, scenario semantics, recording format,
 clocks and stop behavior. The optional [ArduCopter SITL profile](sitl.md) verifies
 a single pinned local autopilot as a telemetry source. The stream experiment establishes behavior on that
 configured local path; autopilot response would require an additional actual
-simulator/bench integration and its own evidence. Active Experiment controls and
-automatic comparison remain later work.
+simulator/bench integration and its own evidence. A bounded
+[baseline/blackout comparison](comparison.md) now reads the saved evidence on explicit measurement-relative windows. Active Experiment controls
+remain later work.
 
 See [project scope](project-scope.md) and [architecture direction](architecture.md)
 for the product boundaries and shared analysis design.

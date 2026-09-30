@@ -11,9 +11,10 @@ command-line summary. The unreleased [Experiment CLI](experiment.md) adds a
 bounded synthetic sender → relay → receiver path on local UDP, with a baseline
 and a two-second interruption in forwarding. A pinned ArduCopter SITL profile
 can replace the synthetic source inside a loopback-only network namespace. See the [Analyze guide](analyze.md)
-and [importer guide](importer.md) for tested inputs and limits. Video, session
-comparison, broader simulator/bench integrations and active Experiment controls remain future
-capabilities.
+and [importer guide](importer.md) for tested inputs and limits. Analyze also
+supports a bounded [saved baseline/blackout comparison](comparison.md).
+Video, broader session comparison, additional simulator/bench integrations and
+active Experiment controls remain future capabilities.
 
 ## Analyze
 
@@ -50,7 +51,8 @@ and captures of socket reads at the relay input and receiver. Its duration,
 shutdown, clocks and outcomes are explicit. Each capture opens independently
 in Analyze. The [saved-run view](saved-experiments.md) additionally checks JSON
 trace references and presents requested, applied and observed evidence.
-Automatic cross-run comparison remains future work.
+The comparison view checks a saved baseline and blackout from the same profile
+on an explicit common window; broader cross-run analysis remains future work.
 
 This establishes behavior on that synthetic local path. Integrating an actual
 additional simulation or bench target will need a separate bounded use case and its own

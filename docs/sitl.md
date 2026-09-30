@@ -132,7 +132,8 @@ Open each capture independently in Analyze, choose source `1 / 1` and
 from startup, so Analyze's relative time origin can precede `measurement_start`.
 Choose **Saved experiment** to [inspect the complete run](saved-experiments.md),
 including startup, measurement origin, applied gate intervals and both capture
-points. No automatic cross-run comparison or active Experiment browser controls
+points. The [comparison view](comparison.md) checks a saved baseline and blackout
+against the same profile and parameters. No active Experiment browser controls
 are added.
 
 ## References and verification

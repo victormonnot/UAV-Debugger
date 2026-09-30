@@ -4,6 +4,10 @@
 
 ### Added
 
+- Offline baseline/blackout comparison in Analyze: two bounded saved directories,
+  profile and evidence checks, explicit measurement-relative windows, observed
+  counts/rates/intervals before and after the relay, configuration differences,
+  actual gate timing and a report identifying both runs.
 - Offline saved Experiment inspection in Analyze: bounded synthetic v1/SITL v2
   directory import, artifact fingerprints and capture/trace references, explicit
   partial evidence, requested/applied/observed summary, within-run monotonic
@@ -31,12 +35,13 @@
 
 - Browser workflow checks now wait for the applied filter range, replaced record
   selector and current recording before inspecting or downloading evidence.
+  Source replacement also waits for stale controls to leave the completed render.
 
 ### Scope
 
 - Analyze retains its independent file-only import and browser workflow.
-  The optional simulator profile adds no physical vehicle connection, active
-  browser controls or automatic comparison. Saved-run trace inspection is
+  The optional simulator profile adds no physical vehicle connection or active
+  browser controls. Saved-run inspection and bounded pair comparison are
   available independently of experiment execution.
 - Local UDP observations establish behavior on the configured synthetic path;
   they do not establish physical link performance or autopilot/failsafe behavior.

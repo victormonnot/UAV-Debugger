@@ -1,6 +1,6 @@
 # Inspect a saved Experiment
 
-Development version **0.2.0.dev2** adds offline inspection of one saved
+Development version **0.2.0.dev3** includes offline inspection of one saved
 Experiment directory in Analyze. It brings requested settings, applied actions
 and observed captures into one view and report. The published v0.1.0 remains
 single-recording Analyze; this capability is unreleased.
@@ -93,8 +93,9 @@ to that file's first record. Its activity and attitude plots are not silently
 aligned to the run timeline. Host wall-clock regressions and device
 `time_boot_ms` remain separate. Counts at two points and adjacent events do not
 establish physical packet loss, exact transport latency or autopilot behavior.
-There is no cross-run alignment, automatic baseline comparison or active
-Experiment control in this view.
+This single-run view does not align runs. Use [Compare experiments](comparison.md)
+for an explicit baseline/blackout window. There are no active
+Experiment controls in this view.
 
 ## Bounds and retained references
 
@@ -132,3 +133,9 @@ bytes for uploaded evidence. `load_run_directory` reads only fixed artifact path
 and rejects symlinks and non-regular files. It does not import the execution
 modules. The analysis and report APIs remain independent of Streamlit.
 See [verification](verification.md) for actual checks and reproduction.
+
+## Compare a baseline and blackout
+
+Choose **Compare experiments** for a [bounded comparison](comparison.md) of two
+saved directories. It checks evidence and profile compatibility before calculating
+observed differences over an explicit common measurement-relative window.

@@ -7,13 +7,14 @@ their source frames and exporting analysis evidence.
 one timestamped MAVLink recording in a browser, filter sources and time, plot
 attitude, inspect message activity and raw frames, and download a Markdown report.
 A Python API and JSON command-line summary expose the same imported evidence.
-The current development version, **0.2.0.dev2**, includes an **unreleased
+The current development version, **0.2.0.dev3**, includes an **unreleased
 Experiment CLI** for a bounded synthetic sender → relay → receiver run on local
 UDP, with optional two-second forwarding interruption and captures for Analyze.
 A pinned ArduCopter SITL profile can supply the telemetry inside an isolated
 local network namespace. Analyze can also inspect a saved run directory, relate
 requested settings to applied actions and observations, and export its evidence.
-See [saved Experiment inspection](docs/saved-experiments.md).
+See [saved Experiment inspection](docs/saved-experiments.md) and
+[baseline/blackout comparison](docs/comparison.md).
 
 ## Quick start
 
@@ -46,8 +47,8 @@ see [access through SSH](docs/analyze.md#access-through-ssh).
 The launcher listens on `127.0.0.1` and disables usage statistics. Analysis
 requires no vehicle, simulator or ARGOS installation. Dependency installation
 can require network access. Recordings remain unchanged, and the application
-holds one recording or one saved run per browser session in memory. The
-**10 MiB capture limit** and **64 MiB saved-run limit** bound input bytes,
+holds one recording, one saved run, or a selected pair for comparison per browser
+session in memory. The **10 MiB capture limit** and **64 MiB saved-run limit** bound input bytes,
 not total memory use or guaranteed performance.
 
 See the [Analyze guide](docs/analyze.md) for filtering, reports, alternate ports
@@ -82,8 +83,11 @@ Their clocks remain explicit; `Ctrl+C` stops the runner cleanly.
 See the [Experiment guide](docs/experiment.md) for configuration, output files,
 termination and evidence limits. The optional [ArduCopter SITL guide](docs/sitl.md)
 describes the separately installed, fingerprinted simulator, startup readiness
-and mandatory network isolation. No active Experiment interface or automatic comparison
-is included. Experiment is not part of published v0.1.0.
+and mandatory network isolation. Choose **Compare experiments** in Analyze to
+compare a saved baseline and blackout on an explicit common window, with
+configuration checks, observed counts/rates/intervals and an evidence report.
+Active Experiment browser controls remain future work. Experiment and saved-run
+comparison are not part of published v0.1.0.
 
 ## Current input support
 
@@ -106,11 +110,11 @@ cause.
 
 | Mode | Direction | Current implementation |
 | --- | --- | --- |
-| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown report, Python API and JSON import summary. |
+| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown reports, saved-run inspection and bounded baseline/blackout comparison, Python API and JSON import summary. |
 | **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Unreleased CLI: synthetic or pinned ArduCopter SITL source, local UDP relay and receiver; baseline and two-second interruption; explicit startup, action and observation evidence. |
 
 Analyze remains independently usable from saved files. Opening a recording never
-starts an experiment or sends vehicle commands. Video, session comparison and
+starts an experiment or sends vehicle commands. Video, broader session comparison and
 additional input formats are future work.
 
 ## Development checks
@@ -139,6 +143,7 @@ for local reproduction, current development checks and published-release evidenc
 | Document | Contents |
 | --- | --- |
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
+| [Compare saved experiments](docs/comparison.md) | Pair eligibility, measurement-relative windows, observed differences and reports. |
 | [Saved Experiment inspection](docs/saved-experiments.md) | Read a saved run, validate references and inspect requested, applied and observed evidence. |
 | [ArduCopter SITL](docs/sitl.md) | Pinned local simulator setup, isolation, timing and retained evidence. |
 | [Experiment guide](docs/experiment.md) | Run the local synthetic baseline/interruption, inspect captures and interpret execution evidence. |

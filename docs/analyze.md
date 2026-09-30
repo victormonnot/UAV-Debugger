@@ -10,8 +10,9 @@ The optional [Experiment CLI](experiment.md) produces `relay-input.tlog` and
 outer timestamps identify actual reads at different observation points. Analyze
 also offers **Saved experiment** in the unreleased development version to
 [inspect a complete run directory](saved-experiments.md), including JSON traces
-and both capture points. Cross-run comparison remains future work. Opening
-a capture or saved run never starts or resumes execution.
+and both capture points. **Compare experiments** provides a bounded
+[baseline/blackout comparison](comparison.md) with explicit windows and evidence
+checks. Opening a capture or saved run never starts or resumes execution.
 
 ## Install and launch
 
@@ -264,13 +265,13 @@ activity bins retained the full count and the downloaded report matched the
 new selection. Peak server RSS was 548.2 MiB, excluding the browser. This is
 one measured message mix, not a general response-time or memory guarantee.
 
-One recording is retained per browser session. Applying filters, changing pages
+The Recording input retains one recording per browser session. Applying filters, changing pages
 or inspecting messages reuses its import result; it does not decode the file
 again. Changing the recording replaces that session's analysis. This is
 temporary in-memory state, with no saved session or shared recording cache.
 
-Experiment execution, video synchronization, cross-session comparison,
-additional recording formats and vehicle connections are outside this delivered
+Active Experiment browser controls, video synchronization, broader session
+comparison, additional recording formats and vehicle connections are outside this delivered
 Analyze workflow. Other operating systems require their own verification.
 
 ## Browser workflow checks

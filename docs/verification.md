@@ -1,8 +1,9 @@
 # Verification and release checks
 
 Published UAV Debugger **0.1.0** provides the offline Analyze workflow. The
-unreleased development version **0.2.0.dev2** adds local synthetic and pinned
-ArduCopter SITL Experiment workflows and offline inspection of saved run evidence.
+unreleased development version **0.2.0.dev3** adds local synthetic and pinned
+ArduCopter SITL Experiment workflows, offline saved-run inspection and bounded
+baseline/blackout comparison.
 The verification target is Linux x86_64, Python 3.12 and Chromium. Installation
 metadata permits later Python versions; this does not establish their behavior
 or support for other operating systems.
@@ -104,6 +105,48 @@ declared inputs; changes to the inclusion list and source files still require
 review.
 
 ## Verification status and release conditions
+
+### Offline baseline/blackout comparison
+
+The comparison checks exact half-open measurement-relative windows, independent
+origins, startup/drain boundaries, requested configuration differences, validated
+production lifecycle and stop coverage, source/profile incompatibility, partial
+artifacts and unknown metrics. Real synthetic UDP runs and constructed v1/v2
+fixtures exercise this contract; the file-only API is checked with execution
+and socket creation disabled. Reports preserve both identities, original
+references, explicit omissions and unavailable deltas.
+
+Four additional Chromium workflows cover pair upload, source/point/window
+selection, observed counts and actual gate timing, report download, partial and
+rejected replacements, missing durations, control resets and returning to the
+independent Recording input. Decimal window checks reject values that would
+otherwise round silently beyond nanosecond precision.
+
+On 2026-09-30, the **0.2.0.dev3** candidate passed **559 tests**, with no failures
+or skips, against an installed wheel in a fresh locked Python 3.12.3 environment
+restricted to loopback networking. This includes **21 Chromium workflows**,
+48 comparison-core checks, 15 comparison-report checks and 15 window/plot checks;
+the six native SITL cases were explicitly enabled. A separate browser check
+opened retained native baseline/blackout evidence and exported its comparison
+without starting a simulator. Visual inspection then identified clipped plot
+labels; the final margin adjustment was checked with the 19 affected window/plot
+and comparison-browser tests on a rebuilt, installed wheel, plus the native
+saved-evidence browser workflow.
+
+Ruff lint/format, fixture and lock checks pass. The final source archive contains
+67 files and the wheel 25 files; distribution checks verify source bytes,
+metadata and bundled evidence. These are local development checks. The previous
+[hosted run](https://github.com/victormonnot/UAV-Debugger/actions/runs/36189292493)
+on `420e544bfb6215510d809d7e9e35a9c91aac2387` failed one existing source-switch
+browser case, with 470 passes and six expected native skips. Its retained/new
+Source controls were reproduced by delaying Streamlit render completion. The
+corrected test keeps strict reset assertions and waits for the completed current
+render; all nine existing browser workflows pass with a one-second completion
+delay and fourfold CPU throttling. No hosted result is claimed for this uncommitted
+comparison increment.
+
+See [Compare saved experiments](comparison.md) for eligibility, clock semantics,
+per-point boundary effects and interpretation limits.
 
 ### Offline saved Experiment inspection
 
@@ -281,5 +324,5 @@ and 5,000 selected ATTITUDE records per curve view. One historical producer
 attachment has complete traversal and partial decoding; current producer
 versions are not generally verified. The local synthetic Experiment runner is
 an unreleased development capability, with one pinned local ArduCopter SITL
-profile. Broader simulator/bench integration, active Experiment controls, automatic
-comparison and other formats remain future work.
+profile and bounded offline pair comparison. Broader simulator/bench integration,
+active Experiment controls, broader session comparison and other formats remain future work.

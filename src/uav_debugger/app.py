@@ -387,7 +387,9 @@ def main() -> None:
         st.title("UAV Debugger")
         st.caption("Recorded telemetry · local analysis")
         st.divider()
-        input_kind = st.radio("Analyze input", ["Recording", "Saved experiment"])
+        input_kind = st.radio(
+            "Analyze input", ["Recording", "Saved experiment", "Compare experiments"]
+        )
         if input_kind == "Recording":
             st.button(
                 "Load example",
@@ -411,7 +413,7 @@ def main() -> None:
         export_area = st.empty()
     if st.session_state.get("input_kind") != input_kind:
         for key in list(st.session_state):
-            if key.startswith(("analysis_", "saved_run_")) or key in (
+            if key.startswith(("analysis_", "saved_run_", "compare_")) or key in (
                 "import_result",
                 "import_token",
             ):
@@ -419,6 +421,11 @@ def main() -> None:
         st.session_state.input_kind = input_kind
     st.title("Analyze")
     st.caption("Trace an observation back to its recorded evidence.")
+    if input_kind == "Compare experiments":
+        from uav_debugger.comparison_view import present_comparison
+
+        present_comparison(export_area)
+        return
     if input_kind == "Saved experiment":
         from uav_debugger.run_report import build_run_markdown_report
         from uav_debugger.run_view import POINT_LABELS, open_saved_run, present_run
