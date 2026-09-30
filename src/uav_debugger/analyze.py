@@ -13,7 +13,7 @@ def main(argv: list[str] | None = None) -> int:
         "--experiment-root",
         type=Path,
         default=Path("local/experiments"),
-        help="Root for new browser Experiment outputs (created only on Start)",
+        help="Local saved-run catalog and new browser outputs (created only on Start)",
     )
     parser.add_argument(
         "--sitl-binary",

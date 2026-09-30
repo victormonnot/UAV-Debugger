@@ -147,7 +147,7 @@ def open_saved_run() -> SavedRun | None:
     handoff = st.session_state.get("analyze_handoff")
     if handoff is not None and handoff["kind"] == "Saved experiment":
         with st.sidebar:
-            st.caption("Saved evidence opened from Experiment.")
+            st.caption(f"Saved evidence opened from {handoff.get('origin', 'Experiment')}.")
             st.button("Clear experiment", on_click=clear_experiment, width="stretch")
         return handoff["runs"]["saved"]
     with st.sidebar:

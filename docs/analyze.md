@@ -9,7 +9,7 @@ The optional [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
 produce `relay-input.tlog` and `receiver.tlog` captures for this same workflow.
 Open them individually; their outer timestamps identify actual reads at different
 observation points. Analyze
-also offers **Saved experiment** in the unpublished **0.2.0rc1** candidate to
+also offers **Saved experiment** in the unpublished **0.2.0rc2.dev0** development version to
 [inspect a complete run directory](saved-experiments.md), including JSON traces
 and both capture points. **Compare experiments** provides a bounded
 [baseline/blackout comparison](comparison.md) with explicit windows and evidence
@@ -17,6 +17,10 @@ checks. Opening a capture or saved run never starts or resumes execution.
 The application opens in **Analyze** mode; choose **Experiment** separately to
 configure an explicit launch. A completed or interrupted browser run can open
 directly in Analyze through **Open in Analyze**, without uploading its files.
+Choose **Local experiments** under **Analyze input** to
+[browse saved runs on the server](saved-experiments.md#browse-local-experiments),
+including runs retained before a restart. Browsing reads declared metadata;
+opening or comparing selected runs performs the evidence checks.
 
 ## Install and launch
 
@@ -48,13 +52,13 @@ Dependency installation can require network access. The application uses local
 files and bundled display components after installation; it needs no simulator,
 ARGOS installation or external service to analyze a recording.
 
-### Install the candidate wheel
+### Install the development wheel
 
-The **0.2.0rc1** wheel can be built locally from this source checkout; the
-candidate has not been published:
+The **0.2.0rc2.dev0** wheel can be built locally from this source checkout; the
+development version has not been published:
 
 ```sh
-uv build --out-dir local/candidate-dist
+uv build --out-dir local/development-dist
 ```
 
 From an empty directory outside the checkout, create an environment and install
@@ -62,13 +66,14 @@ that wheel. Replace the absolute path below with the generated artifact's path:
 
 ```sh
 uv venv --python 3.12
-uv pip install --python .venv/bin/python /absolute/path/to/uav_debugger-0.2.0rc1-py3-none-any.whl
+uv pip install --python .venv/bin/python /absolute/path/to/uav_debugger-0.2.0rc2.dev0-py3-none-any.whl
 .venv/bin/uav-debugger-analyze --experiment-root ./experiments
 ```
 
 The installed launcher includes the bundled example and optional Experiment
 interface. New browser runs use the explicitly selected `experiments` root;
-the root is created only by Start. Dependency installation may need network
+the local catalog reads that same root, which is created only by Start.
+Dependency installation may need network
 access. The source quick start above remains the path for installing from the
 repository's complete dependency lock.
 

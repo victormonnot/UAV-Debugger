@@ -1,6 +1,6 @@
 # Architecture
 
-The unpublished **0.2.0rc1** candidate implements a Python file importer,
+The unpublished **0.2.0rc2.dev0** development version implements a Python file importer,
 in-memory evidence, exact filters, activity and attitude plots, record inspection,
 Markdown reports and a JSON command. The Experiment interface and CLI add a bounded synthetic
 local UDP path and save captures for those same analysis components. See the
@@ -74,6 +74,25 @@ references, computes counts/rates/intervals and projects actual gate timing.
 Blocked comparisons retain reasons and provenance without invented metrics.
 These modules import neither execution code nor telemetry transports.
 
+## Local catalog boundary
+
+The file-only catalog reads declared manifest metadata under the configured
+`--experiment-root`. It recognizes a CLI evidence directory directly below the
+root or the `evidence` child of a browser run container. It does not traverse
+arbitrary directory trees, load captures during listing, write an index or infer
+process state from old controller files.
+
+The scan is bounded to 200 direct children, 1 MiB per manifest and 8 MiB of
+manifest bytes in total; truncation remains visible. Entering **Local experiments**
+and **Refresh catalog** produce metadata snapshots. Explicit opening or
+comparison reads the selected files through the saved-run validator before
+passing them to the existing Analyze views. Declared `running` entries remain
+unfinalized and cannot be opened through the catalog. Retained files remain
+independent of the server's transient execution history.
+
+See [local browsing](saved-experiments.md#browse-local-experiments) for layouts,
+failure states and the distinction between metadata and validated observations.
+
 ## Browser execution boundary
 
 `experiment_view.py` is loaded only in Experiment mode. A module-level
@@ -82,6 +101,8 @@ browser sessions and owns the worker independently of Streamlit reruns. A
 background monitor handles worker exit, deadlines and reaping; the latest
 20 run snapshots remain in server memory. History eviction and server restart
 do not delete saved outputs, discover older runs or restart execution.
+Explicit catalog browsing is independent of this controller and does not restore
+its history or claim ownership of earlier processes.
 
 The UI polls controller snapshots through a 0.5-second
 [Streamlit fragment](https://docs.streamlit.io/develop/api-reference/execution-flow/st.fragment)
@@ -184,7 +205,7 @@ measurement semantics. An initial importer does not imply all UAVs are supported
 
 ## Implementation stack
 
-The candidate retains Python 3.12, pymavlink 2.4.49, Streamlit 1.63.0,
+The implementation retains Python 3.12, pymavlink 2.4.49, Streamlit 1.63.0,
 Plotly 7.0.0, in-memory records, uv, pytest and Ruff. Playwright is an optional
 browser-test dependency. The [first milestone](first-milestone.md) documents
 the original v0.1.0 Analyze scope.

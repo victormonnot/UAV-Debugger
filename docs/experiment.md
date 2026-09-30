@@ -5,9 +5,9 @@ relay to a receiver. It supports a baseline and a run with a two-second
 interruption in relay forwarding. Both observation points produce saved files
 for the existing Analyze workflow.
 
-This guide describes the unpublished **0.2.0rc1** release candidate. Version
+This guide describes the unpublished **0.2.0rc2.dev0** development version. Version
 **0.1.0** remains the latest published release and contains offline Analyze;
-use the candidate source checkout for Experiment. The initial target is Linux
+use the development source checkout for Experiment. The initial target is Linux
 with Python 3.12. The synthetic workflow below needs no simulator or vehicle.
 The optional [ArduCopter SITL profile](sitl.md)
 uses a separately installed autopilot executable inside a loopback-only network

@@ -55,6 +55,14 @@ def _assign(role: str, identifier: str) -> None:
     st.session_state[f"experiment_{role}_id"] = identifier
 
 
+def _browse_saved() -> None:
+    from .catalog_view import refresh_catalog
+
+    refresh_catalog()
+    st.session_state.mode = "Analyze"
+    st.session_state.analyze_input = "Local experiments"
+
+
 def _clocks(snapshot) -> None:
     with st.expander("Controller requests and clocks"):
         st.json(
@@ -209,6 +217,7 @@ def _finished_results(controller: ExperimentController, history) -> None:
 def present_experiment() -> None:
     st.title("Experiment")
     st.caption("Run a bounded local telemetry path, then inspect its saved evidence in Analyze.")
+    st.button("Browse saved experiments", on_click=_browse_saved)
     controller = _controller()
     history = controller.history()
     active = next((item for item in history if item.state in _ACTIVE), None)

@@ -1,14 +1,82 @@
 # Inspect a saved Experiment
 
-Release candidate **0.2.0rc1** includes offline inspection of one saved
+Development version **0.2.0rc2.dev0** includes offline inspection of one saved
 Experiment directory in Analyze. It brings requested settings, applied actions
 and observed captures into one view and report. The published v0.1.0 remains
-single-recording Analyze; the candidate is unpublished.
+single-recording Analyze; the development version is unpublished. **Local
+experiments** additionally browses saved directories on the server, including
+after restart, without an upload or an active runner.
 
 The reader supports the actual `uav-debugger-experiment-v1` synthetic format and
 `uav-debugger-experiment-v2` pinned SITL format. Neither a simulator installation
 nor an active runner is required. Opening saved evidence never executes paths or
 commands from its manifest, opens a telemetry transport or resumes an experiment.
+
+## Browse local experiments
+
+1. Start the local application with the output root to inspect, for example:
+
+   ```sh
+   uv run --locked uav-debugger-analyze --experiment-root local/experiments
+   ```
+
+2. In Analyze, choose **Local experiments** under **Analyze input**. The
+   **Browse saved experiments** button in Experiment opens the same view.
+3. Review the listed directories and their **declared** manifest metadata.
+   Listing a run does not validate its captures, counters, hashes or references.
+4. Select an entry under **Saved run** and choose **Open in Analyze** to read the complete evidence
+   through the existing saved-run validator. Inspect **Declared outcome** and
+   **Evidence status** independently, then use the normal capture views/report.
+5. To compare two entries, use **Use as baseline** and **Use as blackout**, then
+   **Compare selected runs**. Both runs are reread and validated; compatibility
+   and observation metrics follow the existing [comparison contract](comparison.md).
+6. Use **Refresh catalog** when the directories or saved manifests change.
+   The view is a snapshot of declared metadata, not a live telemetry monitor.
+
+The root is a server-side path supplied by `--experiment-root`; its default is
+`local/experiments` relative to the launch directory. With SSH access, browsing
+reads files on the server, while directory uploads select files on the browser
+computer. An absent root gives an empty catalog with an explicit issue and does
+not create a directory.
+
+The catalog recognizes only the existing layouts directly below that root:
+
+```text
+<root>/<name>/run.json            # CLI evidence directory
+<root>/<name>/evidence/run.json   # browser evidence directory
+```
+
+The root-relative evidence directory identifies each entry, so a CLI run named
+`baseline` and a browser run named `run-...` remain distinguishable. There is no
+database, persistent index, automatic deletion, arbitrary recursive search or
+execution recovery. The Experiment controller's latest-20-run memory history
+remains a separate view of launches owned by the current server.
+If both supported layouts exist below the same direct child, they appear as
+separate entries, such as `baseline` and `baseline/evidence`.
+
+**Recorded start** is the manifest's declared host Unix timestamp in
+microseconds. It is not file modification time and does not establish an ordering
+of actions across runs. Requested duration is configuration, not an observed
+elapsed duration or a capture count.
+
+A manifest declaring `running` is shown as unfinalized and cannot be opened
+through the catalog. This does not establish whether any process is alive.
+Unreadable manifests or unsupported schemas/outcomes retain an explicit problem
+and cannot be opened. Terminal runs can still contain missing or inconsistent artifacts;
+opening them preserves readable evidence with the reader's issues where
+possible. An unreadable evidence set is rejected. Outer `control.json` values
+are ignored: stale controller state does not become a reconstructed live status.
+Directories with absent manifests, symbolic links, unreadable paths or special
+files produce explicit issues; browsing does not follow links or read FIFOs.
+
+The scan examines at most **200 direct children**, including non-directory
+entries, and reads at most **1 MiB per manifest** and **8 MiB of manifest bytes
+in total**. An oversized manifest produces an entry issue. If the child limit or
+total read budget prevents further scanning, the view identifies the catalog as
+partial. Filesystem enumeration determines the scanned prefix; retained entries
+are sorted by their relative keys. Browsing does not import captures or read the
+action/observation traces. Full opening uses the independent saved-run limits
+below and may reject evidence that had readable listing metadata.
 
 ## Open and inspect
 

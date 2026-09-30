@@ -1,9 +1,9 @@
 # Run an Experiment from the local interface
 
-Release candidate **0.2.0rc1** provides explicit **Experiment** controls beside
+Development version **0.2.0rc2.dev0** provides explicit **Experiment** controls beside
 the independent **Analyze** mode. Start a bounded synthetic or pinned ArduCopter
 SITL run, stop it if needed, then open its saved observations in Analyze or
-compare a baseline and blackout. This candidate is unpublished; v0.1.0 remains
+compare a baseline and blackout. This version is unpublished; v0.1.0 remains
 the latest published release and contains offline Analyze.
 
 ## Launch and run
@@ -82,7 +82,11 @@ continue. Reopening Experiment shows the current server state; it does not
 restart a run. The latest 20 runs are retained in server memory. Older output
 directories remain on disk and are never deleted automatically. Restarting the
 server creates an empty history without discovering or executing old runs;
-open their `evidence` directories through Analyze when needed.
+use **Browse saved experiments** to open the separate
+[Local experiments catalog](saved-experiments.md#browse-local-experiments) in
+Analyze. It reads retained directories under the configured output root,
+including CLI runs. Browsing does not restore controller history or live process
+state. Opening and comparison validate the selected saved evidence.
 
 Stopping the server normally requests worker cleanup and waits for its exit.
 The worker also watches its ownership pipe: if the server exits abruptly, EOF

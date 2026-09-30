@@ -11,9 +11,11 @@ a local UDP relay to a receiver. Explicit Start/Stop controls and a CLI produce
 captures before and after the relay, retaining requested settings, applied
 actions and actual observations separately.
 
-**0.2.0rc1 is an unpublished release candidate.** Version **0.1.0** remains the
-latest published release and provides single-recording offline Analyze. The
-commands below use this candidate source checkout. See
+**0.2.0rc2.dev0 is an unpublished development version.** It adds a read-only
+catalog of experiments saved under the configured local output root. Version
+**0.1.0** remains the latest published release and provides single-recording
+offline Analyze; **0.2.0rc1** remains an unpublished, separately verified candidate.
+The commands below use this development checkout. See
 [verification and release preparation](docs/verification.md) for actual checks
 and hosted CI status.
 
@@ -82,6 +84,13 @@ lets the bounded run continue. Outputs remain on disk under
 controller requests and state. See the [Experiment interface guide](docs/experiment-ui.md)
 for server configuration, shutdown and the optional SITL source.
 
+To find saved runs after restarting the server, choose **Local experiments**
+under **Analyze input**, or **Browse saved experiments** in Experiment. The
+catalog reads declared manifest metadata under `--experiment-root`; **Open in
+Analyze** and **Compare selected runs** validate the selected evidence before
+inspection. It does not restart runs. See
+[browsing local experiments](docs/saved-experiments.md#browse-local-experiments).
+
 The same scenarios are available from the command line:
 
 ```sh
@@ -127,8 +136,8 @@ cause.
 
 | Mode | Direction | Current implementation |
 | --- | --- | --- |
-| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown reports, saved-run inspection and bounded baseline/blackout comparison, Python API and JSON import summary. |
-| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Candidate browser Start/Stop and CLI; synthetic or pinned ArduCopter SITL source, local UDP relay and receiver; baseline and two-second interruption; saved evidence opens in Analyze or comparison. |
+| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown reports, local saved-run browsing, inspection and bounded baseline/blackout comparison, Python API and JSON import summary. |
+| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Browser Start/Stop and CLI; synthetic or pinned ArduCopter SITL source, local UDP relay and receiver; baseline and two-second interruption; saved evidence opens in Analyze or comparison. |
 
 Analyze remains independently usable from saved files. Opening a recording never
 starts an experiment or sends vehicle commands. Video, broader session comparison and
@@ -162,7 +171,7 @@ for local reproduction, current development checks and published-release evidenc
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
 | [Experiment interface](docs/experiment-ui.md) | Explicit Start/Stop, shared execution, simulator setup and saved-evidence handoff. |
 | [Compare saved experiments](docs/comparison.md) | Pair eligibility, measurement-relative windows, observed differences and reports. |
-| [Saved Experiment inspection](docs/saved-experiments.md) | Read a saved run, validate references and inspect requested, applied and observed evidence. |
+| [Saved Experiment inspection](docs/saved-experiments.md) | Browse local runs, open saved evidence and distinguish declared metadata from validated observations. |
 | [ArduCopter SITL](docs/sitl.md) | Pinned local simulator setup, isolation, timing and retained evidence. |
 | [Experiment guide](docs/experiment.md) | Run the local synthetic baseline/interruption, inspect captures and interpret execution evidence. |
 | [Importer guide](docs/importer.md) | Installation, input profile, API, CLI outcomes and limits. |

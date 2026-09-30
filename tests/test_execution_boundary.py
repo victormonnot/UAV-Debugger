@@ -1,5 +1,6 @@
 """The browser launch boundary preserves file-only Analyze and owned shutdown."""
 
+import hashlib
 import os
 import subprocess
 import sys
@@ -15,6 +16,7 @@ import importlib.abc
 import sys
 from importlib.resources import files
 from pathlib import Path
+from unittest.mock import patch
 from streamlit.testing.v1 import AppTest
 
 class Guard(importlib.abc.MetaPathFinder):
@@ -27,6 +29,7 @@ class Guard(importlib.abc.MetaPathFinder):
             raise AssertionError('Execution module imported by Analyze: ' + fullname)
 
 sys.meta_path.insert(0, Guard())
+patch('subprocess.Popen', side_effect=AssertionError('Unexpected process launch')).start()
 app = AppTest.from_file(files('uav_debugger').joinpath('app.py')).run()
 assert not app.exception
 next(button for button in app.button if button.label == 'Load example').click().run()
@@ -42,6 +45,104 @@ assert not Path(sys.argv[1]).exists()
         timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_local_catalog_and_saved_handoffs_remain_file_only_in_a_fresh_process(tmp_path):
+    from uav_debugger.experiment import ExperimentConfig, run_experiment
+
+    root = tmp_path / "experiments"
+    for scenario in ("baseline", "blackout"):
+        manifest = run_experiment(
+            root / scenario,
+            ExperimentConfig(
+                scenario=scenario,
+                duration_s=2.6,
+                blackout_at_s=0.3 if scenario == "blackout" else None,
+            ),
+        )
+        assert manifest["outcome"] == "completed", manifest
+    original = {
+        path.relative_to(root): None
+        if path.is_dir()
+        else hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in root.rglob("*")
+    }
+    script = """
+import importlib.abc
+import sys
+from importlib.resources import files
+from unittest.mock import patch
+from streamlit.testing.v1 import AppTest
+
+class Guard(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, *args, **kwargs):
+        if fullname in {
+            'uav_debugger.experiment', 'uav_debugger.experiment_control',
+            'uav_debugger.experiment_worker', 'uav_debugger.experiment_view',
+            'uav_debugger.sitl',
+        }:
+            raise AssertionError('Execution module imported by catalog: ' + fullname)
+
+sys.meta_path.insert(0, Guard())
+patch('subprocess.Popen', side_effect=AssertionError('Unexpected process launch')).start()
+app = AppTest.from_file(files('uav_debugger').joinpath('app.py')).run()
+
+def checked():
+    assert not app.exception
+
+def button(label):
+    return next(widget for widget in app.button if widget.label == label)
+
+def catalog():
+    next(widget for widget in app.radio if widget.label == 'Analyze input').set_value(
+        'Local experiments'
+    ).run()
+    checked()
+
+def select(key):
+    next(widget for widget in app.selectbox if widget.label == 'Saved run').set_value(key).run()
+    checked()
+
+checked()
+assert next(widget for widget in app.radio if widget.label == 'Mode').value == 'Analyze'
+catalog()
+button('Refresh catalog').click().run()
+checked()
+select('baseline')
+button('Open in Analyze').click().run()
+checked()
+assert app.session_state.import_result.records
+saved = app.session_state.analyze_handoff['runs']['saved']
+assert saved.manifest['requested']['scenario'] == 'baseline'
+catalog()
+for role in ('baseline', 'blackout'):
+    select(role)
+    button('Use as ' + role).click().run()
+    checked()
+button('Compare selected runs').click().run()
+checked()
+assert any(element.value == 'Comparison available' for element in app.success)
+assert set(app.session_state.analyze_handoff['runs']) == {'baseline', 'blackout'}
+catalog()
+next(widget for widget in app.radio if widget.label == 'Analyze input').set_value('Recording').run()
+button('Load example').click().run()
+checked()
+assert app.session_state.import_result.decoded_count == 12
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        env={**os.environ, "UAV_DEBUGGER_EXPERIMENT_ROOT": str(root)},
+        capture_output=True,
+        text=True,
+        timeout=40,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert {
+        path.relative_to(root): None
+        if path.is_dir()
+        else hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in root.rglob("*")
+    } == original
 
 
 def test_entering_experiment_without_start_never_launches_or_creates_outputs(tmp_path):

@@ -38,7 +38,9 @@ def _open_run(role: str) -> SavedRun | None:
         run = handoff["runs"].get(role)
         if run is not None:
             with st.sidebar:
-                st.caption(f"{ROLES[role]} evidence opened from Experiment.")
+                st.caption(
+                    f"{ROLES[role]} evidence opened from {handoff.get('origin', 'Experiment')}."
+                )
                 st.button(f"Clear {role}", on_click=_clear_role, args=(role,), width="stretch")
             return run
     with st.sidebar:

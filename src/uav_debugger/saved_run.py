@@ -741,44 +741,50 @@ def load_run_files(
 def load_run_directory(path: Path) -> SavedRun:
     """Read only the fixed known files, rejecting symlinks and non-regular files."""
     path = Path(path)
-    files = {}
-    total = 0
     flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
     root = os.open(path, flags | os.O_DIRECTORY)
     try:
-        for name, limit in FILE_LIMITS.items():
-            directory = root
-            owned_directory = None
-            try:
-                basename = name
-                if "/" in name:
-                    dirname, basename = name.split("/")
-                    owned_directory = os.open(dirname, flags | os.O_DIRECTORY, dir_fd=root)
-                    directory = owned_directory
-                descriptor = os.open(basename, flags, dir_fd=directory)
-            except FileNotFoundError:
-                continue
-            finally:
-                if owned_directory is not None:
-                    os.close(owned_directory)
-            try:
-                metadata = os.fstat(descriptor)
-                if not stat.S_ISREG(metadata.st_mode):
-                    raise ValueError(f"Saved Experiment artifact is not a regular file: {name}")
-                if metadata.st_size > limit:
-                    raise ValueError(f"Saved Experiment file exceeds size limit: {name}")
-                if total + metadata.st_size > MAX_RUN_BYTES:
-                    raise ValueError("Saved Experiment exceeds the 64 MiB total size limit")
-                with os.fdopen(descriptor, "rb", closefd=False) as stream:
-                    raw = stream.read(min(limit, MAX_RUN_BYTES - total) + 1)
-                if len(raw) > limit:
-                    raise ValueError(f"Saved Experiment file exceeds size limit: {name}")
-                total += len(raw)
-                if total > MAX_RUN_BYTES:
-                    raise ValueError("Saved Experiment exceeds the 64 MiB total size limit")
-                files[name] = raw
-            finally:
-                os.close(descriptor)
+        return _load_run_directory_fd(root, source_name=path.name)
     finally:
         os.close(root)
-    return load_run_files(files, source_name=path.name)
+
+
+def _load_run_directory_fd(root: int, *, source_name: str) -> SavedRun:
+    """Read fixed artifacts from a borrowed, already opened directory descriptor."""
+    files = {}
+    total = 0
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+    for name, limit in FILE_LIMITS.items():
+        directory = root
+        owned_directory = None
+        try:
+            basename = name
+            if "/" in name:
+                dirname, basename = name.split("/")
+                owned_directory = os.open(dirname, flags | os.O_DIRECTORY, dir_fd=root)
+                directory = owned_directory
+            descriptor = os.open(basename, flags, dir_fd=directory)
+        except FileNotFoundError:
+            continue
+        finally:
+            if owned_directory is not None:
+                os.close(owned_directory)
+        try:
+            metadata = os.fstat(descriptor)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ValueError(f"Saved Experiment artifact is not a regular file: {name}")
+            if metadata.st_size > limit:
+                raise ValueError(f"Saved Experiment file exceeds size limit: {name}")
+            if total + metadata.st_size > MAX_RUN_BYTES:
+                raise ValueError("Saved Experiment exceeds the 64 MiB total size limit")
+            with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                raw = stream.read(min(limit, MAX_RUN_BYTES - total) + 1)
+            if len(raw) > limit:
+                raise ValueError(f"Saved Experiment file exceeds size limit: {name}")
+            total += len(raw)
+            if total > MAX_RUN_BYTES:
+                raise ValueError("Saved Experiment exceeds the 64 MiB total size limit")
+            files[name] = raw
+        finally:
+            os.close(descriptor)
+    return load_run_files(files, source_name=source_name)

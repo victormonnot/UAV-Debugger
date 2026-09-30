@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+Development version **0.2.0rc2.dev0** extends the separately verified rc1
+candidate; it has not been published.
+
+### Added
+
+- **Local experiments** in Analyze: browse CLI and browser run directories
+  under the configured `--experiment-root`, including after a server restart.
+  Browsing reads declared manifest metadata; opening or comparing selected runs
+  performs the existing full evidence validation.
+- Explicit refresh and baseline/blackout selection from the saved catalog,
+  plus **Browse saved experiments** from Experiment. Catalog reads preserve
+  existing files and never reconstruct a live process state or restart a run.
+
 ## 0.2.0rc1 — release candidate, unpublished
 
 This candidate retains the implemented Analyze / Experiment feature set for

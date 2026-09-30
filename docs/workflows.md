@@ -1,6 +1,6 @@
 # Workflows
 
-The unpublished **0.2.0rc1** candidate's [Analyze interface](analyze.md) covers
+The unpublished **0.2.0rc2.dev0** development version's [Analyze interface](analyze.md) covers
 opening supported recordings and saved experiments, filtering observations,
 inspecting records and exporting evidence. The
 [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
@@ -9,6 +9,22 @@ A pinned [ArduCopter SITL profile](sitl.md) can supply telemetry after explicit
 local setup and isolation. A bounded [saved baseline/blackout comparison](comparison.md)
 is available in Analyze. Video and broader simulator/bench integrations remain
 future capabilities.
+
+## Find saved experiments after restart
+
+1. Launch the application with `--experiment-root` pointing to the saved output
+   root; `local/experiments` is the default.
+2. Choose **Local experiments** in Analyze, or **Browse saved experiments** from
+   Experiment. Review the declared manifest metadata and any catalog issues.
+3. Select a terminal run and **Open in Analyze**, or assign baseline/blackout
+   roles and **Compare selected runs**. These actions read and validate the
+   selected evidence before inspection.
+4. Use **Refresh catalog** after files change. Retain the original directories
+   alongside reports; browsing neither modifies them nor restarts execution.
+
+The [catalog contract](saved-experiments.md#browse-local-experiments) defines its
+bounded scan, supported layouts and unfinalized entries. A listed outcome is a
+saved declaration, not a live process state or a passed evidence check.
 
 ## Analyze an existing session
 

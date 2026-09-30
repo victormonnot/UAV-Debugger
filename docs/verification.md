@@ -4,6 +4,8 @@ Published UAV Debugger **0.1.0** provides the offline Analyze workflow. The
 unpublished release candidate **0.2.0rc1** adds local synthetic and pinned
 ArduCopter SITL Experiment workflows, offline saved-run inspection, bounded
 baseline/blackout comparison and explicit browser Start/Stop controls.
+Development version **0.2.0rc2.dev0** adds read-only local experiment browsing;
+its verification is separate from the retained rc1 results below.
 The verification target is Linux x86_64, Python 3.12 and Chromium. Installation
 metadata permits later Python versions; this does not establish their behavior
 or support for other operating systems.
@@ -106,6 +108,40 @@ review.
 
 ## Verification status and release conditions
 
+### Local experiment catalog in 0.2.0rc2.dev0
+
+The development scope adds declared-metadata browsing under `--experiment-root`,
+explicit refresh and validated opening/comparison of retained CLI and browser
+run directories. It does not resume execution, rebuild controller ownership,
+write an index or modify saved evidence. The saved-run importer and comparison
+contracts remain the validation boundary.
+
+On 2026-09-30, the installed **0.2.0rc2.dev0** wheel passed **661 tests in
+297.33 seconds**, with no failures or skips, in a fresh locked Python 3.12.3
+environment with only loopback networking. This includes **31 Chromium
+workflows**, all ten explicitly enabled native SITL cases and 52 new catalog
+checks. The source archive contains **79 files** and the wheel **30 files**.
+Final documentation updates leave all 24 application/data wheel members
+byte-identical to the fully tested wheel.
+
+The catalog's real browser workflow launches a baseline and blackout, restarts
+the server, opens both retained runs and exports their reports and comparison.
+Hashes and directory snapshots verify that browsing, refresh and reopening
+neither change saved evidence nor create another run. Further workflows cover
+external CLI additions, unavailable or replaced directories, blocked unfinalized
+manifests and inspectable partial terminal evidence. A previously saved native
+SITL baseline also opened consistently through the catalog without launching a
+simulator or changing its ten retained files.
+
+Fresh-process guards reject execution-module imports and subprocess launches
+through catalog browsing, saved inspection and comparison; the core catalog
+guard also rejects socket creation. Filesystem checks cover byte/count limits,
+strict JSON, symlinks, FIFOs and directory replacement during an open. Existing
+reader behavior and the independent recording workflow remain covered.
+Ruff lint/format, deterministic fixture, lock, distribution-content and public
+Markdown link/anchor checks pass. No hosted CI result is recorded for this
+development increment; the rc1 results below apply to that earlier candidate.
+
 ### 0.2.0rc1 candidate scope
 
 The candidate retains the existing Analyze workflow and the complete bounded
@@ -141,7 +177,7 @@ See [installation and launch](analyze.md#install-and-launch), the
 [Experiment interface](experiment-ui.md), [saved-run inspection](saved-experiments.md)
 and [comparison](comparison.md) for the corresponding user controls. This is a
 release candidate, not a published v0.2.0 release; the published baseline remains
-v0.1.0. Hosted verification must apply to the eventual candidate commit.
+v0.1.0. Its hosted result below applies to the exact committed candidate.
 
 On 2026-09-30, the corrected candidate passed **605 tests in 255.93 seconds**,
 with no failures or skips, against its installed wheel in a fresh locked
@@ -163,8 +199,14 @@ element after transient duplicates disappear.
 The final source archive contains **75 files** and the wheel **28 files**.
 Their 22 application/data members match the wheel used for the full suite;
 only verification code and documentation changed afterwards. Public Markdown
-links and heading anchors resolve. No hosted success is claimed for the
-uncommitted candidate; the dev4 failure below remains the latest hosted evidence.
+links and heading anchors resolve. The subsequent
+[hosted Verification run](https://github.com/victormonnot/UAV-Debugger/actions/runs/36706308675)
+passed on the exact candidate commit `e9966f72006809ad7a24c1d71475d9d9ecf94635`:
+**595 tests passed and ten native SITL cases were skipped in 193.63 seconds**.
+The skips are expected because the simulator is not installed in CI; native
+coverage is recorded by the local 605-test result above. Source/fixture,
+distribution and installed-wheel checks also passed. The earlier dev4 failure
+below remains historical evidence, not the candidate's hosted status.
 
 On 2026-09-30, a separate fresh runtime environment installed the candidate wheel
 with ordinary dependency resolution and launched the three installed console

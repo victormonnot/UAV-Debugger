@@ -1,6 +1,6 @@
 # Compare saved experiments
 
-The unpublished **0.2.0rc1** candidate supports a bounded offline comparison of one
+The unpublished **0.2.0rc2.dev0** development version supports a bounded offline comparison of one
 baseline and one blackout run in Analyze. Both runs must use the same synthetic
 source or the same supported ArduCopter SITL profile. No simulator or running
 experiment is needed to read their saved evidence.
@@ -35,6 +35,13 @@ evidence in this same view without uploading files. Each role retains its
 fingerprint, configuration checks and evidence limits. For later manual uploads,
 select each browser run's `evidence` directory; the outer controller metadata is
 separate from the runner's observations.
+
+**Local experiments** in Analyze can also select a baseline and blackout from
+the configured server-side output root, including after restart. Use **Use as
+baseline**, **Use as blackout** and **Compare selected runs** in the
+[local catalog](saved-experiments.md#browse-local-experiments). Listing metadata
+is not evidence validation: both selected directories are reread before this
+comparison opens, and the usual compatibility checks and blocked reasons apply.
 
 Each directory retains the [saved-run limits](saved-experiments.md#bounds-and-retained-references):
 64 files / 64 MiB including auxiliary files, with 10 MiB per capture. The session

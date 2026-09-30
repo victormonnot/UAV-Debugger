@@ -396,7 +396,7 @@ def main() -> None:
     with st.sidebar:
         input_kind = st.radio(
             "Analyze input",
-            ["Recording", "Saved experiment", "Compare experiments"],
+            ["Recording", "Saved experiment", "Compare experiments", "Local experiments"],
             key="analyze_input",
         )
         if input_kind == "Recording":
@@ -424,6 +424,10 @@ def main() -> None:
     if handoff is not None and handoff["kind"] != input_kind:
         del st.session_state["analyze_handoff"]
     if st.session_state.get("input_kind") != input_kind:
+        if input_kind == "Local experiments":
+            from uav_debugger.catalog_view import refresh_catalog
+
+            refresh_catalog()
         for key in list(st.session_state):
             if key.startswith(("analysis_", "saved_run_", "compare_")) or key in (
                 "import_result",
@@ -433,6 +437,11 @@ def main() -> None:
         st.session_state.input_kind = input_kind
     st.title("Analyze")
     st.caption("Trace an observation back to its recorded evidence.")
+    if input_kind == "Local experiments":
+        from uav_debugger.catalog_view import present_catalog
+
+        present_catalog()
+        return
     if input_kind == "Compare experiments":
         from uav_debugger.comparison_view import present_comparison
 
