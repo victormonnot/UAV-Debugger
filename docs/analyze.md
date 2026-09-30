@@ -5,14 +5,18 @@ It provides source and time filters, activity and attitude plots, message inspec
 and a Markdown evidence report. The same file-only importer is available through the
 [Python API and command-line summary](importer.md).
 
-The optional [Experiment CLI](experiment.md) produces `relay-input.tlog` and
-`receiver.tlog` captures for this same workflow. Open them individually; their
+The optional [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
+produce `relay-input.tlog` and `receiver.tlog` captures for this same workflow.
+Open them individually; their
 outer timestamps identify actual reads at different observation points. Analyze
 also offers **Saved experiment** in the unreleased development version to
 [inspect a complete run directory](saved-experiments.md), including JSON traces
 and both capture points. **Compare experiments** provides a bounded
 [baseline/blackout comparison](comparison.md) with explicit windows and evidence
 checks. Opening a capture or saved run never starts or resumes execution.
+The application opens in **Analyze** mode; choose **Experiment** separately to
+configure an explicit launch. A completed or interrupted browser run can open
+directly in Analyze through **Open in Analyze**, without uploading its files.
 
 ## Install and launch
 
@@ -270,9 +274,10 @@ or inspecting messages reuses its import result; it does not decode the file
 again. Changing the recording replaces that session's analysis. This is
 temporary in-memory state, with no saved session or shared recording cache.
 
-Active Experiment browser controls, video synchronization, broader session
-comparison, additional recording formats and vehicle connections are outside this delivered
-Analyze workflow. Other operating systems require their own verification.
+Active execution belongs to the separate [Experiment mode](experiment-ui.md).
+Video synchronization, broader session comparison, additional recording formats
+and vehicle connections remain outside this delivered Analyze workflow. Other
+operating systems require their own verification.
 
 ## Browser workflow checks
 

@@ -5,12 +5,15 @@ relay to a receiver. It supports a baseline and a run with a two-second
 interruption in relay forwarding. Both observation points produce saved files
 for the existing Analyze workflow.
 
-This feature is **unreleased**, in development version **0.2.0.dev3**. The
+This feature is **unreleased**, in development version **0.2.0.dev4**. The
 published v0.1.0 contains offline Analyze; use the current source checkout for
 Experiment. The initial target is Linux with Python 3.12. The synthetic workflow
 below needs no simulator or vehicle. The optional [ArduCopter SITL profile](sitl.md)
 uses a separately installed autopilot executable inside a loopback-only network
 namespace, with an explicit startup phase before measurement.
+The [Experiment interface](experiment-ui.md) runs these same scenarios through
+explicit Start/Stop controls and opens finished evidence in Analyze. This guide
+documents the CLI and the shared runner's evidence contract.
 
 ## Run the baseline and interruption
 
@@ -185,9 +188,10 @@ uploading; see the [Analyze access guide](analyze.md#access-through-ssh).
 
 Choose **Saved experiment** to open the complete directory and export settings,
 actions and observations together; see [saved-run inspection](saved-experiments.md).
-Opening these files never starts or resumes Experiment. There are no active Experiment
-controls, broader cross-run analysis, physical
-link measurement or autopilot/failsafe validation in this increment. The
+Opening these files never starts or resumes Experiment. Active execution is
+available separately through the [Experiment interface](experiment-ui.md).
+Broader cross-run analysis, physical link measurement and autopilot/failsafe
+validation remain outside this increment. The
 [verification guide](verification.md) records the checks actually performed.
 
 Use [Compare experiments](comparison.md) to compare a saved baseline and blackout

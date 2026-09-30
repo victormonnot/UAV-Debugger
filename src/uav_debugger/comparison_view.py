@@ -14,6 +14,9 @@ ROLES = {"baseline": "Baseline", "blackout": "Blackout"}
 
 
 def _clear_role(role: str) -> None:
+    handoff = st.session_state.get("analyze_handoff")
+    if handoff is not None and handoff["kind"] == "Compare experiments":
+        handoff["runs"].pop(role, None)
     for key in list(st.session_state):
         if key.startswith(f"compare_{role}_"):
             del st.session_state[key]
@@ -30,6 +33,14 @@ def _clear_pair() -> None:
 
 
 def _open_run(role: str) -> SavedRun | None:
+    handoff = st.session_state.get("analyze_handoff")
+    if handoff is not None and handoff["kind"] == "Compare experiments":
+        run = handoff["runs"].get(role)
+        if run is not None:
+            with st.sidebar:
+                st.caption(f"{ROLES[role]} evidence opened from Experiment.")
+                st.button(f"Clear {role}", on_click=_clear_role, args=(role,), width="stretch")
+            return run
     with st.sidebar:
         uploaded = st.file_uploader(
             f"Open {role} experiment",

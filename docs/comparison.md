@@ -7,7 +7,8 @@ experiment is needed to read their saved evidence.
 
 ## Open and compare
 
-1. Produce a baseline and blackout with the [Experiment CLI](experiment.md) or
+1. Produce a baseline and blackout with the [Experiment interface](experiment-ui.md),
+   [CLI](experiment.md) or
    the optional [SITL profile](sitl.md), retaining each complete output directory.
    Use the same source settings; six seconds is the default measurement duration.
 2. Start `uv run --locked uav-debugger-analyze`. Choose **Compare experiments**
@@ -27,6 +28,13 @@ experiment is needed to read their saved evidence.
    the activity plot. **Comparison observation point** switches the plot;
    tables and report retain both points. **Download report** exports the current
    applied comparison, including blocked results and their reasons.
+
+In the Experiment interface, **Use as baseline** and **Use as blackout** assign
+terminal runs from server history. **Compare selected runs** opens their saved
+evidence in this same view without uploading files. Each role retains its
+fingerprint, configuration checks and evidence limits. For later manual uploads,
+select each browser run's `evidence` directory; the outer controller metadata is
+separate from the runner's observations.
 
 Each directory retains the [saved-run limits](saved-experiments.md#bounds-and-retained-references):
 64 files / 64 MiB including auxiliary files, with 10 MiB per capture. The session
@@ -130,8 +138,9 @@ declared metadata has separate omission notices to preserve the file fingerprint
 An observed difference does not establish physical packet loss, an autopilot
 response, a failsafe or a cause. This feature compares two recordings on a stated
 relative window; it does not perform signal synchronization, automatic causal
-diagnosis, repeated-run statistics or vehicle-response analysis. Active browser
-launch/stop controls remain future work.
+diagnosis, repeated-run statistics or vehicle-response analysis. Explicit
+launch/stop controls are available separately in [Experiment](experiment-ui.md);
+opening or changing a comparison never executes either run.
 
 ## File-only Python API
 

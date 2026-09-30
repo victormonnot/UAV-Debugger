@@ -137,12 +137,19 @@ def clear_run_state() -> None:
 
 
 def clear_experiment() -> None:
+    st.session_state.pop("analyze_handoff", None)
     clear_run_state()
     st.session_state.run_upload_generation = st.session_state.get("run_upload_generation", 0) + 1
 
 
 def open_saved_run() -> SavedRun | None:
     """Read uploaded directory bytes, keeping one bounded result per session."""
+    handoff = st.session_state.get("analyze_handoff")
+    if handoff is not None and handoff["kind"] == "Saved experiment":
+        with st.sidebar:
+            st.caption("Saved evidence opened from Experiment.")
+            st.button("Clear experiment", on_click=clear_experiment, width="stretch")
+        return handoff["runs"]["saved"]
     with st.sidebar:
         uploaded = st.file_uploader(
             "Open saved experiment",

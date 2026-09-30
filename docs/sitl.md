@@ -1,6 +1,6 @@
 # Local ArduCopter SITL experiment
 
-The unreleased Experiment CLI supports one pinned ArduCopter SITL profile on
+The unreleased Experiment interface and CLI support one pinned ArduCopter SITL profile on
 Linux x86_64. The autopilot runs as an owned local subprocess and emits telemetry
 through the same relay and receiver used for synthetic experiments. The runner
 sends no MAVLink commands to the autopilot and does not arm or fly it.
@@ -38,7 +38,29 @@ cannot silently alter the next run. The manifest retains the executable
 identity, exact arguments and requested startup parameters. These are setup
 inputs, not a readback of every effective autopilot parameter.
 
-## Run with only loopback networking
+## Run from the local interface
+
+After preparing the executable, start the server with its explicit path:
+
+```sh
+uv run --locked uav-debugger-analyze \
+  --sitl-binary "$PWD/local/sitl/arducopter"
+```
+
+Choose **Experiment**, select **ArduCopter SITL**, configure the scenario and
+click **Start experiment**. The [interface guide](experiment-ui.md) documents
+Stop, process state, saved-evidence handoff and pair comparison. The server
+remains in its existing network namespace. Each SITL worker gets a separate user,
+network and PID namespace with only loopback enabled, then runs the same pinned
+profile described below. The worker is PID 1; its termination removes remaining
+processes in that namespace, including an unresponsive simulator.
+
+The local `unshare` and `ip` commands and permission to create those namespaces
+are required. Isolation errors fail the run; there is no fallback to the host
+network and no automatic simulator download. Simulator PIDs in browser-run
+manifests belong to the worker's PID namespace, not the host's PID namespace.
+
+## Run the CLI with only loopback networking
 
 ArduCopter's RC-input backend binds a UDP port on all interfaces even when
 telemetry uses loopback. This profile therefore **requires a Linux network
@@ -133,8 +155,9 @@ from startup, so Analyze's relative time origin can precede `measurement_start`.
 Choose **Saved experiment** to [inspect the complete run](saved-experiments.md),
 including startup, measurement origin, applied gate intervals and both capture
 points. The [comparison view](comparison.md) checks a saved baseline and blackout
-against the same profile and parameters. No active Experiment browser controls
-are added.
+against the same profile and parameters. A terminal browser run can enter these
+same views through **Open in Analyze** or **Compare selected runs**. Their
+reports inspect saved evidence without starting a simulator.
 
 ## References and verification
 
@@ -147,5 +170,6 @@ explain the explicit preamble handling and network isolation requirement.
 
 Ordinary tests need no simulator download. Native integration checks are opt-in
 with `UAV_DEBUGGER_SITL_BINARY` pointing to the pinned executable, inside the same
-loopback-only namespace. The [verification guide](verification.md) records
+loopback-only namespace for direct runner tests. Controller and browser tests
+create their own isolated worker namespaces. The [verification guide](verification.md) records
 actual local checks and the separate hosted CI status.

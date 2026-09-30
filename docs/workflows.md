@@ -2,10 +2,12 @@
 
 The current [Analyze interface](analyze.md) covers opening one supported file,
 filtering observations, inspecting records and exporting evidence. The
-unreleased [Experiment CLI](experiment.md) runs a bounded local synthetic path
-and produces captures for that same analysis. A pinned [ArduCopter SITL profile](sitl.md)
-can supply telemetry after explicit local setup and isolation. A bounded
-[saved baseline/blackout comparison](comparison.md) is available in Analyze. Video and broader simulator/bench integrations remain future capabilities.
+unreleased [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
+run a bounded local synthetic path and produce captures for that same analysis.
+A pinned [ArduCopter SITL profile](sitl.md) can supply telemetry after explicit
+local setup and isolation. A bounded [saved baseline/blackout comparison](comparison.md)
+is available in Analyze. Video and broader simulator/bench integrations remain
+future capabilities.
 
 ## Analyze an existing session
 
@@ -25,7 +27,25 @@ Sources may have different clocks or incomplete timestamps. An aligned view
 should retain original timestamps and disclose its alignment assumptions.
 When reliable alignment is unavailable, that uncertainty remains visible.
 
-## Run the local synthetic experiment
+## Run from the local interface
+
+1. Start `uv run --locked uav-debugger-analyze` and choose **Experiment** under
+   **Mode**. Select **Synthetic**, **Baseline** and a six-second duration.
+2. Click **Start experiment**. Wait for completion or use **Stop experiment**
+   to request interruption. Mode changes and browser disconnects leave the
+   bounded worker running; all tabs share one active run per server.
+3. Review the terminal process state and declared outcome. **Open in Analyze**
+   validates the saved evidence and opens settings, applied actions and captures.
+4. For comparison, assign **Use as baseline**, run **Blackout** with the same
+   configuration, assign **Use as blackout**, then **Compare selected runs**.
+5. Review evidence eligibility, observed counts/rates/intervals and actual gate
+   timing in Analyze. Export a report and retain the original run directories.
+
+The [interface guide](experiment-ui.md) documents output roots, server shutdown,
+history and optional SITL configuration. Execution, requested settings and
+observed evidence remain distinct; there are no inferred live telemetry counts.
+
+## Run the local synthetic experiment from the CLI
 
 1. Run the CLI with `--scenario baseline` and a new output directory.
 2. Run it again with `--scenario blackout` and a different output directory.
@@ -55,8 +75,11 @@ defines the clocks, stop behavior, outcome codes and detailed usage.
 ## Run the pinned local simulator
 
 Follow the [ArduCopter SITL guide](sitl.md) to install the exact executable and
-run the same baseline/blackout scenarios inside a loopback-only namespace. The
-runner records startup observations, waits for source `1 / 1` HEARTBEAT and
+run the same baseline/blackout scenarios inside a loopback-only namespace.
+The browser launcher accepts `--sitl-binary PATH` and isolates each explicit
+SITL worker while keeping the UI server in its original namespace. The CLI
+requires the documented external namespace command. The runner records startup
+observations, waits for source `1 / 1` HEARTBEAT and
 ATTITUDE, then begins the configured duration. Review readiness, measurement
 start, applied gate transitions and simulator termination before opening the
 captures. A telemetry forwarding gap does not establish an autopilot failsafe.
@@ -85,6 +108,7 @@ cancelled and incomplete runs should remain distinguishable from completed runs.
 | Evidence | What it establishes | What it does not establish alone |
 | --- | --- | --- |
 | Scenario configuration | What the experiment was intended to do | That the perturbation occurred |
+| Controller request and process state | When Start/Stop was requested and what happened to the owned worker | That the producer stopped at the request time, or that saved evidence is consistent |
 | Runner application record | What the runner reports applying | The resulting vehicle behavior |
 | Captured MAVLink message | What was seen at a recorded observation point | Delivery elsewhere or execution of a command |
 | Vehicle state or external observation | What that source reports or shows | A complete history or the cause of a change |
@@ -100,7 +124,8 @@ available evidence visible. Reusing a scenario should reproduce its requested
 conditions while retaining the actual application record for each run.
 
 An independently imported recording and a capture produced by Experiment use
-the same analysis components. The current CLI defines a concrete local trace;
+the same analysis components. Browser and CLI execution produce the same
+concrete local trace;
 the [comparison view](comparison.md) compares two saved runs from the same profile
 without inferring clock synchronization. Broader target configuration remains
 future work. See

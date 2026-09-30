@@ -1,9 +1,9 @@
 # Verification and release checks
 
 Published UAV Debugger **0.1.0** provides the offline Analyze workflow. The
-unreleased development version **0.2.0.dev3** adds local synthetic and pinned
-ArduCopter SITL Experiment workflows, offline saved-run inspection and bounded
-baseline/blackout comparison.
+unreleased development version **0.2.0.dev4** adds local synthetic and pinned
+ArduCopter SITL Experiment workflows, offline saved-run inspection, bounded
+baseline/blackout comparison and explicit browser Start/Stop controls.
 The verification target is Linux x86_64, Python 3.12 and Chromium. Installation
 metadata permits later Python versions; this does not establish their behavior
 or support for other operating systems.
@@ -106,6 +106,42 @@ review.
 
 ## Verification status and release conditions
 
+### Local Experiment controls
+
+The controller checks explicit launch, configuration rejection before output
+creation, one active worker across concurrent requests, unique output directories,
+bounded history, idempotent Stop, watchdog escalation, ownership-pipe cleanup,
+launch failures, diagnostics and unavailable or malformed terminal manifests.
+Additional native checks cover isolated SITL completion and namespace cleanup
+after forced termination. They use the separately obtained
+pinned executable; ordinary CI does not install it.
+
+Six additional Chromium workflows cover synthetic baseline/blackout execution
+and comparison handoff, Stop and saved-run report export, invalid settings,
+shared control across tabs already open at idle, normal server shutdown, and
+native SITL Start/Stop followed by Analyze. The native browser case is opt-in.
+Four execution-boundary checks verify that default Analyze does not import the
+execution modules, entering or configuring Experiment does not launch a process,
+and the launcher closes an already constructed controller on normal return or
+exit. There are no inferred live telemetry counters.
+
+On 2026-09-30, the **0.2.0.dev4** candidate passed **604 tests in 232.10 seconds**,
+with no failures or skips, against an installed wheel in a fresh locked Python
+3.12.3 environment restricted to loopback networking. This includes **27 Chromium
+workflows**, 35 controller checks and the four execution-boundary checks; all
+ten native SITL cases were explicitly enabled. Visual inspection of the same
+installed wheel checked configuration, active controls across tabs with different
+draft settings, and completed-run handoffs. Both additional ten-second synthetic
+preview runs completed normally.
+
+Ruff lint/format, fixture and lock checks passed. The final source archive
+contains 74 files and the wheel 28 files; all 22 application/data members match
+the tested wheel. Public documentation links resolve. These are local checks
+of an unreleased increment; no hosted result or publication is claimed for dev4.
+
+See the [Experiment interface guide](experiment-ui.md) for lifecycle states,
+ownership, isolation, clocks and partial-evidence limits.
+
 ### Offline baseline/blackout comparison
 
 The comparison checks exact half-open measurement-relative windows, independent
@@ -142,8 +178,11 @@ browser case, with 470 passes and six expected native skips. Its retained/new
 Source controls were reproduced by delaying Streamlit render completion. The
 corrected test keeps strict reset assertions and waits for the completed current
 render; all nine existing browser workflows pass with a one-second completion
-delay and fourfold CPU throttling. No hosted result is claimed for this uncommitted
-comparison increment.
+delay and fourfold CPU throttling. The subsequent
+[hosted run](https://github.com/victormonnot/UAV-Debugger/actions/runs/36685515572)
+passed on comparison commit `1ee65fa1370b672ebf28bdaa3d7e44ad72c7142b`: 553 tests
+passed and six native SITL cases were skipped because the executable is not
+installed in CI. This hosted result covers dev3, not the later browser controls.
 
 See [Compare saved experiments](comparison.md) for eligibility, clock semantics,
 per-point boundary effects and interpretation limits.

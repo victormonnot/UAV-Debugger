@@ -2,8 +2,8 @@
 
 UAV Debugger implements a Python file importer, in-memory evidence, exact filters,
 activity and attitude plots, record inspection, Markdown reports and a JSON
-command. The unreleased Experiment CLI adds a bounded synthetic local UDP path
-and saves captures for those same analysis components. See the
+command. The unreleased Experiment interface and CLI add a bounded synthetic
+local UDP path and save captures for those same analysis components. See the
 [Analyze guide](analyze.md), [importer guide](importer.md) and
 [Experiment guide](experiment.md) for current use. A pinned [ArduCopter SITL profile](sitl.md) adds one external local source;
 a bounded [saved baseline/blackout comparison](comparison.md) reuses the same
@@ -17,7 +17,8 @@ flowchart LR
     import --> session["Session evidence"]
     session --> analyze["Analyze"]
     analyze --> report["Evidence report"]
-    scenario["Baseline or blackout settings"] --> runner["Optional local Experiment CLI"]
+    scenario["Baseline or blackout settings"] --> launch["Explicit Start or CLI command"]
+    launch --> runner["Optional local Experiment runner"]
     runner --> path["Synthetic or SITL source → relay → receiver"]
     path --> captures["Two timestamped MAVLink captures"]
     captures --> import
@@ -32,8 +33,8 @@ individual recording or [one saved experiment](saved-experiments.md). The latter
 checks manifest, trace and capture references without importing execution modules.
 Its run timeline uses observed monotonic stamps; capture plots retain their
 original wall-clock meaning. No clock conversion or cross-run alignment is inferred. File analysis has no operational dependency
-on the runner. The explicit Experiment command is the only entry point that
-starts the local sender and relay.
+on the runner. An explicit Experiment CLI command or browser **Start experiment**
+starts the local sender and relay; file opening and presentation reruns do not.
 
 ## Responsibilities
 
@@ -42,7 +43,7 @@ starts the local sender and relay.
 | Import | Identify a supported format and its version, validate the input and retain its origin. Unsupported or damaged input produces an explicit outcome. |
 | Session evidence | Preserve source identity, original ordering, timestamps with their meaning, decoded observations and references to original records. |
 | Analysis | Select sources and intervals, inspect recorded measurements and preserve original meaning. Compare eligible saved runs on an explicit common measurement-relative window. |
-| Experiment execution | Apply the baseline or blackout scenario to the local synthetic path and record actual actions, observations, termination and failures. |
+| Experiment execution | Own one explicitly launched browser worker per server, or a CLI run; apply the scenario and record actual actions, observations, termination and failures. Controller requests retain separate evidence and clocks. |
 | Reports | Present imported observations and limitations with references to their sources. Saved-run reports also distinguish declared outcome, evidence consistency, requested settings, applied gate intervals and observations. |
 
 The importer now represents file bytes, decoded records and import issues in
@@ -72,6 +73,44 @@ references, computes counts/rates/intervals and projects actual gate timing.
 `comparison_view.py` owns two directory uploads, selectors and shared activity bins.
 Blocked comparisons retain reasons and provenance without invented metrics.
 These modules import neither execution code nor telemetry transports.
+
+## Browser execution boundary
+
+`experiment_view.py` is loaded only in Experiment mode. A module-level
+`ExperimentController` in `experiment_control.py` serializes starts across
+browser sessions and owns the worker independently of Streamlit reruns. A
+background monitor handles worker exit, deadlines and reaping; the latest
+20 run snapshots remain in server memory. History eviction and server restart
+do not delete saved outputs, discover older runs or restart execution.
+
+The UI polls controller snapshots through a 0.5-second
+[Streamlit fragment](https://docs.streamlit.io/develop/api-reference/execution-flow/st.fragment)
+while its session is active. It displays process state and controller elapsed
+time without reading changing captures or claiming live observation counts.
+Browser closure or mode changes do not own the worker lifetime. Each terminal
+handoff calls the existing saved-file reader and transfers validated `SavedRun`
+values into Analyze; inspection and comparison remain execution-independent.
+
+`experiment_worker.py` receives a fixed argument list, without a shell. Its
+stdin ownership pipe requests interruption on Stop or parent exit. The controller
+uses a duration/startup allowance plus eight seconds, then a five-second cleanup
+allowance before forced termination. Normal server shutdown waits for owned
+cleanup. These deadlines are not real-time guarantees under process suspension
+or blocked I/O. A missing or unfinalized runner outcome remains explicit.
+
+For SITL, the controller launches the worker through `unshare` in dedicated
+user, network and PID namespaces; the worker enables only loopback and is PID 1.
+Its death removes remaining processes in that PID namespace, including the
+simulator's separate process group. The server retains its own network namespace
+and listener. Saved simulator PIDs are local to the worker's namespace. See
+[unshare](https://man7.org/linux/man-pages/man1/unshare.1.html) and
+[PID namespaces](https://man7.org/linux/man-pages/man7/pid_namespaces.7.html).
+
+Each browser launch creates `run-<identifier>/control.json` and a fresh
+`evidence/` directory. Controller requests, process outcomes and a bounded
+8,192-byte stderr tail are separate from the unchanged runner files. Controller
+and runner lifecycle values never replace consistency checks in Analyze. See
+the [Experiment interface guide](experiment-ui.md) for state and clock meanings.
 
 ## Local execution boundary
 
@@ -155,9 +194,9 @@ and Ruff are in use. Playwright is an optional browser-test dependency.
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
 | Interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection and download in one application. |
 | Timeline | Plotly with explicit source/type/time controls | Activity and attitude plots with point-to-record inspection; zoom does not change filters. |
-| Session data | Python data structures in memory | One recording per browser session; persistence needs are initially limited to report export. |
+| Session data | Python data structures in memory; original experiment evidence on disk | Per-session recording/run/pair analysis and a shared bounded execution history, with no automatic recovery or execution on restart. |
 | Report | Markdown download | Readable evidence summary with source fingerprints and record references. |
-| Experiment | Standard-library sockets, selectors, clocks, signals and JSON; existing pinned MAVLink encoder | A bounded local path without extra dependencies or a generic target framework. |
+| Experiment | Standard-library sockets, selectors, subprocesses, clocks, signals and JSON; existing pinned MAVLink encoder | A bounded local path and explicitly owned browser worker; SITL additionally requires local Linux namespace tools. |
 | Environment and checks | `pyproject.toml`, `uv.lock`, pytest and Ruff | Reproducible dependencies, behavioral tests and basic source checks. |
 
 Streamlit runs the Python backend on the host and presents the interface in a

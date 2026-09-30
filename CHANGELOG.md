@@ -4,6 +4,14 @@
 
 ### Added
 
+- Local **Experiment** browser mode with explicit Start/Stop, one worker per
+  server, shared state across tabs and bounded shutdown. Synthetic and pinned
+  SITL runs open directly in Analyze or supply a baseline/blackout comparison.
+- Separate controller request clocks, lifecycle and diagnostics in
+  `control.json`, alongside the original runner evidence. The latest 20 runs
+  remain selectable during the server session; output directories are retained.
+- Optional SITL browser workers in dedicated user, network and PID namespaces,
+  with the server remaining reachable on its existing loopback listener.
 - Offline baseline/blackout comparison in Analyze: two bounded saved directories,
   profile and evidence checks, explicit measurement-relative windows, observed
   counts/rates/intervals before and after the relay, configuration differences,
@@ -40,9 +48,10 @@
 ### Scope
 
 - Analyze retains its independent file-only import and browser workflow.
-  The optional simulator profile adds no physical vehicle connection or active
-  browser controls. Saved-run inspection and bounded pair comparison are
-  available independently of experiment execution.
+  Execution requires **Start experiment** in the separate Experiment mode or an
+  explicit CLI command. Saved-run inspection and bounded pair comparison remain
+  available independently of experiment execution. The optional simulator
+  profile adds no physical vehicle connection.
 - Local UDP observations establish behavior on the configured synthetic path;
   they do not establish physical link performance or autopilot/failsafe behavior.
   See the [Experiment guide](docs/experiment.md) for usage and clock limits.

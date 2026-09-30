@@ -376,7 +376,7 @@ def _record_view(
 
 
 def main() -> None:
-    st.set_page_config(page_title="UAV Debugger · Analyze", page_icon="▥", layout="wide")
+    st.set_page_config(page_title="UAV Debugger", page_icon="▥", layout="wide")
     st.markdown(
         "<style>.block-container{padding-top:2rem;max-width:1500px}"
         "[data-testid=stMetricValue]{font-variant-numeric:tabular-nums}"
@@ -387,8 +387,17 @@ def main() -> None:
         st.title("UAV Debugger")
         st.caption("Recorded telemetry · local analysis")
         st.divider()
+        mode = st.radio("Mode", ["Analyze", "Experiment"], key="mode")
+    if mode == "Experiment":
+        from uav_debugger.experiment_view import present_experiment
+
+        present_experiment()
+        return
+    with st.sidebar:
         input_kind = st.radio(
-            "Analyze input", ["Recording", "Saved experiment", "Compare experiments"]
+            "Analyze input",
+            ["Recording", "Saved experiment", "Compare experiments"],
+            key="analyze_input",
         )
         if input_kind == "Recording":
             st.button(
@@ -411,6 +420,9 @@ def main() -> None:
             st.caption("Analysis limit: 10 MiB (10,485,760 bytes).")
         # Remove any previous download before loading new evidence or rendering filters.
         export_area = st.empty()
+    handoff = st.session_state.get("analyze_handoff")
+    if handoff is not None and handoff["kind"] != input_kind:
+        del st.session_state["analyze_handoff"]
     if st.session_state.get("input_kind") != input_kind:
         for key in list(st.session_state):
             if key.startswith(("analysis_", "saved_run_", "compare_")) or key in (

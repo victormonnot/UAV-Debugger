@@ -152,8 +152,11 @@ clocks and stop behavior. The optional [ArduCopter SITL profile](sitl.md) verifi
 a single pinned local autopilot as a telemetry source. The stream experiment establishes behavior on that
 configured local path; autopilot response would require an additional actual
 simulator/bench integration and its own evidence. A bounded
-[baseline/blackout comparison](comparison.md) now reads the saved evidence on explicit measurement-relative windows. Active Experiment controls
-remain later work.
+[baseline/blackout comparison](comparison.md) now reads the saved evidence on
+explicit measurement-relative windows. The subsequent
+[Experiment interface](experiment-ui.md) adds explicit local Start/Stop controls,
+separate controller evidence and direct opening of terminal runs in Analyze or
+comparison. These capabilities remain outside published v0.1.0.
 
 See [project scope](project-scope.md) and [architecture direction](architecture.md)
 for the product boundaries and shared analysis design.

@@ -1,6 +1,6 @@
 # Inspect a saved Experiment
 
-Development version **0.2.0.dev3** includes offline inspection of one saved
+Development version **0.2.0.dev4** includes offline inspection of one saved
 Experiment directory in Analyze. It brings requested settings, applied actions
 and observed captures into one view and report. The published v0.1.0 remains
 single-recording Analyze; this capability is unreleased.
@@ -38,6 +38,14 @@ Combining directories or duplicate filenames is rejected. An invalid replacement
 removes the previous report rather than continuing to export stale evidence.
 Browser directory selection follows the
 [Streamlit directory-upload contract](https://docs.streamlit.io/1.63.0/develop/api-reference/widgets/st.file_uploader).
+
+Runs launched in the [Experiment interface](experiment-ui.md) offer **Open in
+Analyze** after worker termination. This reads the server's retained evidence
+through the same validator without uploading it. For later manual opening,
+select `run-<identifier>/evidence`, which contains `run.json`. The outer
+`control.json` stores controller requests and process state separately; it is not
+part of the saved-run fingerprint or report. **Clear experiment** releases a
+handoff selection as well as an uploaded selection; it never deletes files.
 
 ## What is checked
 
