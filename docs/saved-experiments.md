@@ -1,11 +1,10 @@
 # Inspect a saved Experiment
 
-Development version **0.2.0rc2.dev1** includes offline inspection of one saved
+Version **0.2.0** includes offline inspection of one saved
 Experiment directory in Analyze. It brings requested settings, applied actions
-and observed captures into one view and report. The published v0.1.0 remains
-single-recording Analyze; the development version is unpublished. **Local
-experiments** additionally browses saved directories on the server, including
-after restart, without an upload or an active runner.
+and observed captures into one view and report. **Local experiments** additionally
+browses saved directories on the server, including after restart, without an
+upload or an active runner.
 
 The reader supports the actual `uav-debugger-experiment-v1` synthetic format and
 `uav-debugger-experiment-v2` pinned SITL format. Neither a simulator installation

@@ -1,68 +1,52 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
-Development version **0.2.0rc2.dev1** extends the separately verified rc1
-candidate; it has not been published.
-
-### Added
-
-- Configurable blackout duration through `--blackout-duration` and the browser's
-  **Blackout duration (s)** control, retaining the two-second default. The
-  0.1–59.8-second interval must fit within the bounded measurement with 0.1-second
-  margins. Controller requests and runner manifests retain the requested value;
-  traces and reports retain the actual transitions, including early shutdown.
-- Comparison validates each blackout against its own requested duration.
-  Existing two-second synthetic and SITL evidence remains readable and comparable
-  under the existing profile and evidence checks.
-- **Local experiments** in Analyze: browse CLI and browser run directories
-  under the configured `--experiment-root`, including after a server restart.
-  Browsing reads declared manifest metadata; opening or comparing selected runs
-  performs the existing full evidence validation.
-- Explicit refresh and baseline/blackout selection from the saved catalog,
-  plus **Browse saved experiments** from Experiment. Catalog reads preserve
-  existing files and never reconstruct a live process state or restart a run.
-
-## 0.2.0rc1 — release candidate, unpublished
-
-This candidate retains the implemented Analyze / Experiment feature set for
-release verification. It has not been published; **0.1.0** remains the latest
-published release. See [verification and release preparation](docs/verification.md)
-for the candidate's actual checks and hosted CI status.
+Version **0.2.0** adds bounded local experiments and saved-run analysis to the
+independent Analyze workflow. See [verification and release checks](docs/verification.md)
+for package checks, hosted CI and publication status.
 
 ### Added
 
 - Local **Experiment** browser mode with explicit Start/Stop, one worker per
   server, shared state across tabs and bounded shutdown. Synthetic and pinned
   SITL runs open directly in Analyze or supply a baseline/blackout comparison.
-- Separate controller request clocks, lifecycle and diagnostics in
-  `control.json`, alongside the original runner evidence. The latest 20 runs
-  remain selectable during the server session; output directories are retained.
-- Optional SITL browser workers in dedicated user, network and PID namespaces,
-  with the server remaining reachable on its existing loopback listener.
-- Offline baseline/blackout comparison in Analyze: two bounded saved directories,
-  profile and evidence checks, explicit measurement-relative windows, observed
-  counts/rates/intervals before and after the relay, configuration differences,
-  actual gate timing and a report identifying both runs.
+- An **Experiment** CLI with a synthetic 20 Hz MAVLink 2 `ATTITUDE` sender,
+  byte-preserving UDP relay and receiver restricted to `127.0.0.1`. Run a baseline
+  or one forwarding interruption within a bounded measurement duration, six
+  seconds by default.
+- Configurable blackout duration through `--blackout-duration` and the browser's
+  **Blackout duration (s)** control, retaining the two-second default. The
+  0.1–59.8-second interval must fit within the measurement with 0.1-second margins.
+  Requested timing and actual gate transitions remain separate, including early
+  shutdown. Existing two-second synthetic and SITL evidence remains supported.
+- Separate timestamped MAVLink captures of actual socket reads before and after
+  the relay. Manifests and JSONL traces retain requested settings, applied
+  decisions, original frame references, raw UDP datagrams and explicit clocks.
+- An optional, fingerprinted ArduCopter 4.6.3 SITL telemetry source, with mandatory
+  loopback-only network isolation, bounded readiness, a separate measurement
+  origin and owned-process shutdown. The simulator is installed separately and
+  is not bundled with the application. Browser SITL workers use dedicated user,
+  network and PID namespaces while the interface remains reachable.
 - Offline saved Experiment inspection in Analyze: bounded synthetic v1/SITL v2
-  directory import, artifact fingerprints and capture/trace references, explicit
-  partial evidence, requested/applied/observed summary, within-run monotonic
-  timeline and combined Markdown report. Either capture reuses the existing
-  filters, plots and record inspector without starting execution.
-- An optional, fingerprinted ArduCopter 4.6.3 SITL telemetry source, with
-  mandatory loopback-only network isolation, bounded readiness and owned-process
-  shutdown. The external simulator is not bundled with the application.
-- Raw UDP datagram evidence, grouped-frame capture references, explicit handling
-  of the pinned simulator's startup preamble, and a separate measurement origin.
-- A local **Experiment** CLI with a synthetic 20 Hz MAVLink 2 `ATTITUDE`
-  sender, byte-preserving UDP relay and receiver restricted to `127.0.0.1`.
-  One process runs a baseline or a two-second interruption in forwarding;
-  the default six-second duration is configurable within bounded limits.
-- Separate timestamped MAVLink captures of actual socket reads at the relay
-  input and receiver, opened individually by the existing Analyze workflow.
-- A run manifest and JSONL action/observation records distinguishing requested
-  settings, applied decisions, record references and monotonic, wall and
-  synthetic sender clocks.
+  directory import, artifact fingerprints, capture/trace references, partial
+  evidence, requested/applied/observed summaries, a within-run monotonic timeline
+  and a combined Markdown report. Either capture reuses the existing filters,
+  plots and record inspector without starting execution.
+- Offline baseline/blackout comparison with profile and evidence checks,
+  explicit measurement-relative windows, observed counts/rates/intervals at both
+  capture points, configuration differences and a report identifying both runs.
+  Each blackout is checked against its own requested duration and actual gate
+  transitions; incompatible or incomplete evidence blocks aggregate results.
+- **Local experiments** in Analyze: read-only browsing of CLI and browser run
+  directories under `--experiment-root`, including after a server restart.
+  Explicit refresh lists declared manifest metadata; opening or comparing
+  selected runs performs full evidence validation. **Browse saved experiments**
+  opens the same catalog from Experiment without resuming execution.
+- Separate controller request clocks, lifecycle and diagnostics in `control.json`,
+  alongside original runner evidence. The latest 20 runs remain selectable
+  during the server session; output directories remain available for later
+  inspection through the catalog.
 - Orderly `SIGINT`/`SIGTERM` handling, bounded draining, explicit completed,
   interrupted and failed outcomes, and rejection of existing output directories.
 
@@ -71,22 +55,22 @@ for the candidate's actual checks and hosted CI status.
 - Experiment history selection keeps the selected run, displayed outcome and
   Analyze handoff consistent after another run finishes, including interruption
   after returning from saved analysis or comparison.
-- Browser workflow checks now wait for the applied filter range, replaced record
-  selector and current recording before inspecting or downloading evidence.
-  Source replacement also waits for stale controls to leave the completed render.
-  Metric assertions wait for one current value through temporary render
-  duplicates; experiment completion checks follow the newly started run.
 
-### Scope
+### Scope and limits
 
 - Analyze retains its independent file-only import and browser workflow.
   Execution requires **Start experiment** in the separate Experiment mode or an
-  explicit CLI command. Saved-run inspection and bounded pair comparison remain
-  available independently of experiment execution. The optional simulator
-  profile adds no physical vehicle connection.
-- Local UDP observations establish behavior on the configured synthetic path;
+  explicit CLI command. Browsing, opening and comparing saved evidence require
+  no vehicle, simulator or active runner and send no vehicle commands.
+- The verified target is Linux x86_64 with Python 3.12 and Chromium. The optional
+  simulator profile supports one exact ArduCopter executable. Broader platforms,
+  simulators, input formats, video and arbitrary session comparison are outside
+  this release's supported scope.
+- Local UDP observations establish behavior on the configured telemetry path;
   they do not establish physical link performance or autopilot/failsafe behavior.
-  See the [Experiment guide](docs/experiment.md) for usage and clock limits.
+  Requested settings, controller requests, runner actions and observed messages
+  retain their separate clocks. See the [Experiment guide](docs/experiment.md)
+  for usage and observation limits.
 
 ## 0.1.0 — 2026-09-22
 

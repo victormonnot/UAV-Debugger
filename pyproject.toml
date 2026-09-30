@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "uav-debugger"
-version = "0.2.0rc2.dev1"
+version = "0.2.0"
 description = "UAV recording analysis and bounded local MAVLink experiments with explicit provenance"
 readme = "README.md"
 license = "MIT"

@@ -11,11 +11,11 @@ a local UDP relay to a receiver. Explicit Start/Stop controls and a CLI produce
 captures before and after the relay, retaining requested settings, applied
 actions and actual observations separately.
 
-**0.2.0rc2.dev1 is an unpublished development version.** It includes a read-only
-local experiment catalog and configurable forwarding interruptions. Version
-**0.1.0** remains the latest published release and provides single-recording
-offline Analyze; **0.2.0rc1** remains an unpublished, separately verified candidate.
-The commands below use this development checkout. See
+**This source checkout targets version 0.2.0.** It adds local Experiment
+execution, saved-run inspection and comparison, a read-only experiment catalog
+and configurable forwarding interruptions to the offline Analyze workflow.
+The commands below use this checkout. Published versions and their artifacts
+are listed in [GitHub Releases](https://github.com/victormonnot/UAV-Debugger/releases). See
 [verification and release preparation](docs/verification.md) for actual checks
 and hosted CI status.
 
@@ -188,7 +188,7 @@ for local reproduction, current development checks and published-release evidenc
 | [Architecture](docs/architecture.md) | Imported evidence, analysis, local presentation and optional execution. |
 | [First milestone](docs/first-milestone.md) | Delivered v0.1.0 Analyze workflow and its verification boundary. |
 | [Verification and release preparation](docs/verification.md) | Automated checks, distribution contents, installed-package testing and release evidence. |
-| [Changelog](CHANGELOG.md) | Candidate and published features and limitations. |
+| [Changelog](CHANGELOG.md) | Version features and limitations. |
 | [Dependency notices](THIRD_PARTY_NOTICES.md) | Licensing information for the pinned direct runtime dependencies. |
 
 ## License

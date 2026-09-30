@@ -9,7 +9,7 @@ The optional [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
 produce `relay-input.tlog` and `receiver.tlog` captures for this same workflow.
 Open them individually; their outer timestamps identify actual reads at different
 observation points. Analyze
-also offers **Saved experiment** in the unpublished **0.2.0rc2.dev1** development version to
+also offers **Saved experiment** in the **0.2.0** source checkout to
 [inspect a complete run directory](saved-experiments.md), including JSON traces
 and both capture points. **Compare experiments** provides a bounded
 [baseline/blackout comparison](comparison.md) with explicit windows and evidence
@@ -52,13 +52,12 @@ Dependency installation can require network access. The application uses local
 files and bundled display components after installation; it needs no simulator,
 ARGOS installation or external service to analyze a recording.
 
-### Install the development wheel
+### Install the wheel
 
-The **0.2.0rc2.dev1** wheel can be built locally from this source checkout; the
-development version has not been published:
+Build the **0.2.0** wheel locally from this source checkout:
 
 ```sh
-uv build --out-dir local/development-dist
+uv build --out-dir local/dist
 ```
 
 From an empty directory outside the checkout, create an environment and install
@@ -66,7 +65,7 @@ that wheel. Replace the absolute path below with the generated artifact's path:
 
 ```sh
 uv venv --python 3.12
-uv pip install --python .venv/bin/python /absolute/path/to/uav_debugger-0.2.0rc2.dev1-py3-none-any.whl
+uv pip install --python .venv/bin/python /absolute/path/to/uav_debugger-0.2.0-py3-none-any.whl
 .venv/bin/uav-debugger-analyze --experiment-root ./experiments
 ```
 

@@ -6,8 +6,8 @@ plot, ATTITUDE curves, record inspector and Markdown evidence report are availab
 [Analyze guide](analyze.md) and [importer guide](importer.md) for usage and the
 actual verification boundary. [One public producer recording](recording-validation.md)
 has been checked with partial decoding coverage; broader producer compatibility
-remains unverified. The separate [local Experiment CLI](experiment.md) is an
-unreleased subsequent increment and does not change the v0.1.0 scope below.
+remains unverified. The separate [local Experiment CLI](experiment.md) is included
+in version 0.2.0 and does not change the v0.1.0 scope below.
 The [verification workflow and release guide](verification.md) cover automated
 installed-package checks, archive contents and publication evidence.
 
@@ -39,9 +39,10 @@ timeline, derived statistics and report.
    decoder/profile versions, filters, counts, selected record references and
    import/time limitations. The report is a derived result, not a session archive.
 
-The interface exposes Analyze. Video, cross-session comparison,
-multi-file alignment, additional formats and active Experiment controls are
-outside v0.1; they remain possible subsequent deliveries.
+The v0.1.0 interface exposes Analyze. Active Experiment controls and bounded
+baseline/blackout comparison are implemented in version 0.2.0.
+Video, broader cross-session comparison, multi-file alignment and additional
+formats remain outside the current scope.
 
 ## Implemented input profile
 
@@ -138,9 +139,9 @@ not a guarantee for all producers, message mixes or hardware.
   the delivered version. Synthetic importer verification does not establish
   compatibility with an untested producer.
 
-## Subsequent increment: one controlled experiment
+## Subsequent version: local experiments in 0.2.0
 
-The unreleased [Experiment CLI](experiment.md) now forwards a synthetic local
+The [Experiment CLI](experiment.md) in version 0.2.0 forwards a synthetic local
 MAVLink stream through a bounded relay path, supports one configurable
 interruption in forwarding (two seconds by default), and records actual actions
 and observations before and after the relay. Baseline and blackout runs use the same requested configuration apart
@@ -156,7 +157,9 @@ simulator/bench integration and its own evidence. A bounded
 explicit measurement-relative windows. The subsequent
 [Experiment interface](experiment-ui.md) adds explicit local Start/Stop controls,
 separate controller evidence and direct opening of terminal runs in Analyze or
-comparison. These capabilities remain outside published v0.1.0.
+comparison. The read-only [local catalog](saved-experiments.md#browse-local-experiments)
+finds retained runs after a server restart and validates selected evidence before
+opening or comparing it. These capabilities remain outside published v0.1.0.
 
 See [project scope](project-scope.md) and [architecture direction](architecture.md)
 for the product boundaries and shared analysis design.

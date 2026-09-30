@@ -1,6 +1,6 @@
 # Compare saved experiments
 
-The unpublished **0.2.0rc2.dev1** development version supports a bounded offline comparison of one
+The **0.2.0** source checkout supports a bounded offline comparison of one
 baseline and one blackout run in Analyze. Both runs must use the same synthetic
 source or the same supported ArduCopter SITL profile. No simulator or running
 experiment is needed to read their saved evidence.

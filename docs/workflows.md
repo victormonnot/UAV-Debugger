@@ -1,6 +1,6 @@
 # Workflows
 
-The unpublished **0.2.0rc2.dev1** development version's [Analyze interface](analyze.md) covers
+The **0.2.0** source checkout's [Analyze interface](analyze.md) covers
 opening supported recordings and saved experiments, filtering observations,
 inspecting records and exporting evidence. The
 [Experiment interface](experiment-ui.md) and [CLI](experiment.md)

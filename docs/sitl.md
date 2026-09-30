@@ -1,6 +1,6 @@
 # Local ArduCopter SITL experiment
 
-The unpublished **0.2.0rc2.dev1** development version's Experiment interface and CLI support one
+The **0.2.0** source checkout's Experiment interface and CLI support one
 pinned ArduCopter SITL profile on Linux x86_64. The autopilot runs as an owned
 local subprocess and emits telemetry
 through the same relay and receiver used for synthetic experiments. The runner

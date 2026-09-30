@@ -1,6 +1,6 @@
 # Architecture
 
-The unpublished **0.2.0rc2.dev1** development version implements a Python file importer,
+The **0.2.0** source checkout implements a Python file importer,
 in-memory evidence, exact filters, activity and attitude plots, record inspection,
 Markdown reports and a JSON command. The Experiment interface and CLI add a bounded synthetic
 local UDP path and save captures for those same analysis components. See the
