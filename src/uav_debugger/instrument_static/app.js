@@ -4,6 +4,7 @@
   const $ = id => document.getElementById(id);
   const text = (id, value) => { $(id).textContent = String(value ?? "N/A"); };
   const runs = globalThis.InstrumentRuns;
+  const comparison = globalThis.InstrumentComparison;
   const state = {
     data: null, input: null, retryInput: null, pendingInput: null,
     request: 0, controller: null, busy: false, busyPurpose: null, render: 0, viewRevision: 0,
@@ -30,6 +31,7 @@
       catch { /* Storage is optional. */ }
     }
     renderPlot();
+    comparison.renderPlot();
   }
   themeSelect.addEventListener("change", () => applyTheme());
   media.addEventListener("change", () => { if (themeSelect.value === "system") applyTheme(false); });
@@ -142,6 +144,7 @@
     document.querySelectorAll("#message-rows button").forEach(button => { button.disabled = blocked; });
     $("observation-point").disabled = !state.data?.run?.captures.some(capture => capture.present) || (blocked && state.busyPurpose !== "point");
     runs.setBusy(state.busy);
+    for (const role of ["baseline", "blackout"]) $("use-run-" + role).disabled = !state.data?.run || state.busy;
     updateFilterState();
   }
   function selectionBusy() {
@@ -157,21 +160,26 @@
   function isRunInput(input) { return ["run-upload", "catalog"].includes(input?.kind); }
   function renderInputMode() {
     const mode = state.inputMode;
-    for (const name of ["recording", "saved", "catalog"]) {
+    for (const name of ["recording", "saved", "catalog", "comparison"]) {
       $(`${name}-input-tab`).setAttribute("aria-selected", String(mode === name));
       $(`${name}-input-tab`).tabIndex = mode === name ? 0 : -1;
     }
     $("catalog-view").hidden = mode !== "catalog";
-    for (const id of ["recording-header", "report-actions", "analysis-workspace"]) $(id).hidden = mode === "catalog";
+    $("comparison-view").hidden = mode !== "comparison";
+    $("status").hidden = mode === "comparison";
+    for (const id of ["recording-header", "report-actions", "analysis-workspace"]) $(id).hidden = ["catalog", "comparison"].includes(mode);
     $("run-upload-actions").hidden = mode !== "saved";
+    $("run-comparison-actions").hidden = mode !== "saved" || !state.data?.run;
     $("open-recording").hidden = $("load-example").hidden = mode !== "recording";
     $("clear-recording").setAttribute("aria-label", mode === "saved" ? "Clear experiment" : "Clear recording");
     $("clear-recording").dataset.tip = mode === "saved" ? "Clear experiment" : "Clear recording";
   }
   function selectInputMode(mode) {
     if (mode === state.inputMode) return;
+    if (state.inputMode === "comparison") comparison.leave();
     clearRecording(); state.inputMode = mode; renderRecording(true);
     if (mode === "catalog") runs.loadCatalog();
+    if (mode === "comparison") comparison.enter();
   }
   function invalidateLocalRun(message) {
     clearRecording(); state.inputMode = "catalog"; renderInputMode();
@@ -248,7 +256,7 @@
       try { data = await response.json(); }
       catch { throw new Error("The local service returned an unreadable response."); }
       if (!response.ok) throw Object.assign(new Error(data.error || "The input could not be analyzed."), { status: response.status });
-      if (data.schema_version !== 4 || (!data.run && !data.recording) || (data.recording && !data.selection?.messages) || !Array.isArray(data.sources) || !Array.isArray(data.message_types) || !Array.isArray(data.issues)) {
+      if (data.schema_version !== 5 || (!data.run && !data.recording) || (data.recording && !data.selection?.messages) || !Array.isArray(data.sources) || !Array.isArray(data.message_types) || !Array.isArray(data.issues)) {
         throw new Error("The local service returned an unsupported recording response.");
       }
       if (request !== state.request) return;
@@ -679,12 +687,20 @@
   }
   runs.init({
     openCatalog: key => openInput({ kind: "catalog", key }),
+    assign: (role, key) => comparison.assign(role, { kind: "catalog", key }),
     page: parameters => {
       if (state.input && !state.busy) analyze(state.input, appliedFilters(), "run-page", state.data.issue_page, parameters);
     },
   });
+  comparison.init({
+    show: () => selectInputMode("comparison"),
+    inspect: input => { selectInputMode("saved"); openInput(input); },
+  });
+  for (const role of ["baseline", "blackout"]) $("use-run-" + role).addEventListener("click", () => {
+    if (state.input && state.data?.run && !state.busy) comparison.assign(role, state.input, state.data.run);
+  });
   bindTabs(["run", "activity", "attitude", "messages"], selectView);
-  bindTabs(["recording-input", "saved-input", "catalog-input"], value => selectInputMode(value.replace("-input", "")));
+  bindTabs(["recording-input", "saved-input", "catalog-input", "comparison-input"], value => selectInputMode(value.replace("-input", "")));
   bindTabs(["evidence", "inspector"], selectEvidence);
   bindTabs(["frame-bytes", "record-bytes"], view => {
     for (const kind of ["frame", "record"]) {
@@ -793,7 +809,7 @@
   }
   function openWorkspace(experiment) {
     text("workspace-title", experiment ? "Experiment" : "Existing workspace");
-    text("workspace-context", experiment ? "Execution is available in the existing workspace." : "Baseline / blackout comparison and Experiment execution");
+    text("workspace-context", experiment ? "Execution is available in the existing workspace." : "Experiment execution");
     text("workspace-availability", classicURL ? "Separate local service / no recording is transferred." : "No existing workspace linked.");
     $("classic-link").hidden = !classicURL;
     if (classicURL) $("classic-link").href = classicURL;
@@ -816,6 +832,7 @@
     if (Number.isSafeInteger(config.max_run_bytes) && config.max_run_bytes > 0) maxRunBytes = config.max_run_bytes;
     if (Number.isSafeInteger(config.max_run_files) && config.max_run_files > 0) maxRunFiles = config.max_run_files;
     runs.configure(config);
+    comparison.configure(config);
     if (config.classic_url) {
       const url = new URL(config.classic_url);
       if (url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) { url.hostname = location.hostname; classicURL = url.href; }

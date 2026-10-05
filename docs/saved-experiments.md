@@ -11,10 +11,10 @@ The reader supports the actual `uav-debugger-experiment-v1` synthetic format and
 nor an active runner is required. Opening saved evidence never executes paths or
 commands from its manifest, opens a telemetry transport or resumes an experiment.
 
-The source checkout also provides these single-run and local catalog workflows
-in [Instrument](instrument.md). Its additions are not part of the published
-v0.2.0 artifacts. Saved-run comparison and explicit Experiment execution remain
-in the existing interface.
+The source checkout also provides these single-run, local catalog and
+baseline/blackout comparison workflows in [Instrument](instrument.md). Its
+additions are not part of the published v0.2.0 artifacts. Explicit Experiment
+execution remains in the existing interface.
 
 ## Use Instrument
 
@@ -35,6 +35,8 @@ Open [Instrument](http://127.0.0.1:8765), then choose an input:
   Analyze** rereads a terminal run through the saved-evidence validator.
 - **Recording**: open a standalone capture or the bundled telemetry example,
   independently of any saved run.
+- **Compare experiments**: assign a baseline and blackout from uploads or local
+  catalog entries, then compare their eligible evidence on a common window.
 
 Read **Declared outcome** separately from **Evidence status**, then review
 **Requested settings**, **Applied forwarding interruption** and **Observed
@@ -58,6 +60,15 @@ analysis, including an explicitly inspected record when present. Without a
 capture, the run's evidence and limitations still support a report. Its counts
 are not restricted to a visible table page, and bounded excerpts identify
 omissions. Clearing or replacing the input never deletes original files.
+
+To compare runs, use **Use as baseline** or **Use as blackout** on the open saved
+run or a local catalog row, then **Compare selected runs**. Each role can also
+be uploaded directly in **Compare experiments**; uploads and catalog entries
+may be mixed. Both complete evidence fingerprints guard every comparison and
+report, and catalog entries are reread before use. Roles survive navigation
+within the tab but not a page reload. Clear either role or the entire pair from
+the comparison view. See [comparison in Instrument](comparison.md#compare-in-instrument)
+for applied controls, blocked results and reports.
 
 Instrument resends selected upload bytes or rereads the local entry for each
 analysis request. Subsequent operations and exports check the complete run
@@ -278,3 +289,5 @@ See [verification](verification.md) for actual checks and reproduction.
 Choose **Compare experiments** for a [bounded comparison](comparison.md) of two
 saved directories. It checks evidence and profile compatibility before calculating
 observed differences over an explicit common measurement-relative window.
+This file-only workflow is available in both Instrument and the existing
+interface; opening a pair never starts either experiment.

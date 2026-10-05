@@ -117,7 +117,7 @@ def test_example_api_preserves_fixture_identity_and_actual_observations(instrume
     assert headers["Content-Type"] == "application/json"
     assert headers["Cache-Control"] == "no-store"
     payload = json.loads(body)
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     recording = payload["recording"]
     assert recording["synthetic"] is True
     assert recording["source_name"] == "telemetry-gap.tlog (synthetic example)"
@@ -241,7 +241,7 @@ def test_config_health_assets_and_response_headers(instrument_server):
     root = config.pop("experiment_root")
     assert Path(root).is_absolute() and root.endswith("/local/experiments")
     assert config == {
-        "schema_version": 4,
+        "schema_version": 5,
         "version": version("uav-debugger"),
         "classic_url": None,
         "max_recording_bytes": MAX_INPUT_BYTES,

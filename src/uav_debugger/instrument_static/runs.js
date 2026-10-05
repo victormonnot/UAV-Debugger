@@ -134,7 +134,7 @@
       const response = await fetch("/api/catalog", { cache: "no-store", credentials: "same-origin", signal: controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The catalog could not be read.");
-      if (data.schema_version !== 4 || !Array.isArray(data.entries)) throw new Error("The local service returned an unsupported catalog.");
+      if (data.schema_version !== 5 || !Array.isArray(data.entries)) throw new Error("The local service returned an unsupported catalog.");
       if (request !== catalogRequest) return;
       catalog = data; catalogPage = 0; renderCatalog();
     } catch (error) {
@@ -164,7 +164,15 @@
       button.className = "icon-button bordered"; button.dataset.key = item.key; button.dataset.openable = String(item.openable);
       button.setAttribute("aria-label", `Open ${item.key} in Analyze`); button.title = `Open ${item.key} in Analyze`;
       const icon = document.createElement("i"); icon.dataset.lucide = "folder-open"; icon.setAttribute("aria-hidden", "true"); button.append(icon);
-      button.addEventListener("click", () => actions.openCatalog(item.key)); cell.append(button); row.append(cell);
+      button.addEventListener("click", () => actions.openCatalog(item.key)); cell.append(button);
+      for (const role of ["baseline", "blackout"]) {
+        const assign = document.createElement("button"), icon = document.createElement("i");
+        assign.className = "icon-button bordered"; assign.dataset.role = role; assign.dataset.openable = String(item.openable);
+        assign.setAttribute("aria-label", "Use " + item.key + " as " + role); assign.title = "Use as " + role;
+        icon.dataset.lucide = role === "baseline" ? "bookmark-plus" : "zap"; icon.setAttribute("aria-hidden", "true"); assign.append(icon);
+        assign.addEventListener("click", () => actions.assign(role, item.key)); cell.append(assign);
+      }
+      row.append(cell);
     });
     if (globalThis.lucide) lucide.createIcons();
     const pages = Math.max(1, Math.ceil(entries.length / CATALOG_PAGE_SIZE));

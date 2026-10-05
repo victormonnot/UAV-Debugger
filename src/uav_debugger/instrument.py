@@ -41,6 +41,7 @@ from .catalog import (
 )
 from .charts import activity_chart, attitude_chart
 from .importer import MAX_INPUT_BYTES
+from .instrument_comparison import comparison_response
 from .model import ImportResult, Record
 from .report import _json_value, build_markdown_report
 from .run_report import _bounded_value, build_run_markdown_report
@@ -63,6 +64,18 @@ MAX_RUN_ENVELOPE_BYTES = 1024 * 1024
 MAX_PART_HEADER_BYTES = 8192
 MAX_UPLOAD_PATH_BYTES = 4096
 RUN_PARAMETERS = {"point", "run_sha256", "evidence_page", "gate_page", "trace", "trace_page"}
+COMPARISON_PARAMETERS = {
+    "source",
+    "message_type",
+    "start",
+    "end",
+    "point",
+    "format",
+    "baseline_key",
+    "blackout_key",
+    "baseline_sha256",
+    "blackout_sha256",
+}
 FILTER_PARAMETERS = {
     "source",
     "message_id",
@@ -234,7 +247,7 @@ def _recording_payload(
     issue_page = _page_parameter(parameters, "issue_page", len(result.issues), ISSUE_PAGE_SIZE)
     issue_start = issue_page * ISSUE_PAGE_SIZE
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "recording": {
             "source_name": result.source_name,
             "synthetic": synthetic,
@@ -386,8 +399,11 @@ class _UploadedEvidence:
 class _RunUpload:
     """Collect bounded multipart evidence in memory; never use temporary-file uploads."""
 
-    def __init__(self, boundary: bytes):
+    def __init__(self, boundary: bytes, *, fields: tuple[str, ...] = ("files",)):
         self.files: list[_UploadedEvidence] = []
+        self.files_by_field: dict[str, list[_UploadedEvidence]] = {field: [] for field in fields}
+        self.bytes_by_field = dict.fromkeys(fields, 0)
+        self.current_field = ""
         self.total_bytes = 0
         self.complete = False
         self.headers: dict[bytes, bytes] = {}
@@ -416,7 +432,7 @@ class _RunUpload:
         )
 
     def on_part_begin(self) -> None:
-        if len(self.files) >= MAX_UPLOAD_FILES:
+        if len(self.files) >= MAX_UPLOAD_FILES * len(self.files_by_field):
             raise InputTooLargeError("A saved experiment accepts at most 64 uploaded files.")
         self.headers = {}
         self.field = bytearray()
@@ -456,12 +472,16 @@ class _RunUpload:
         if len(set(option_names)) != len(option_names):
             raise ValueError("Duplicate multipart disposition parameters are not accepted.")
         disposition, options = parse_options_header(raw_disposition)
+        field = options.get(b"name", b"").decode("utf-8")
         if (
             disposition != b"form-data"
-            or options.get(b"name") != b"files"
+            or field not in self.files_by_field
             or b"filename" not in options
         ):
-            raise ValueError("Saved experiment parts must be files named files.")
+            raise ValueError("Saved experiment parts must use the expected file-role field names.")
+        if len(self.files_by_field[field]) >= MAX_UPLOAD_FILES:
+            raise InputTooLargeError("Each saved experiment accepts at most 64 uploaded files.")
+        self.current_field = field
         if b"content-transfer-encoding" in self.headers:
             raise ValueError("Encoded multipart file content is not accepted.")
         name = options[b"filename"]
@@ -473,12 +493,15 @@ class _RunUpload:
 
     def on_part_data(self, data: bytes, start: int, end: int) -> None:
         self.total_bytes += end - start
-        if self.total_bytes > MAX_UPLOAD_BYTES:
+        self.bytes_by_field[self.current_field] += end - start
+        if self.bytes_by_field[self.current_field] > MAX_UPLOAD_BYTES:
             raise InputTooLargeError("A saved experiment accepts at most 64 MiB in total.")
         self.data.extend(data[start:end])
 
     def on_part_end(self) -> None:
-        self.files.append(_UploadedEvidence(self.name, bytes(self.data)))
+        item = _UploadedEvidence(self.name, bytes(self.data))
+        self.files.append(item)
+        self.files_by_field[self.current_field].append(item)
         self.data.clear()
 
     def on_end(self) -> None:
@@ -720,7 +743,7 @@ def _run_response(
             _recording_payload(capture, capture_parameters)
             if capture is not None
             else {
-                "schema_version": 4,
+                "schema_version": 5,
                 "recording": None,
                 "selection": None,
                 "inspector": None,
@@ -750,6 +773,100 @@ def _uploaded_run_response(
         return JSONResponse({"error": str(error)}, status_code=400)
 
 
+async def _multipart_upload(
+    request: Request, *, fields: tuple[str, ...] = ("files",)
+) -> _RunUpload | Response:
+    if request.headers.get("content-encoding", "identity").lower() != "identity":
+        return JSONResponse({"error": "Send unencoded multipart recording files."}, status_code=415)
+    try:
+        content_type = request.headers.get("content-type", "")
+        if len(content_type) > MAX_PART_HEADER_BYTES:
+            raise ValueError("Multipart Content-Type header is too long.")
+        media_type, options = parse_options_header(content_type)
+        if media_type != b"multipart/form-data":
+            return JSONResponse(
+                {"error": "Send saved experiment files as multipart/form-data."}, status_code=415
+            )
+        boundary = options.get(b"boundary", b"")
+        if not 1 <= len(boundary) <= 70 or any(byte < 32 or byte > 126 for byte in boundary):
+            raise ValueError("A valid multipart boundary of at most 70 bytes is required.")
+        envelope_limit = MAX_RUN_ENVELOPE_BYTES * len(fields)
+        wire_limit = MAX_UPLOAD_BYTES * len(fields) + envelope_limit
+        length = request.headers.get("content-length")
+        if length is not None and _integer_parameter(length, "Content-Length") > wire_limit:
+            raise InputTooLargeError(
+                f"Multipart body exceeds its {wire_limit}-byte transport limit."
+            )
+        upload = _RunUpload(boundary, fields=fields)
+        received = 0
+        async for chunk in request.stream():
+            received += len(chunk)
+            if received > wire_limit:
+                raise InputTooLargeError(
+                    f"Multipart body exceeds its {wire_limit}-byte transport limit."
+                )
+            upload.parser.write(chunk)
+            if received - upload.total_bytes > envelope_limit:
+                raise InputTooLargeError(
+                    f"Multipart envelope exceeds its {envelope_limit}-byte limit."
+                )
+        upload.parser.finalize()
+        if not upload.complete:
+            raise ValueError("Saved experiment multipart upload is incomplete.")
+        return upload
+    except InputTooLargeError as error:
+        return JSONResponse({"error": str(error)}, status_code=413)
+    except (ValueError, ClientDisconnect) as error:
+        return JSONResponse(
+            {"error": str(error) or "Saved experiment upload was interrupted."}, status_code=400
+        )
+
+
+def _comparison_upload_response(
+    root: Path, upload: _RunUpload, parameters: dict[str, str]
+) -> Response:
+    runs, ignored = {}, {}
+    for role in ("baseline", "blackout"):
+        supplied = bool(upload.files_by_field[role])
+        if supplied and f"{role}_key" in parameters:
+            return JSONResponse(
+                {
+                    "error": f"Choose uploaded files or a catalog key for {role}, not both.",
+                    "run_role": role,
+                },
+                status_code=400,
+            )
+        if not supplied and f"{role}_key" not in parameters:
+            return JSONResponse(
+                {"error": f"A {role} saved experiment is required.", "run_role": role},
+                status_code=400,
+            )
+    for role in ("baseline", "blackout"):
+        if f"{role}_key" in parameters:
+            try:
+                runs[role] = load_catalog_entry(root, parameters[f"{role}_key"])
+            except (OSError, ValueError) as error:
+                return JSONResponse(
+                    {
+                        "error": f"Cannot open {role} evidence: {error}",
+                        "error_code": "run_unavailable",
+                        "run_role": role,
+                    },
+                    status_code=409,
+                )
+            ignored[role] = ()
+        else:
+            try:
+                contents, name, ignored[role] = uploaded_run_files(upload.files_by_field[role])
+                runs[role] = load_run_files(contents, source_name=name)
+            except ValueError as error:
+                return JSONResponse(
+                    {"error": f"Cannot open {role} evidence: {error}", "run_role": role},
+                    status_code=400,
+                )
+    return comparison_response(runs, parameters, ignored=ignored)
+
+
 def create_app(
     *, classic_port: int | None = None, experiment_root: Path = Path("local/experiments")
 ) -> Starlette:
@@ -763,7 +880,7 @@ def create_app(
     def configuration(request: Request) -> JSONResponse:
         return JSONResponse(
             {
-                "schema_version": 4,
+                "schema_version": 5,
                 "version": version("uav-debugger"),
                 "classic_url": f"http://127.0.0.1:{classic_port}" if classic_port else None,
                 "max_recording_bytes": MAX_INPUT_BYTES,
@@ -834,53 +951,37 @@ def create_app(
             return JSONResponse(
                 {"error": "Cross-origin uploads are not accepted."}, status_code=403
             )
-        if request.headers.get("content-encoding", "identity").lower() != "identity":
-            return JSONResponse(
-                {"error": "Send unencoded multipart recording files."}, status_code=415
-            )
         try:
             parameters = _query_parameters(request, run=True)
-            content_type = request.headers.get("content-type", "")
-            if len(content_type) > MAX_PART_HEADER_BYTES:
-                raise ValueError("Multipart Content-Type header is too long.")
-            media_type, options = parse_options_header(content_type)
-            if media_type != b"multipart/form-data":
-                return JSONResponse(
-                    {"error": "Send saved experiment files as multipart/form-data."},
-                    status_code=415,
-                )
-            boundary = options.get(b"boundary", b"")
-            if not 1 <= len(boundary) <= 70 or any(byte < 32 or byte > 126 for byte in boundary):
-                raise ValueError("A valid multipart boundary of at most 70 bytes is required.")
-            wire_limit = MAX_UPLOAD_BYTES + MAX_RUN_ENVELOPE_BYTES
-            length = request.headers.get("content-length")
-            if length is not None and _integer_parameter(length, "Content-Length") > wire_limit:
-                raise InputTooLargeError(
-                    "Saved experiment multipart body exceeds the 65 MiB transport limit."
-                )
-            upload = _RunUpload(boundary)
-            received = 0
-            async for chunk in request.stream():
-                received += len(chunk)
-                if received > wire_limit:
-                    raise InputTooLargeError(
-                        "Saved experiment multipart body exceeds the 65 MiB transport limit."
-                    )
-                upload.parser.write(chunk)
-                if received - upload.total_bytes > MAX_RUN_ENVELOPE_BYTES:
-                    raise InputTooLargeError(
-                        "Saved experiment multipart envelope exceeds the 1 MiB limit."
-                    )
-            upload.parser.finalize()
-            if not upload.complete:
-                raise ValueError("Saved experiment multipart upload is incomplete.")
-        except InputTooLargeError as error:
-            return JSONResponse({"error": str(error)}, status_code=413)
-        except (ValueError, ClientDisconnect) as error:
-            return JSONResponse(
-                {"error": str(error) or "Saved experiment upload was interrupted."}, status_code=400
-            )
+        except ValueError as error:
+            return JSONResponse({"error": str(error)}, status_code=400)
+        upload = await _multipart_upload(request)
+        if isinstance(upload, Response):
+            return upload
         return await run_in_threadpool(_uploaded_run_response, upload.files, parameters)
+
+    async def compare(request: Request) -> Response:
+        if not _same_origin(request):
+            return JSONResponse(
+                {"error": "Cross-origin comparison requests are not accepted."}, status_code=403
+            )
+        try:
+            parameters = {}
+            for name, value in request.query_params.multi_items():
+                if name not in COMPARISON_PARAMETERS or name in parameters:
+                    raise ValueError("Unsupported or repeated comparison query parameter.")
+                limit = 4096 if name.endswith("_key") else 256 if name == "message_type" else 128
+                if len(value) > limit:
+                    raise ValueError(f"Query parameter {name} is too long.")
+                if name.endswith("_key"):
+                    _key_parts(value)
+                parameters[name] = value
+        except ValueError as error:
+            return JSONResponse({"error": str(error)}, status_code=400)
+        upload = await _multipart_upload(request, fields=("baseline", "blackout"))
+        if isinstance(upload, Response):
+            return upload
+        return await run_in_threadpool(_comparison_upload_response, root, upload, parameters)
 
     def catalog(request: Request) -> Response:
         if not _same_origin(request):
@@ -894,7 +995,7 @@ def create_app(
         result = scan_catalog(root)
         return JSONResponse(
             {
-                "schema_version": 4,
+                "schema_version": 5,
                 "root": str(result.root),
                 "entries": [
                     {
@@ -957,6 +1058,7 @@ def create_app(
             Route("/api/example", example),
             Route("/api/analyze", analyze, methods=["POST"]),
             Route("/api/run", analyze_run, methods=["POST"]),
+            Route("/api/comparison", compare, methods=["POST"]),
             Route("/api/catalog", catalog),
             Route("/api/catalog/open", open_catalog),
             Route("/vendor/plotly.min.js", plotly_bundle),

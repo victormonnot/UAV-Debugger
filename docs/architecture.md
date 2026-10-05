@@ -12,9 +12,9 @@ validated evidence. Broader integrations remain future work.
 The source checkout additionally provides the [Instrument workspace](instrument.md),
 a custom local interface for supported recordings, exact source/type/time
 filters, import provenance, activity/attitude observations, original-message
-inspection and Markdown reports. It also opens saved experiments and browses
-the local run catalog. Comparison and Experiment execution remain in the
-complete Streamlit interface during migration. Instrument is not part of the
+inspection and Markdown reports. It also opens saved experiments, browses
+the local run catalog and compares baseline/blackout pairs. Experiment execution
+remains in the complete Streamlit interface during migration. Instrument is not part of the
 published v0.2.0 artifacts.
 
 ## Shared analysis, optional experiment execution
@@ -76,6 +76,13 @@ the fixed evidence artifacts. `GET /api/catalog` scans the launcher-configured
 root, while `GET /api/catalog/open` calls the existing pinned-directory loader
 for a relative key. Neither route resolves manifest paths or restores execution.
 
+`POST /api/comparison` accepts two explicit roles through the same memory-only
+multipart parser. Each role supplies either uploaded files or a relative catalog
+key; mixed pairs are supported. File count and content limits apply per role,
+including excluded files: 64 files / 64 MiB, or 128 MiB combined. The transport
+permits at most 2 MiB of multipart overhead and 130 MiB overall. Both catalog
+roles are reread through the pinned-directory loader, never arbitrary paths.
+
 The browser tab owns its selected file, draft controls and last applied result.
 Applying filters, inspecting a record, paging messages or issues, and exporting
 a report resubmit uploaded bytes or reread the selected local run. Each request
@@ -85,7 +92,7 @@ or report to disk. Tabs do not share inputs or filters. Replacement and Clear
 invalidate pending responses and remove the previous view; an invalid filter
 submission keeps the last applied view intact.
 
-The schema version 4 payload separates whole-recording provenance and counts
+The schema version 5 payload separates whole-recording provenance and counts
 from the applied selection, activity bins and attitude availability. Selected
 messages and global import issues use independent pages of at most 100 entries.
 The inspector is absent until an explicit original record index is requested
@@ -127,6 +134,25 @@ excerpts and omission counts and appends the selected capture's report when
 available. Missing captures remain unavailable rather than acquiring invented
 zero counts or timestamps.
 
+Comparison roles belong to the browser tab and survive navigation among Analyze
+inputs, but not page reload. Changing or clearing a role removes the preceding
+pair result and report. Applying source, message type and window is atomic;
+unapplied drafts do not enter reports or point-only chart requests. Leaving
+the comparison view cancels pending comparison responses and downloads.
+Both complete run fingerprints guard follow-up requests and are required for
+report export. Changed or unavailable catalog evidence invalidates its role
+and the pair's result instead of retaining stale metrics.
+
+`instrument_comparison.py` adapts validated pairs to bounded JSON summaries and
+delegates eligibility and Markdown export to the existing domain modules.
+Comparison windows use exact half-open measurement-relative nanoseconds, not
+the inclusive Unix-time filters of a capture. Clock values cross JSON as strings
+and metadata as bounded JSON text. Unavailable comparisons preserve reasons,
+provenance and export without metrics or a chart. Reasons and differences are
+limited to 100 entries, as are gates and reader issues per run, with explicit
+omission counts. Eligible charts retain all observations in at most 200 shared
+bins. The selected chart point never restricts the two-point metrics or report.
+
 Fonts and Lucide icons are distributed with the interface, including their
 license texts. The installed Plotly package supplies its local JavaScript
 bundle. No runtime CDN is required. Optional navigation to a separately started
@@ -157,8 +183,11 @@ compatibility, production lifecycle consistency and stop coverage before selecti
 observations on a
 common half-open window relative to each measurement origin. It retains original
 references, computes counts/rates/intervals and projects actual gate timing.
-`comparison_report.py` preserves both runs and bounded evidence in Markdown;
-`comparison_view.py` owns two directory uploads, selectors and shared activity bins.
+`comparison_report.py` preserves both runs and bounded evidence in Markdown.
+`comparison_ui.py` shares exact window parsing and the activity-chart builder
+without importing a UI framework. `comparison_view.py` owns directory uploads
+and selectors in the existing interface; Instrument keeps role and draft state
+in its browser module and uses the same comparison and chart logic.
 Blocked comparisons retain reasons and provenance without invented metrics.
 These modules import neither execution code nor telemetry transports.
 

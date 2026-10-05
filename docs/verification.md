@@ -95,7 +95,7 @@ server was isolated from external networking.
 `scripts/check_distribution.py` requires exactly one source archive and one
 wheel for the version declared in `pyproject.toml`. It compares source-archive
 files against the explicit Hatch inclusion list, and wheel modules/data against
-the package source. This includes the 16 explicitly declared Instrument HTML,
+the package source. This includes the 17 explicitly declared Instrument HTML,
 CSS, JavaScript, font and license files. Unexpected, missing, duplicated or changed files cause a
 failure. It also checks distribution metadata and wheel integrity entries.
 The package declares `MIT` as its SPDX license expression. The corresponding
@@ -112,6 +112,56 @@ declared inputs; changes to the inclusion list and source files still require
 review.
 
 ## Verification status and release conditions
+
+### Instrument comparison checks
+
+On 2026-10-05, Instrument baseline/blackout comparison passed **808 focused
+source-environment tests in 30.87 seconds**. A newly built wheel installed into
+a separate locked Python 3.12.3 environment then passed **930 tests in 319.96
+seconds**, from an external working directory with site-packages imports
+verified. The installed run includes all **109 Instrument Chromium cases**
+and 13 existing-interface workflows: two recording, four saved-run, three
+catalog and all four comparison cases.
+
+The 65 dedicated comparison service checks cover uploaded, catalog and mixed
+pairs, independent role limits, combined envelope limits, unsafe paths,
+duplicate/query validation, origin restrictions, complete identities and
+fresh Markdown exports. Existing single-run multipart checks remain included.
+Metrics and reports are checked against the existing comparator and report
+builder, including blocked evidence, exact half-open boundaries, configuration
+differences, selected references, signed gate timestamps and bounded summaries
+with omission counts. Both extracted window/chart helpers retain identical
+syntax trees to their preceding implementations.
+
+The 34 new browser cases verify actual downloads, original v1/v2 clocks beyond
+JavaScript's safe integer range, shared bins at both points, role assignment and
+replacement, source/type/window drafts, invalid submissions, point-only changes,
+catalog mutations and completed-but-delayed responses. New Apply requests can
+supersede a pending comparison; leaving, clearing or replacing evidence prevents
+an old report from downloading. Initial request failures can be retried without
+reselecting the evidence. Blocked results retain reasons and reports without
+invented zero metrics.
+
+Comparison light/dark views at 320 and 1440 pixels pass rendered text/axis
+contrast of at least 4.5:1 and effective marker contrast of at least 3:1.
+Recording layouts retain 390/1024-pixel coverage. Compact and expanded evidence
+screenshots were reviewed. The live source preview passed both native directory
+choosers, an applied window, point switching, a downloaded comparison report,
+single-run inspection and navigation to the existing interface without
+JavaScript errors.
+
+New comparison browser fixtures construct saved v1/v2 evidence; they do not
+run a simulator. Existing domain and classic workflow fixtures separately
+create real synthetic runs. No full Experiment or native SITL suite was run.
+Browser external HTTP/WebSocket requests were blocked, but the Python server
+was not network-namespace isolated. These are local checks, not hosted CI
+results or changes to the published v0.2.0 artifacts.
+
+Ruff lint/formatting, JavaScript syntax, unchanged fixture, lock, whitespace
+and archive checks pass. Final archives contain **109 source files and 51
+wheel members**, including all 17 interface assets; all 50 non-RECORD wheel
+payloads match the tested installation. No dependency, recording profile or
+saved-evidence schema changed.
 
 ### Instrument saved-run and catalog checks
 

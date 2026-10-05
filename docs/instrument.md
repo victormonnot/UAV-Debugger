@@ -8,10 +8,11 @@ reports for the applied selection. Light, dark and system appearance use local
 display assets. The importer, telemetry model, plotting rules and report builder
 are shared with the existing interface. **Saved experiment** opens one evidence
 directory, while **Local experiments** discovers saved runs under the configured
-server-side root.
+server-side root. **Compare experiments** evaluates one saved baseline and one
+blackout on an explicit common measurement-relative window.
 
-Saved-run comparison and explicit Experiment execution remain available through
-`uav-debugger-analyze`. Instrument does not yet replace those workflows and is
+Explicit Experiment execution remains available through
+`uav-debugger-analyze`. Instrument does not yet replace that workflow and is
 not included in the published v0.2.0 artifacts.
 
 ## Launch
@@ -301,8 +302,65 @@ cannot be opened through the catalog; no process liveness is inferred.
 Each later interaction rereads the selected local evidence and checks the
 expected run fingerprint. If the files have changed, reopen the run to analyze
 their new state. A stale response or report must not replace the currently
-selected run or capture. Browsing and opening remain read-only; comparison and
-Experiment execution are separate workflows in the existing interface.
+selected run or capture. Browsing and opening remain read-only. Catalog rows
+also offer **Use as baseline** and **Use as blackout**; **Compare selected runs**
+opens the pair in Instrument and rereads both evidence sets.
+
+## Compare saved experiments
+
+Choose **Compare experiments**, then use **Open baseline experiment** and
+**Open blackout experiment** to select each evidence directory on the browser
+computer. Each role is validated independently; the comparison is evaluated
+when both roles are available in this view. The selected role is explicit and
+is not inferred from the directory name.
+
+Alternatively, assign an already opened saved run with **Use as baseline** or
+**Use as blackout**, or use those actions on local catalog rows. Choose
+**Compare selected runs** to open the pair. Uploaded and catalog inputs may be
+combined. Local roles retain catalog keys and are reread through the same
+pinned-directory validator for every comparison and report; listing metadata
+alone never establishes eligibility.
+
+The **Common selection** controls choose **Comparison source**, **Comparison
+message type**, **Window start (s)** and **Window end (s)** together through
+**Apply comparison**. The initial source is `1 / 1` and message type `ATTITUDE`
+when available in both runs; the initial end is the shorter requested
+measurement duration. **Reset comparison selection** restores the default
+selection and window. Decimal bounds retain nanosecond precision. Unlike the
+inclusive capture filters, this window is **[start, end)** relative to each
+run's own measurement origin. It neither synchronizes their Unix clocks nor
+shifts an observed gap into alignment.
+
+Unapplied edits do not change metrics or exports. An invalid submission retains
+the preceding applied result and report. **Comparison observation point** changes
+only the activity chart, keeping drafts intact; metrics and reports cover both
+relay input and receiver. Plot zoom does not change the applied window. Shared
+bins count every selected observation, up to 200 bins, without resampling
+telemetry values.
+
+Read **Compatibility**, **Configuration differences**, **Applied forwarding
+gates** and **Observed metrics** separately. An unavailable comparison retains
+blocking reasons and both runs' evidence instead of inventing zero metrics.
+**Download comparison report** remains available for this blocked result.
+The report uses the applied source, type and window, with both full evidence
+fingerprints. Counts and intervals cover the selection, not only the displayed
+reference excerpts. Reasons, differences, gates and per-run issue excerpts
+have explicit 100-entry limits and omission counts. Use each role's inspection
+action to reopen its complete saved-run view.
+
+Each role accepts up to **64 files / 64 MiB**, including excluded files;
+captures retain their **10 MiB** individual limit. Replacing or clearing a
+role immediately removes the previous comparison and report and resets its
+controls. An unreadable replacement cannot leave the old result active.
+**Clear comparison** removes both roles. Role assignments survive navigation
+to Recording, Saved experiment and Local experiments within the tab, but not
+page reload. Leaving comparison cancels pending comparison responses and
+downloads. A changed or unavailable catalog role invalidates that role and
+the pair's result; reopen the evidence before comparing again.
+
+Comparison remains file-only and never starts an Experiment. See the
+[comparison guide](comparison.md) for lifecycle coverage, profile eligibility,
+reference meanings and the limits of interpreting observed differences.
 
 ## Review import status
 
@@ -368,10 +426,11 @@ accept an arbitrary server filesystem path.
 | `POST /api/run` | Saved-run analysis or report from bounded, in-memory `multipart/form-data` directory uploads. |
 | `GET /api/catalog` | Bounded snapshot of declared manifest metadata beneath the configured experiment root. |
 | `GET /api/catalog/open` | Reread and validate a selected root-relative catalog key for analysis or report export. |
+| `POST /api/comparison` | Compare two uploaded or catalog-backed saved runs, or export their applied comparison report. |
 | `GET /` and `/assets/...` | Packaged interface, fonts and icons. |
 | `GET /vendor/plotly.min.js` | JavaScript bundle from the installed Plotly dependency. |
 
-The config and JSON analysis responses declare `schema_version: 4`. Recording
+The config and JSON analysis responses declare `schema_version: 5`. Recording
 analysis accepts these query parameters:
 
 | Parameter | Meaning |
@@ -422,6 +481,35 @@ even when their contents do not contribute to the evidence fingerprint.
 The whole multipart body is limited to 65 MiB, with at most 1 MiB of multipart
 overhead. Each part accepts at most eight headers and 8 KiB of header content;
 relative filenames are bounded to 4,096 bytes and the boundary to 70 bytes.
+
+`POST /api/comparison` always takes `multipart/form-data`. For each role, supply
+file parts named `baseline` or `blackout`, or the respective query parameter
+`baseline_key` or `blackout_key`; combining uploads and a catalog key for the
+same role is rejected. Two catalog roles use a multipart body with no file parts. Upload
+filenames use the same relative-directory rules as single-run uploads.
+Limits apply independently to each role: 64 file parts and 64 MiB of file
+contents, including excluded files. Combined file contents are bounded to
+128 MiB, the multipart overhead to 2 MiB and the complete body to 130 MiB.
+Per-part header, filename and boundary limits are unchanged.
+
+Comparison query parameters are `source` (`system_id:component_id`),
+`message_type`, exact decimal-second `start` and `end`, `point` (`receiver`
+by default or `relay-input`), `format` (`json` or `markdown`),
+`baseline_sha256` and `blackout_sha256`. Windows lie within 0 to 60 seconds,
+with start strictly before end and at most nine fractional decimal places.
+Omitted bounds use zero and the shorter requested measurement duration when
+both durations are valid.
+Both complete run hashes are required for Markdown export and guard subsequent
+browser comparisons. Changed evidence returns `409` with `run_changed` and
+the affected `run_role`; an unavailable catalog entry returns `409` with
+`run_unavailable` and its role.
+
+The comparison payload keeps `metrics.available: false` and null point metrics
+for blocked results; there is no activity figure in that state. Bounded summary
+sections retain total, included and omitted counts. Exact reference clocks and
+window nanoseconds remain strings, and oversized metadata uses bounded JSON
+text with explicit omissions. Reports reuse the existing comparison builder
+and include both observation points regardless of the selected chart point.
 
 Invalid queries or filters return `400`, uploads exceeding the byte limit return
 `413`, and unsupported media types or content encodings return `415`. A mismatch

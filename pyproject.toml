@@ -44,6 +44,7 @@ include = [
     "/src/uav_debugger/instrument_static/index.html",
     "/src/uav_debugger/instrument_static/app.js",
     "/src/uav_debugger/instrument_static/runs.js",
+    "/src/uav_debugger/instrument_static/comparison.js",
     "/src/uav_debugger/instrument_static/theme.js",
     "/src/uav_debugger/instrument_static/style.css",
     "/src/uav_debugger/instrument_static/vendor/ibm-plex-sans-latin-400-normal.woff2",

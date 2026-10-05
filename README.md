@@ -23,9 +23,10 @@ The source checkout also provides the new [Instrument workspace](docs/instrument
 a custom local interface for opening supported recordings, applying source,
 message-type and exact time filters, reading activity and attitude plots,
 inspecting original messages and exporting Markdown evidence reports.
-It also opens saved experiments and browses local run directories, with input
-provenance, evidence checks and light/dark themes. Comparison and Experiment
-execution remain in the existing interface during the transition.
+It also opens saved experiments, browses local run directories and compares a
+saved baseline with a blackout, with input provenance, evidence checks and
+light/dark themes. Experiment execution remains in the existing interface
+during the transition.
 
 See the [Experiment interface](docs/experiment-ui.md),
 [saved Experiment inspection](docs/saved-experiments.md) and
@@ -107,7 +108,15 @@ capture with the same filters, messages and reports. Listing a local run reads
 declared metadata only; **Open in Analyze** validates the saved evidence without
 starting or resuming an experiment.
 
-Saved-run comparison and Experiment execution remain in `uav-debugger-analyze`.
+Choose **Compare experiments** to assign a baseline and blackout from directory
+uploads, the current saved run or the local catalog. **Apply comparison** selects
+a common source, message type and exact half-open measurement-relative window.
+The view separates compatibility reasons, configuration differences, applied
+gates and observed counts/rates/intervals. **Download comparison report** exports
+the applied result, including reasons when evidence cannot be compared. See the
+[comparison guide](docs/comparison.md) for eligibility and interpretation limits.
+
+Experiment execution remains in `uav-debugger-analyze`.
 Instrument can link to that interface
 when it is started separately; see the [launch and handoff guide](docs/instrument.md).
 Instrument does not launch an experiment, start the other server or transfer a

@@ -5,7 +5,72 @@ baseline and one blackout run in Analyze. Both runs must use the same synthetic
 source or the same supported ArduCopter SITL profile. No simulator or running
 experiment is needed to read their saved evidence.
 
+The source checkout provides this workflow in [Instrument](instrument.md) as
+well as the existing interface. Instrument is not part of the published
+v0.2.0 artifacts. Both interfaces use the same file-only comparator and report
+builder; explicit Experiment execution remains in the existing interface.
+
+## Compare in Instrument
+
+Start `uv run --locked uav-debugger-instrument`, open
+[Instrument](http://127.0.0.1:8765) and choose **Compare experiments**.
+
+1. Use **Open baseline experiment** and **Open blackout experiment** to select
+   the two evidence directories. For browser-generated runs, select the inner
+   `evidence` directory. Each upload replaces its role and is validated before
+   the pair is compared; a role is never inferred from its directory name.
+2. Review each role's **Settings and evidence**, including its full fingerprint,
+   declared outcome, evidence status, measurement origin and file hashes.
+   **Compatibility** distinguishes blocked evidence from an eligible comparison.
+3. Select **Comparison source**, **Comparison message type**, **Window start (s)**
+   and **Window end (s)**, then choose **Apply comparison**. The default source is
+   `1 / 1` and type `ATTITUDE` when common to both runs; otherwise an available
+   common choice is used. The default window starts at zero and ends at the
+   shorter valid requested measurement duration. **Reset comparison selection**
+   restores these defaults.
+4. Inspect **Observed metrics**, **Blackout minus baseline**, **Applied forwarding
+   gates** and the first, last and longest-interval references. **Comparison
+   observation point** changes only the activity plot. Both points remain in
+   the metric tables and report, and zoom never changes the applied window.
+5. Choose **Download comparison report**. It exports the applied selection,
+   not unapplied drafts, and remains available when compatibility checks block
+   the comparison. Invalid window submissions retain the preceding applied
+   result. Missing evidence never becomes an invented zero count.
+
+**Use as baseline** and **Use as blackout** can instead assign the currently
+open **Saved experiment** without closing its analysis view. **Local experiments**
+offers the same role actions for server-side catalog entries. Each selected
+entry is opened through the validator; **Compare selected runs** opens the pair
+and rereads both runs. Uploaded files and catalog entries may be mixed. The
+catalog's root and read limits are described in the
+[saved-run guide](saved-experiments.md#use-instrument).
+
+Each role accepts at most **64 files / 64 MiB**, including excluded auxiliary
+files; individual captures retain their **10 MiB** limit. Replacing or clearing
+either role immediately removes the previous comparison and report and resets
+its controls. An unreadable replacement does not restore the old result.
+**Clear comparison** removes both assignments; a role's inspection action opens
+its full saved-run analysis separately. Assignments remain available while
+navigating between Analyze inputs within the browser tab, but page reload does
+not restore them. Leaving comparison cancels pending comparisons and downloads.
+
+The browser resubmits uploaded files and rereads catalog entries for each
+comparison, point change or export. Both complete run fingerprints guard the
+request, including manifest and action bytes, not just captures. If local
+evidence changes or becomes unavailable, its role and the previous result are
+invalidated until the evidence is reopened. The server writes no upload or
+report file and retains no mutable comparison session. Input bounds do not
+bound total process memory or guarantee performance.
+
+The comparison view includes up to 100 blocking reasons and configuration
+differences, plus up to 100 gates and reader issues per run, with explicit
+omission counts. Metadata remains bounded serialized JSON text, preserving
+integer precision. Full run issue pages remain available through single-run
+inspection. Reports retain the independent excerpt limits described below.
+
 ## Open and compare
+
+The following controls describe the existing `uav-debugger-analyze` interface.
 
 1. Produce a baseline and blackout with the [Experiment interface](experiment-ui.md),
    [CLI](experiment.md) or

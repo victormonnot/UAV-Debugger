@@ -144,7 +144,7 @@ def instrument_page(instrument_server, request):
         finally:
             try:
                 if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
-                    output_dir = ROOT / "local" / "instrument-brick4" / "browser"
+                    output_dir = ROOT / "local" / "instrument-brick5" / "browser"
                     output_dir.mkdir(parents=True, exist_ok=True)
                     page.evaluate(
                         "() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }"
@@ -244,9 +244,9 @@ def release_response(page):
     )
 
 
-def download_report(page, destination):
+def download_report(page, destination, *, button="#download-report"):
     with page.expect_download() as pending:
-        page.locator("#download-report").click()
+        page.locator(button).click()
     download = pending.value
     download.save_as(destination)
     assert download.failure() is None
@@ -1288,7 +1288,7 @@ def test_loaded_workspace_fits_and_remains_readable(instrument_page, width, them
     expect(page.locator("#message-rows tr")).to_have_count(2)
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
     if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
-        output_dir = ROOT / "local" / "instrument-brick4" / "browser"
+        output_dir = ROOT / "local" / "instrument-brick5" / "browser"
         output_dir.mkdir(parents=True, exist_ok=True)
         page.evaluate("() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }")
         page.screenshot(path=output_dir / f"messages-{theme}-{width}.png", full_page=True)
