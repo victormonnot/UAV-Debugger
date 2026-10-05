@@ -33,6 +33,7 @@ INSTRUMENT_ASSETS = tuple(
     for name in (
         "index.html",
         "app.js",
+        "runs.js",
         "theme.js",
         "style.css",
         "vendor/ibm-plex-sans-latin-400-normal.woff2",

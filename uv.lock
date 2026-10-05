@@ -1270,6 +1270,7 @@ source = { editable = "." }
 dependencies = [
     { name = "plotly" },
     { name = "pymavlink" },
+    { name = "python-multipart" },
     { name = "starlette" },
     { name = "streamlit" },
     { name = "uvicorn" },
@@ -1288,6 +1289,7 @@ dev = [
 requires-dist = [
     { name = "plotly", specifier = "==7.0.0" },
     { name = "pymavlink", specifier = "==2.4.49" },
+    { name = "python-multipart", specifier = "==0.0.32" },
     { name = "starlette", specifier = "==1.7.0" },
     { name = "streamlit", specifier = "==1.63.0" },
     { name = "uvicorn", specifier = "==0.53.0" },

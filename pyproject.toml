@@ -16,6 +16,7 @@ dependencies = [
     "plotly==7.0.0",
     "starlette==1.7.0",
     "uvicorn==0.53.0",
+    "python-multipart==0.0.32",
 ]
 
 [project.urls]
@@ -42,6 +43,7 @@ include = [
     "/src/uav_debugger/data/*.tlog",
     "/src/uav_debugger/instrument_static/index.html",
     "/src/uav_debugger/instrument_static/app.js",
+    "/src/uav_debugger/instrument_static/runs.js",
     "/src/uav_debugger/instrument_static/theme.js",
     "/src/uav_debugger/instrument_static/style.css",
     "/src/uav_debugger/instrument_static/vendor/ibm-plex-sans-latin-400-normal.woff2",

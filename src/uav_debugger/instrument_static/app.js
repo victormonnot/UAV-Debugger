@@ -3,15 +3,17 @@
 
   const $ = id => document.getElementById(id);
   const text = (id, value) => { $(id).textContent = String(value ?? "N/A"); };
+  const runs = globalThis.InstrumentRuns;
   const state = {
     data: null, input: null, retryInput: null, pendingInput: null,
     request: 0, controller: null, busy: false, busyPurpose: null, render: 0, viewRevision: 0,
     reportRequest: 0, reportController: null, reportBusy: false,
-    view: "activity", visible: [true, true, true], focused: false,
+    view: "activity", inputMode: "recording", visible: [true, true, true], focused: false,
     observationRows: [], observationPage: 0,
   };
   const PAGE_SIZE = 50;
   let maxRecordingBytes = 10 * 1024 * 1024;
+  let maxRunBytes = 64 * 1024 * 1024, maxRunFiles = 64;
   let plotQueue = Promise.resolve();
   let classicURL = null;
   const media = matchMedia("(prefers-color-scheme: dark)");
@@ -48,6 +50,11 @@
   }
   function recordingStatus() {
     if (!state.data) { status("Ready"); return; }
+    if (state.data.run) {
+      const run = state.data.run;
+      status(`Saved experiment / declared ${run.declared_outcome} / evidence ${run.evidence_status}`, run.evidence_status === "consistent" ? "ready" : "warning");
+      return;
+    }
     const r = state.data.recording;
     const outcome = r.traversal === "stopped" ? "Partial import" : r.traversal === "empty" ? "Empty input" : "Import complete";
     status(`${outcome} / ${r.record_count} records / ${state.data.issue_count} import issues`, r.traversal === "complete" ? "ready" : "warning");
@@ -58,7 +65,7 @@
     $("focus-chart").setAttribute("aria-pressed", "false");
   }
   function hideErrors() {
-    ["error", "filter-error", "gap-error", "issues-error", "messages-error", "inspector-error", "report-error"].forEach(id => { $(id).hidden = true; });
+    ["error", "filter-error", "gap-error", "issues-error", "messages-error", "inspector-error", "report-error", "run-error", "catalog-error"].forEach(id => { $(id).hidden = true; });
   }
   function resetPlotView() {
     state.viewRevision++;
@@ -68,6 +75,7 @@
     $("observations-details").open = false;
   }
   function clearRecording() {
+    runs.cancelCatalog();
     cancelReport();
     state.request++;
     state.controller?.abort();
@@ -78,6 +86,7 @@
     state.view = "activity";
     selectEvidence("evidence");
     $("recording-file").value = "";
+    $("run-files").value = "";
     exitFocus();
     resetPlotView();
     hideErrors();
@@ -97,7 +106,7 @@
     return {
       source: $("source-filter").value, message_id: $("message-filter").value,
       start: $("start-filter").value, end: $("end-filter").value,
-      gap: state.data?.selection.max_gap_s || "1",
+      gap: state.data?.selection?.max_gap_s || "1",
     };
   }
   function setFilterDraft(filters) {
@@ -109,16 +118,16 @@
   }
   function updateFilterState() {
     const draft = filterDraft(), applied = appliedFilters();
-    const hasRecords = Boolean(state.data?.recording.record_count);
+    const hasRecords = Boolean(state.data?.recording?.record_count);
     const pending = hasRecords && ["source", "message_id", "start", "end"].some(key => draft[key] !== applied[key]);
-    text("filter-state", !state.data ? "No input" : !hasRecords ? "No records" : pending ? "Unapplied changes" : "Applied");
+    text("filter-state", !state.data ? "No input" : state.data.run && !state.data.recording ? "No capture" : !hasRecords ? "No records" : pending ? "Unapplied changes" : "Applied");
     $("filter-state").dataset.pending = String(pending);
   }
   function updateControls() {
     const available = Boolean(state.data);
-    const blocked = selectionBusy(), messages = state.data?.selection.messages;
-    $("filter-fields").disabled = !state.data?.recording.record_count || blocked;
-    $("line-gap").disabled = $("apply-gap").disabled = !state.data?.recording.record_count || blocked;
+    const blocked = selectionBusy(), messages = state.data?.selection?.messages;
+    $("filter-fields").disabled = !state.data?.recording?.record_count || blocked;
+    $("line-gap").disabled = $("apply-gap").disabled = !state.data?.recording?.record_count || blocked;
     $("clear-recording").disabled = !available && !state.pendingInput && !state.retryInput;
     $("analysis-workspace").setAttribute("aria-busy", String(state.busy));
     $("issues-previous").disabled = state.busy || !available || state.data.issue_page === 0;
@@ -131,10 +140,44 @@
     $("download-report").setAttribute("aria-busy", String(state.reportBusy));
     $("clear-inspector").disabled = blocked;
     document.querySelectorAll("#message-rows button").forEach(button => { button.disabled = blocked; });
+    $("observation-point").disabled = !state.data?.run?.captures.some(capture => capture.present) || (blocked && state.busyPurpose !== "point");
+    runs.setBusy(state.busy);
     updateFilterState();
   }
   function selectionBusy() {
-    return state.busy && ["import", "filters", "gap"].includes(state.busyPurpose);
+    return state.busy && ["import", "filters", "gap", "point"].includes(state.busyPurpose);
+  }
+  function runParameters() {
+    const run = state.data?.run;
+    return run ? {
+      point: run.selected_point, run_sha256: run.identity, evidence_page: run.issues.page,
+      trace: run.trace.kind, trace_page: run.trace.page, gate_page: run.gates.page,
+    } : {};
+  }
+  function isRunInput(input) { return ["run-upload", "catalog"].includes(input?.kind); }
+  function renderInputMode() {
+    const mode = state.inputMode;
+    for (const name of ["recording", "saved", "catalog"]) {
+      $(`${name}-input-tab`).setAttribute("aria-selected", String(mode === name));
+      $(`${name}-input-tab`).tabIndex = mode === name ? 0 : -1;
+    }
+    $("catalog-view").hidden = mode !== "catalog";
+    for (const id of ["recording-header", "report-actions", "analysis-workspace"]) $(id).hidden = mode === "catalog";
+    $("run-upload-actions").hidden = mode !== "saved";
+    $("open-recording").hidden = $("load-example").hidden = mode !== "recording";
+    $("clear-recording").setAttribute("aria-label", mode === "saved" ? "Clear experiment" : "Clear recording");
+    $("clear-recording").dataset.tip = mode === "saved" ? "Clear experiment" : "Clear recording";
+  }
+  function selectInputMode(mode) {
+    if (mode === state.inputMode) return;
+    clearRecording(); state.inputMode = mode; renderRecording(true);
+    if (mode === "catalog") runs.loadCatalog();
+  }
+  function invalidateLocalRun(message) {
+    clearRecording(); state.inputMode = "catalog"; renderInputMode();
+    text("catalog-error", `${message} Refresh the catalog and reopen the saved evidence.`);
+    $("catalog-error").hidden = false;
+    status("Saved evidence unavailable / previous view cleared", "error");
   }
   function requestOptions(input, filters, extra, signal) {
     const query = new URLSearchParams();
@@ -152,16 +195,30 @@
       options.headers = { "Content-Type": "application/octet-stream" };
       options.body = input.file;
     }
-    return { url: `${input.kind === "file" ? "/api/analyze" : "/api/example"}?${query}`, options };
+    if (input.kind === "run-upload") {
+      const body = new FormData();
+      for (const file of input.files) body.append("files", file, file.webkitRelativePath || file.name);
+      options.method = "POST"; options.body = body;
+    }
+    if (input.kind === "catalog") query.set("key", input.key);
+    const endpoint = { file: "/api/analyze", example: "/api/example", "run-upload": "/api/run", catalog: "/api/catalog/open" }[input.kind];
+    return { url: `${endpoint}?${query}`, options };
   }
   async function openInput(input) {
     clearRecording();
+    if (input.kind !== "catalog") state.inputMode = input.kind === "run-upload" ? "saved" : "recording";
+    renderInputMode();
     if (input.kind === "file" && input.file.size > maxRecordingBytes) {
       text("error-message", "Recording exceeds the 10 MiB input limit.");
       $("error").hidden = false;
       $("retry-example").hidden = true;
       status("Input too large", "error");
       return;
+    }
+    if (input.kind === "run-upload" && (input.files.length > maxRunFiles || input.files.reduce((sum, file) => sum + file.size, 0) > maxRunBytes)) {
+      text("error-message", "A saved experiment accepts at most 64 files and 64 MiB in total.");
+      $("error").hidden = false; $("retry-example").hidden = true;
+      status("Saved experiment exceeds input limits", "error"); return;
     }
     state.retryInput = input;
     await analyze(input, {}, "import");
@@ -177,10 +234,12 @@
     state.busyPurpose = purpose;
     hideErrors();
     updateControls();
-    status(purpose === "import" ? "Reading recording..." : purpose === "issues" ? "Reading import issues..." : purpose === "inspect" ? "Reading record..." : purpose === "messages" ? "Reading messages..." : "Applying selection...", "loading");
-    const references = purpose === "issues" ? { record_page: state.data.selection.messages.page, record_index: state.data.inspector?.index } : {};
+    status(purpose === "import" ? "Reading input..." : purpose === "point" ? "Reading capture point..." : purpose === "run-page" ? "Reading saved evidence..." : purpose === "issues" ? "Reading import issues..." : purpose === "inspect" ? "Reading record..." : purpose === "messages" ? "Reading messages..." : "Applying selection...", "loading");
+    const references = ["issues", "run-page"].includes(purpose) ? { record_page: state.data.selection?.messages.page, record_index: state.data.inspector?.index } : {};
     const { url, options } = requestOptions(input, filters, {
-      issue_page: issuePage, sha256: purpose === "import" ? null : state.data.recording.sha256,
+      issue_page: isRunInput(input) && !state.data?.recording ? null : issuePage,
+      sha256: ["import", "point"].includes(purpose) ? null : state.data.recording?.sha256,
+      ...(purpose === "import" ? {} : runParameters()),
       ...references, ...extra,
     }, controller.signal);
     try {
@@ -188,14 +247,17 @@
       let data;
       try { data = await response.json(); }
       catch { throw new Error("The local service returned an unreadable response."); }
-      if (!response.ok) throw new Error(data.error || "The recording could not be analyzed.");
-      if (data.schema_version !== 3 || !data.recording || !data.selection?.messages || !Array.isArray(data.sources) || !Array.isArray(data.message_types) || !Array.isArray(data.issues)) {
+      if (!response.ok) throw Object.assign(new Error(data.error || "The input could not be analyzed."), { status: response.status });
+      if (data.schema_version !== 4 || (!data.run && !data.recording) || (data.recording && !data.selection?.messages) || !Array.isArray(data.sources) || !Array.isArray(data.message_types) || !Array.isArray(data.issues)) {
         throw new Error("The local service returned an unsupported recording response.");
       }
       if (request !== state.request) return;
       if (purpose === "issues") {
         for (const key of ["issues", "issue_count", "issue_counts", "issue_page", "issue_page_size"]) state.data[key] = data[key];
         renderIssues();
+      } else if (purpose === "run-page") {
+        state.data.run = data.run;
+        runs.render(data.run);
       } else if (purpose === "inspect" || purpose === "messages") {
         state.data.selection.messages = data.selection.messages;
         state.data.inspector = data.inspector;
@@ -207,22 +269,33 @@
         state.data = data;
         state.input = input;
         state.retryInput = null;
+        if (purpose === "import" && data.run) { state.view = "run"; state.inputMode = "saved"; }
         resetPlotView();
-        renderRecording(purpose === "import");
+        renderRecording(purpose === "import" || purpose === "point");
         if (purpose === "filters") setFilterDraft(appliedFilters());
-        if (purpose === "import" || purpose === "gap") $("line-gap").value = data.selection.max_gap_s;
+        if (purpose === "import" || purpose === "gap") $("line-gap").value = data.selection?.max_gap_s || "1";
       }
       recordingStatus();
     } catch (error) {
       if (request !== state.request || error.name === "AbortError") return;
       const message = error instanceof TypeError ? "The local service could not be reached. Retry the request." : error.message;
-      if (purpose === "import") {
+      if (input.kind === "catalog" && (error.status === 409 || error instanceof TypeError)) {
+        invalidateLocalRun(message);
+      } else if (purpose === "point") {
+        clearRecording(); state.retryInput = input;
+        text("error-message", message); $("error").hidden = false; $("retry-example").hidden = false;
+        status("Capture point unavailable / previous view cleared", "error"); updateControls();
+      } else if (purpose === "import") {
         text("error-message", message);
         $("error").hidden = false;
         $("retry-example").hidden = false;
         status("Import failed", "error");
+        if (input.kind === "catalog") { text("catalog-error", message); $("catalog-error").hidden = false; }
       } else {
-        const target = purpose === "gap" ? "gap-error" : purpose === "issues" ? "issues-error" : purpose === "inspect" ? "inspector-error" : purpose === "messages" ? "messages-error" : "filter-error";
+        if (purpose === "run-page") runs.render(state.data.run);
+        if (purpose === "messages") renderMessages();
+        const target = ["point", "run-page"].includes(purpose) ? "run-error" : purpose === "gap" ? "gap-error" : purpose === "issues" ? "issues-error" : purpose === "inspect" ? "inspector-error" : purpose === "messages" ? "messages-error" : "filter-error";
+        if (purpose === "point") selectView("run");
         if (purpose === "inspect") { exitFocus(); selectEvidence("inspector"); }
         text(target, message);
         $(target).hidden = false;
@@ -242,29 +315,38 @@
     $(id).replaceChildren(new Option(firstLabel, ""), ...entries.map(([value, label]) => new Option(label, value)));
   }
   function renderRecording(resetFilters = false) {
-    const data = state.data, r = data?.recording;
-    text("recording-kind", r ? (r.synthetic ? "Synthetic example" : "Uploaded recording") : "No input");
-    text("recording-name", r?.source_name || "No recording selected");
+    const data = state.data, r = data?.recording, run = data?.run;
+    text("input-caption", state.inputMode === "saved" ? "Experiment" : "Recording");
+    text("recording-kind", run ? (state.input?.kind === "catalog" ? "Local saved experiment" : "Uploaded saved experiment") : r ? (r.synthetic ? "Synthetic example" : "Uploaded recording") : "No input");
+    text("recording-name", run?.source_name || r?.source_name || (state.inputMode === "saved" ? "No saved experiment selected" : "No recording selected"));
     const wire = r?.wire_versions.length ? `MAVLink ${r.wire_versions.join(" + ")}` : "No accepted frames";
-    text("recording-meta", r ? `${r.capture_span_s ?? "N/A"} s capture range / ${r.size_bytes} bytes / ${wire}` : "QGC timestamped MAVLink / 10 MiB maximum");
-    for (const key of ["record", "decoded", "opaque", "source"]) text(`${key}-count`, r?.[`${key}_count`] ?? 0);
+    text("recording-meta", run ? `${run.schema} / declared ${run.declared_outcome} / evidence ${run.evidence_status}` : r ? `${r.capture_span_s ?? "N/A"} s capture range / ${r.size_bytes} bytes / ${wire}` : state.inputMode === "saved" ? "Saved evidence / 64 MiB maximum" : "QGC timestamped MAVLink / 10 MiB maximum");
+    for (const key of ["record", "decoded", "opaque", "source"]) text(`${key}-count`, r?.[`${key}_count`] ?? (run ? "N/A" : 0));
     const outcomes = { complete: "Complete import", stopped: "Partial import", empty: "Empty recording" };
     text("import-status", r ? outcomes[r.traversal] || r.traversal : "No import");
-    text("import-description", r ? (r.synthetic ? "Bundled synthetic recording" : "Original uploaded bytes") : "Original recording");
+    text("import-description", run ? (r ? r.source_name : "No available capture") : r ? (r.synthetic ? "Bundled synthetic recording" : "Original uploaded bytes") : "Original recording");
     text("input-size", r ? `${r.size_bytes} B` : null);
     text("consumed-size", r ? `${r.consumed_bytes} B` : null);
     text("remaining-size", r ? `${r.remaining_bytes} B` : null);
     text("capture-span", r && r.capture_span_s !== null ? `${r.capture_span_s} s` : null);
     text("capture-origin", r?.capture_origin_us);
     for (const [id, key] of [["profile", "profile"], ["dialect", "dialect"], ["decoder", "decoder_version"], ["sha256", "sha256"]]) text(id, r?.[key]);
-    text("footer-state", r?.synthetic ? "SYNTHETIC EXAMPLE / FILE-ONLY" : "FILE-ONLY ANALYSIS");
+    text("footer-state", run ? "SAVED EVIDENCE / READ-ONLY" : r?.synthetic ? "SYNTHETIC EXAMPLE / FILE-ONLY" : "FILE-ONLY ANALYSIS");
+    $("run-point-field").hidden = !run;
+    text("capture-name", r?.source_name || "No available capture");
+    if (run) {
+      for (const option of $("observation-point").options) option.disabled = !run.captures.find(capture => capture.point === option.value)?.present;
+      $("observation-point").value = run.selected_point || "";
+    }
+    runs.render(run || null, resetFilters && state.busyPurpose !== "point");
+    renderInputMode();
     if (resetFilters) {
       setOptions("source-filter", "All sources", (data?.sources || []).map(source => [
         `${source.system_id}:${source.component_id}`, `${source.system_id} / ${source.component_id}`,
       ]));
       setOptions("message-filter", "All messages", (data?.message_types || []).map(message => [String(message.message_id), message.name]));
       setFilterDraft(appliedFilters());
-      $("line-gap").value = data?.selection.max_gap_s || "1";
+      $("line-gap").value = data?.selection?.max_gap_s || "1";
       $("issues-details").open = false;
       $("provenance-details").open = false;
     }
@@ -301,7 +383,7 @@
     text("issues-page", `${(data?.issue_page || 0) + 1} / ${pages}`);
   }
   function renderMessages() {
-    const messages = state.data?.selection.messages, selected = state.data?.inspector?.index;
+    const messages = state.data?.selection?.messages, selected = state.data?.inspector?.index;
     const focusedIndex = document.activeElement?.closest("#message-rows button")?.dataset.recordIndex;
     const fragment = document.createDocumentFragment();
     for (const record of messages?.records || []) {
@@ -325,7 +407,7 @@
     }
     const count = messages?.total_count || 0, first = count ? messages.page * messages.page_size + 1 : 0;
     text("messages-range", messages ? `${first} to ${first ? first + messages.records.length - 1 : 0} of ${count} records` : "No input");
-    text("messages-empty", state.data ? "No records match the applied selection" : "No recording selected");
+    text("messages-empty", state.data?.run && !state.data.recording ? "No available capture" : state.data ? "No records match the applied selection" : "No recording selected");
     $("messages-empty").hidden = count > 0;
     $("messages-page").value = String((messages?.page || 0) + 1);
     $("messages-page").max = String(messages?.page_count || 1);
@@ -358,7 +440,7 @@
     analyze(state.input, appliedFilters(), "inspect", state.data.issue_page, { record_index: index });
   }
   function changeMessagePage(page) {
-    const messages = state.data?.selection.messages;
+    const messages = state.data?.selection?.messages;
     if (!state.input || state.busy || !Number.isSafeInteger(page) || page < 0 || page >= messages.page_count || page === messages.page) {
       $("messages-page").value = String((messages?.page || 0) + 1);
       return;
@@ -381,30 +463,32 @@
   async function downloadReport() {
     if (!state.input || state.busy || state.reportBusy) return;
     const request = ++state.reportRequest, controller = new AbortController();
-    const fingerprint = state.data.recording.sha256;
+    const input = state.input, saved = Boolean(state.data.run);
+    const fingerprint = state.data.run?.identity || state.data.recording.sha256;
     state.reportController = controller;
     state.reportBusy = true;
     $("report-error").hidden = true;
     updateControls();
     const { url, options } = requestOptions(state.input, appliedFilters(), {
-      format: "markdown", sha256: fingerprint, record_index: state.data.inspector?.index,
+      ...runParameters(), format: "markdown", sha256: state.data.recording?.sha256, record_index: state.data.inspector?.index,
     }, controller.signal);
     try {
       const response = await fetch(url, options);
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "The report could not be generated.");
+        throw Object.assign(new Error(error.error || "The report could not be generated."), { status: response.status });
       }
       if (!response.headers.get("content-type")?.startsWith("text/markdown")) throw new Error("The local service returned an unsupported report.");
       const blob = await response.blob();
       if (request !== state.reportRequest) return;
       const objectURL = URL.createObjectURL(blob), link = document.createElement("a");
       link.href = objectURL;
-      link.download = `uav-debugger-${fingerprint.slice(0, 12)}.md`;
+      link.download = `uav-debugger-${saved ? "run-" : ""}${fingerprint.slice(0, 12)}.md`;
       document.body.append(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(objectURL), 1000);
     } catch (error) {
       if (request !== state.reportRequest || error.name === "AbortError") return;
+      if (input.kind === "catalog" && (error.status === 409 || error instanceof TypeError)) { invalidateLocalRun(error.message); return; }
       text("report-error", error instanceof TypeError ? "The local service could not be reached. Retry the report." : error.message);
       $("report-error").hidden = false;
     } finally {
@@ -417,10 +501,10 @@
   }
   function renderSelection() {
     const selection = state.data?.selection, attitude = selection?.attitude, summary = attitude?.summary;
-    const isAttitude = state.view === "attitude", isMessages = state.view === "messages", current = selection?.[state.view], ready = Boolean(current?.figure);
+    const isAttitude = state.view === "attitude", isMessages = state.view === "messages", isRun = state.view === "run", current = selection?.[state.view], ready = Boolean(current?.figure);
     const source = selection?.source ? `Source ${selection.source.join(" / ")}` : "All sources";
     const message = selection?.message_id === null ? "All messages" : state.data?.message_types.find(type => type.message_id === selection?.message_id)?.name || "All messages";
-    text("selected-count", selection?.record_count ?? 0);
+    text("selected-count", selection?.record_count ?? (state.data?.run ? "N/A" : 0));
     text("longest-interval", selection?.longest_interval_us != null ? `${secondsFromMicros(selection.longest_interval_us)} s` : "N/A");
     text("applied-source", selection ? source : "No input");
     text("applied-message", message);
@@ -429,14 +513,16 @@
     text("applied-gap", `Applied: ${selection?.max_gap_s || "1"} s`);
     text("chart-title", isAttitude ? "Attitude / rad" : "Message activity");
     text("plot-context", selection ? (isAttitude && summary?.source ? `Source ${summary.source.join(" / ")}` : source) : "No input");
-    for (const view of ["activity", "attitude", "messages"]) {
+    for (const view of ["run", "activity", "attitude", "messages"]) {
       $(`${view}-tab`).setAttribute("aria-selected", String(state.view === view));
       $(`${view}-tab`).tabIndex = state.view === view ? 0 : -1;
-      if (view !== "messages") $(`${view}-plot`).hidden = state.view !== view || !ready;
+      if (["activity", "attitude"].includes(view)) $(`${view}-plot`).hidden = state.view !== view || !ready;
     }
-    $("chart-view").hidden = isMessages;
+    $("chart-view").hidden = isMessages || isRun;
+    $("run-view").hidden = !isRun;
     $("messages-view").hidden = !isMessages;
-    if (!isMessages) $("chart-view").setAttribute("aria-labelledby", `${state.view}-tab`);
+    if (!isMessages && !isRun) $("chart-view").setAttribute("aria-labelledby", `${state.view}-tab`);
+    document.querySelector(".chart-panel").setAttribute("aria-labelledby", `${state.view}-tab`);
     $("empty-plot").hidden = Boolean(selection);
     $("plot-unavailable").hidden = !selection || ready;
     const emptyStatus = {
@@ -450,8 +536,8 @@
     $("plot-legend").hidden = !isAttitude;
     $("gap-form").hidden = !isAttitude;
     document.querySelectorAll("[data-series]").forEach(button => { button.disabled = !isAttitude || !ready; });
-    $("reset-chart").disabled = !ready;
-    $("focus-chart").disabled = !selection;
+    $("reset-chart").disabled = isRun ? !state.data?.run?.timeline.figure : !ready;
+    $("focus-chart").disabled = !selection && !state.data?.run;
     $("observations-details").hidden = !ready;
     text("plot-summary", !selection ? "Capture time relative to the first recorded message."
       : isAttitude ? `${summary.plotted_record_count} plotted / ${summary.record_count} ATTITUDE observations / line gap ${selection.max_gap_s} s`
@@ -460,7 +546,7 @@
     renderPlot();
   }
   function buildObservationTable() {
-    const figure = state.data?.selection[state.view]?.figure, isAttitude = state.view === "attitude";
+    const figure = state.data?.selection?.[state.view]?.figure, isAttitude = state.view === "attitude";
     let rows = [];
     if (isAttitude) {
       const records = new Map();
@@ -508,14 +594,15 @@
     text("observations-page", `${page + 1} / ${pages}`);
   }
   function renderPlot() {
+    runs.renderPlot();
     const revision = ++state.render;
     plotQueue = plotQueue.catch(() => {}).then(async () => {
       if (revision !== state.render) return;
-      if (!state.data) {
+      if (!state.data?.selection) {
         for (const view of ["activity", "attitude"]) globalThis.Plotly?.purge($(`${view}-plot`));
         return;
       }
-      if (state.view === "messages") return;
+      if (["run", "messages"].includes(state.view)) return;
       const figure = state.data.selection[state.view]?.figure, plot = $(`${state.view}-plot`);
       if (!figure) { globalThis.Plotly?.purge(plot); return; }
       if (!globalThis.Plotly) throw new Error("The local chart library is unavailable.");
@@ -565,7 +652,7 @@
       }
     }).catch(() => {
       if (revision !== state.render) return;
-      if (state.view === "messages") return;
+      if (["run", "messages"].includes(state.view)) return;
       $(`${state.view}-plot`).hidden = true;
       $("plot-unavailable").hidden = false;
       text("plot-unavailable-text", "Chart unavailable");
@@ -579,17 +666,25 @@
     renderSelection();
   }
   function bindTabs(views, select) {
-    for (const [index, view] of views.entries()) {
+    for (const view of views) {
       $(`${view}-tab`).addEventListener("click", () => select(view));
       $(`${view}-tab`).addEventListener("keydown", event => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         event.preventDefault();
-        const next = event.key === "Home" ? 0 : event.key === "End" ? views.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + views.length) % views.length;
-        select(views[next]); $(`${views[next]}-tab`).focus();
+        const available = views.filter(name => !$(`${name}-tab`).hidden), index = available.indexOf(view);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? available.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + available.length) % available.length;
+        select(available[next]); $(`${available[next]}-tab`).focus();
       });
     }
   }
-  bindTabs(["activity", "attitude", "messages"], selectView);
+  runs.init({
+    openCatalog: key => openInput({ kind: "catalog", key }),
+    page: parameters => {
+      if (state.input && !state.busy) analyze(state.input, appliedFilters(), "run-page", state.data.issue_page, parameters);
+    },
+  });
+  bindTabs(["run", "activity", "attitude", "messages"], selectView);
+  bindTabs(["recording-input", "saved-input", "catalog-input"], value => selectInputMode(value.replace("-input", "")));
   bindTabs(["evidence", "inspector"], selectEvidence);
   bindTabs(["frame-bytes", "record-bytes"], view => {
     for (const kind of ["frame", "record"]) {
@@ -610,6 +705,7 @@
     renderPlot();
   }));
   $("reset-chart").addEventListener("click", () => {
+    if (state.view === "run") { runs.resetChart()?.catch(() => {}); return; }
     const view = state.view, revision = state.viewRevision;
     plotQueue = plotQueue.catch(() => {}).then(() => {
       const plot = $(`${view}-plot`);
@@ -625,6 +721,20 @@
     renderPlot();
   });
   $("open-recording").addEventListener("click", () => $("recording-file").click());
+  $("open-run").addEventListener("click", () => $("run-files").click());
+  $("run-files").addEventListener("change", event => {
+    const files = [...event.target.files];
+    if (files.length) openInput({ kind: "run-upload", files });
+  });
+  $("observation-point").addEventListener("change", () => {
+    if (!state.input || !state.data?.run) return;
+    const point = $("observation-point").value;
+    if (!point || (point === state.data.run.selected_point && state.busyPurpose !== "point")) return;
+    state.data = { ...state.data, recording: null, selection: null, inspector: null, sources: [], message_types: [], issues: [], issue_count: 0, issue_counts: {}, issue_page: 0 };
+    resetPlotView(); renderRecording(true);
+    $("observation-point").value = point;
+    analyze(state.input, {}, "point", 0, { point });
+  });
   $("recording-file").addEventListener("change", event => {
     const file = event.target.files[0];
     if (file) openInput({ kind: "file", file });
@@ -683,7 +793,7 @@
   }
   function openWorkspace(experiment) {
     text("workspace-title", experiment ? "Experiment" : "Existing workspace");
-    text("workspace-context", experiment ? "Execution is available in the existing workspace." : "Saved runs, comparisons and experiments");
+    text("workspace-context", experiment ? "Execution is available in the existing workspace." : "Baseline / blackout comparison and Experiment execution");
     text("workspace-availability", classicURL ? "Separate local service / no recording is transferred." : "No existing workspace linked.");
     $("classic-link").hidden = !classicURL;
     if (classicURL) $("classic-link").href = classicURL;
@@ -703,6 +813,9 @@
   }).then(config => {
     text("version", `v${config.version}`);
     if (Number.isSafeInteger(config.max_recording_bytes) && config.max_recording_bytes > 0) maxRecordingBytes = config.max_recording_bytes;
+    if (Number.isSafeInteger(config.max_run_bytes) && config.max_run_bytes > 0) maxRunBytes = config.max_run_bytes;
+    if (Number.isSafeInteger(config.max_run_files) && config.max_run_files > 0) maxRunFiles = config.max_run_files;
+    runs.configure(config);
     if (config.classic_url) {
       const url = new URL(config.classic_url);
       if (url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) { url.hostname = location.hostname; classicURL = url.href; }

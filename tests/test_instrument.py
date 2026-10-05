@@ -117,7 +117,7 @@ def test_example_api_preserves_fixture_identity_and_actual_observations(instrume
     assert headers["Content-Type"] == "application/json"
     assert headers["Cache-Control"] == "no-store"
     payload = json.loads(body)
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     recording = payload["recording"]
     assert recording["synthetic"] is True
     assert recording["source_name"] == "telemetry-gap.tlog (synthetic example)"
@@ -237,11 +237,16 @@ def test_missing_bundled_example_returns_an_explicit_error(monkeypatch, tmp_path
 def test_config_health_assets_and_response_headers(instrument_server):
     status, headers, body = _request(instrument_server, "/api/config")
     assert status == 200
-    assert json.loads(body) == {
-        "schema_version": 3,
+    config = json.loads(body)
+    root = config.pop("experiment_root")
+    assert Path(root).is_absolute() and root.endswith("/local/experiments")
+    assert config == {
+        "schema_version": 4,
         "version": version("uav-debugger"),
         "classic_url": None,
         "max_recording_bytes": MAX_INPUT_BYTES,
+        "max_run_bytes": 64 * 1024 * 1024,
+        "max_run_files": 64,
     }
     assert headers["Cache-Control"] == "no-store"
     assert headers["X-Content-Type-Options"] == "nosniff"

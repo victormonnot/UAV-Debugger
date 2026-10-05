@@ -95,7 +95,7 @@ server was isolated from external networking.
 `scripts/check_distribution.py` requires exactly one source archive and one
 wheel for the version declared in `pyproject.toml`. It compares source-archive
 files against the explicit Hatch inclusion list, and wheel modules/data against
-the package source. This includes the 15 explicitly declared Instrument HTML,
+the package source. This includes the 16 explicitly declared Instrument HTML,
 CSS, JavaScript, font and license files. Unexpected, missing, duplicated or changed files cause a
 failure. It also checks distribution metadata and wheel integrity entries.
 The package declares `MIT` as its SPDX license expression. The corresponding
@@ -112,6 +112,52 @@ declared inputs; changes to the inclusion list and source files still require
 review.
 
 ## Verification status and release conditions
+
+### Instrument saved-run and catalog checks
+
+On 2026-10-05, saved-run inspection and catalog integration passed **610 focused
+source-environment tests in 19.76 seconds**. A newly built wheel installed into
+a separate locked Python 3.12.3 environment then passed **694 tests in 205.24
+seconds** from an external working directory, with imports verified in
+site-packages. This includes all **75 Instrument Chromium cases**, two existing
+recording workflows, all four saved-run workflows and all three catalog
+workflows in the existing interface.
+
+Checks cover memory-only multipart parsing, file/body/header bounds, ignored
+files, unsafe paths, duplicates, malformed and interrupted uploads, origin
+guards and metadata-only catalog discovery. Opening and every later local-run
+interaction retain the existing pinned-directory validation and complete run
+identity. Changed manifests and captures reject stale analysis and reports;
+running declarations never imply process liveness.
+
+Browser checks exercise actual run-report downloads, point changes, capture
+filter resets, independent monotonic timelines, requested/applied/observed
+evidence, exact clocks beyond JavaScript's integer range, trace/issue paging,
+missing versus empty captures, partial/unfinalized evidence, catalog limits and
+completed-but-delayed responses. Failed trace changes restore the applied
+control and rows without discarding the inspected record. The extracted pure
+upload/timeline helpers retain the existing interface's behavior.
+
+Run views pass rendered text/axis contrast of at least 4.5:1 and effective
+trace contrast of at least 3:1 in light/dark themes at 320 and 1440 pixels;
+the recording layouts also retain their 390/1024-pixel checks. Desktop/mobile
+screenshots were reviewed. The live source preview passed native directory
+selection, capture switching, inspection, Markdown download, read-only catalog
+refresh and navigation to the existing interface, without JavaScript errors.
+
+The new browser run fixtures construct saved v2 evidence without a simulator.
+Existing reader and classic workflow fixtures separately create real synthetic
+experiments. No native SITL execution or full Experiment-suite rerun was
+performed. Browser external HTTP/WebSocket requests were blocked; the Python
+server was not network-namespace isolated. These are local checks, not a
+hosted CI result or a change to published v0.2.0 artifacts.
+
+Ruff lint/formatting, JavaScript syntax, fixture, lock, whitespace and archive
+checks pass. The final archives contain **104 source files and 48 wheel
+members**, including all 16 interface assets; all 47 non-RECORD wheel payloads
+match the tested installation. `python-multipart` 0.0.32 is now a direct
+dependency; its already locked version and all other resolved versions are
+unchanged. No recording profile or evidence schema changed.
 
 ### Instrument inspection and report checks
 

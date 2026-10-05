@@ -23,9 +23,9 @@ The source checkout also provides the new [Instrument workspace](docs/instrument
 a custom local interface for opening supported recordings, applying source,
 message-type and exact time filters, reading activity and attitude plots,
 inspecting original messages and exporting Markdown evidence reports.
-It includes input provenance, import issues and light/dark themes. The existing
-interface below retains the complete saved-run and Experiment workflows during
-the transition.
+It also opens saved experiments and browses local run directories, with input
+provenance, evidence checks and light/dark themes. Comparison and Experiment
+execution remain in the existing interface during the transition.
 
 See the [Experiment interface](docs/experiment-ui.md),
 [saved Experiment inspection](docs/saved-experiments.md) and
@@ -99,8 +99,16 @@ Fonts, icons and plotting assets are served locally. See the
 [Instrument guide](docs/instrument.md) for partial imports, capacity limits and
 file replacement behavior.
 
-Saved-experiment browsing, inspection and comparison, and Experiment execution
-remain in `uav-debugger-analyze`. Instrument can link to that interface
+Choose **Saved experiment** to upload one saved evidence directory, or **Local
+experiments** to browse the configured server-side `--experiment-root`
+(default `local/experiments`). The run view keeps requested settings, applied
+actions and observations separate. Choose an observation point to inspect its
+capture with the same filters, messages and reports. Listing a local run reads
+declared metadata only; **Open in Analyze** validates the saved evidence without
+starting or resuming an experiment.
+
+Saved-run comparison and Experiment execution remain in `uav-debugger-analyze`.
+Instrument can link to that interface
 when it is started separately; see the [launch and handoff guide](docs/instrument.md).
 Instrument does not launch an experiment, start the other server or transfer a
 recording to it. This addition is not part of the published v0.2.0 artifacts.
@@ -210,7 +218,7 @@ for local reproduction, current development checks and published-release evidenc
 
 | Document | Contents |
 | --- | --- |
-| [Instrument workspace](docs/instrument.md) | Open recordings, apply exact filters, inspect charts and original messages, and export evidence reports. |
+| [Instrument workspace](docs/instrument.md) | Open recordings and saved experiments, browse local runs, inspect evidence and export reports. |
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
 | [Experiment interface](docs/experiment-ui.md) | Explicit Start/Stop, shared execution, simulator setup and saved-evidence handoff. |
 | [Compare saved experiments](docs/comparison.md) | Pair eligibility, measurement-relative windows, observed differences and reports. |

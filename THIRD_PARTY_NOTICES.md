@@ -13,6 +13,7 @@ its own copyright notices and license terms.
 | Plotly | 7.0.0 | MIT License. |
 | Starlette | 1.7.0 | BSD 3-Clause License. |
 | Uvicorn | 0.53.0 | BSD 3-Clause License. |
+| python-multipart | 0.0.32 | Apache License 2.0. |
 
 ## pymavlink
 
@@ -41,6 +42,13 @@ See Starlette's versioned [license text](https://github.com/Kludex/starlette/blo
 and Uvicorn's versioned [license text](https://github.com/Kludex/uvicorn/blob/0.53.0/LICENSE.md).
 Starlette provides Instrument's local HTTP routes and static-file responses;
 Uvicorn runs that application on loopback.
+
+## python-multipart
+
+See the versioned [Apache 2.0 license text](https://github.com/Kludex/python-multipart/blob/0.0.32/LICENSE.txt)
+and [release metadata](https://pypi.org/project/python-multipart/0.0.32/).
+Instrument uses the streaming parser for bounded saved-directory uploads,
+retaining file bytes in memory rather than creating temporary upload files.
 
 ## Bundled Instrument browser assets
 

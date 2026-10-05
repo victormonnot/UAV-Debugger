@@ -31,13 +31,18 @@ def recording(entries):
 
 
 def upload(page, data, name="capture.tlog"):
-    page.locator('input[type="file"]').set_input_files(
+    page.locator("#recording-file").set_input_files(
         {"name": name, "mimeType": "application/octet-stream", "buffer": data}
     )
 
 
 @pytest.fixture(scope="module")
-def instrument_server(tmp_path_factory):
+def instrument_catalog_root(tmp_path_factory):
+    return tmp_path_factory.mktemp("instrument-catalog") / "experiments"
+
+
+@pytest.fixture(scope="module")
+def instrument_server(tmp_path_factory, instrument_catalog_root):
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
@@ -53,6 +58,8 @@ def instrument_server(tmp_path_factory):
                 str(port),
                 "--classic-port",
                 "8501",
+                "--experiment-root",
+                str(instrument_catalog_root),
             ],
             cwd=ROOT,
             env={**os.environ, "PYTHONUNBUFFERED": "1"},
@@ -137,7 +144,7 @@ def instrument_page(instrument_server, request):
         finally:
             try:
                 if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
-                    output_dir = ROOT / "local" / "instrument-brick3" / "browser"
+                    output_dir = ROOT / "local" / "instrument-brick4" / "browser"
                     output_dir.mkdir(parents=True, exist_ok=True)
                     page.evaluate(
                         "() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }"
@@ -167,7 +174,10 @@ def apply_filters(page, expect, *, source=None, message=None, start=None, end=No
         if value is not None:
             page.locator(selector).fill(value)
     with page.expect_response(
-        lambda response: urlsplit(response.url).path in {"/api/example", "/api/analyze"}
+        lambda response: (
+            urlsplit(response.url).path
+            in {"/api/example", "/api/analyze", "/api/run", "/api/catalog/open"}
+        )
     ):
         page.locator("#apply-filters").click()
     expect(page.locator("#filter-state")).to_have_text("Applied")
@@ -531,7 +541,7 @@ def test_upload_replacement_and_example_reset_input_and_applied_selection(instru
     expect(page.locator("#end-filter")).to_have_value("0.000001")
     expect(page.locator("#sha256")).to_have_text(hashlib.sha256(replacement).hexdigest())
     load_example(page, expect)
-    assert page.locator('input[type="file"]').evaluate("input => input.files.length") == 0
+    assert page.locator("#recording-file").evaluate("input => input.files.length") == 0
     expect(page.locator("#sha256")).to_have_text(EXPECTED["sha256"])
     page.locator("#clear-recording").click()
     assert_cleared(page, expect)
@@ -1278,7 +1288,7 @@ def test_loaded_workspace_fits_and_remains_readable(instrument_page, width, them
     expect(page.locator("#message-rows tr")).to_have_count(2)
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
     if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
-        output_dir = ROOT / "local" / "instrument-brick3" / "browser"
+        output_dir = ROOT / "local" / "instrument-brick4" / "browser"
         output_dir.mkdir(parents=True, exist_ok=True)
         page.evaluate("() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }")
         page.screenshot(path=output_dir / f"messages-{theme}-{width}.png", full_page=True)

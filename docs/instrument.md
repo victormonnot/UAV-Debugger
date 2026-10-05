@@ -6,12 +6,13 @@ and provenance, apply exact source/type/time filters, and inspect activity and
 attitude observations. Inspect original messages and download Markdown evidence
 reports for the applied selection. Light, dark and system appearance use local
 display assets. The importer, telemetry model, plotting rules and report builder
-are shared with the existing interface.
+are shared with the existing interface. **Saved experiment** opens one evidence
+directory, while **Local experiments** discovers saved runs under the configured
+server-side root.
 
-Saved-experiment browsing, inspection and comparison, and explicit Experiment
-execution remain available through `uav-debugger-analyze`. Instrument does not
-yet replace those workflows and is not included in the published v0.2.0
-artifacts.
+Saved-run comparison and explicit Experiment execution remain available through
+`uav-debugger-analyze`. Instrument does not yet replace those workflows and is
+not included in the published v0.2.0 artifacts.
 
 ## Launch
 
@@ -25,6 +26,10 @@ uv run --locked uav-debugger-instrument
 Open [Instrument](http://127.0.0.1:8765) on the same computer. `--port PORT`
 selects another unused local port. The server binds only to `127.0.0.1`;
 `Ctrl+C` stops it. No vehicle, simulator or ARGOS installation is required.
+The optional `--experiment-root PATH` selects the root for local saved-run
+browsing, defaulting to `local/experiments` relative to the launch directory.
+The launcher interprets it as an absolute location without creating it. This
+setting permits read-only browsing; it does not enable Experiment execution.
 
 The browser loads scripts, fonts and icons from this server. Plotly's JavaScript
 bundle is served from the installed pinned Python dependency. Font and icon
@@ -48,10 +53,12 @@ the browser computer and sends its bytes through this connection to the server.
 **Load example** reads the fixture installed on the server. See the
 [Analyze SSH guide](analyze.md#access-through-ssh) for local port conflicts.
 Reports download to the computer running the browser.
+Saved-directory uploads also select files on the browser computer; the local
+catalog instead reads the configured root on the server.
 
 ## Open a recording
 
-Choose **Open recording** for a file up to **10 MiB**, or **Load example** for
+In **Recording**, choose **Open recording** for a file up to **10 MiB**, or **Load example** for
 the installed synthetic `telemetry-gap.tlog`. Both use the same importer and
 analysis. The supported input is the bounded QGroundControl-style timestamped
 MAVLink profile described in the [importer guide](importer.md); a `.tlog`
@@ -208,6 +215,95 @@ before export and rejects a mismatch rather than exporting evidence for another
 input. The download filename uses that fingerprint. Uploaded recordings and
 generated reports are not saved to server disk.
 
+## Inspect a saved experiment
+
+Choose **Saved experiment**, then **Open saved experiment** and select the
+directory containing `run.json`, traces and captures. For a run produced by the
+existing browser interface, select `run-<identifier>/evidence`, not its parent.
+The directory is read as supplied files, not executed or extracted as an
+archive. Opening another directory replaces the current input.
+
+Uploads accept at most **64 files** and **64 MiB of file bytes in total**,
+including files excluded from evidence analysis. Each capture retains the
+**10 MiB** limit. Mixed directories, duplicate names and unsafe relative paths
+are rejected. Only the fixed evidence names contribute to the run fingerprint;
+other selected files are identified as excluded. Multipart bytes are parsed in
+memory without temporary upload files. See the
+[saved Experiment guide](saved-experiments.md#what-is-checked) for fixed names,
+per-artifact limits and consistency checks.
+
+Read **Declared outcome** and **Evidence status** separately. A declared
+`completed` run can have invalid evidence, and a declared `failed` run can have
+consistent evidence. Uploaded evidence declaring `running` remains inspectable
+as unfinalized; it does not establish an active process. Missing captures are
+unavailable, not empty captures with invented zero counts.
+
+**Requested settings**, **Applied forwarding interruption** and **Observed
+captures** distinguish configuration, validated action references and actual
+captured records. **Run timeline** counts consistent observation references in
+at most **200 bins** of this run's monotonic clock. Startup, measurement origin
+and gate markings come from recorded evidence. An unclosed gate has no
+established duration. Above **100 applied gate intervals**, Instrument declines
+to render the timeline instead of omitting intervals silently; the full counts
+and paged interval references remain available.
+
+**Evidence issues** and **Trace references** page up to **100 entries** at a
+time, independently of the capture filters. **Run provenance** retains original
+artifact fingerprints and clock metadata. Exact integer clock values remain
+text rather than rounded browser numbers. A mismatched artifact fingerprint
+excludes its references from the consistent timeline; a readable capture can
+still be inspected with its evidence issues visible.
+
+Choose **Relay input** or **Receiver** under **Observation point** to use the
+ordinary capture filters, charts, messages and inspector. Receiver is selected
+initially when present, otherwise relay input; no point is invented if neither
+capture exists. Changing point resets the capture filters and inspected record.
+Capture plots remain relative to that file's first Unix capture timestamp;
+they are not aligned to the run timeline or payload clocks.
+
+**Download report** now exports the saved-run summary together with the selected
+capture's applied filters, line gap and explicitly inspected record. It remains
+available without a capture and reports unavailable evidence explicitly.
+Run report excerpts retain their existing bounds and omission counts; the
+visible trace or issue page does not restrict the summary. The complete run
+fingerprint guards subsequent analysis and export, not just the capture's hash.
+Clearing or replacing the input invalidates the preceding capture, inspector
+and pending report without deleting the original directory.
+
+## Browse local experiments
+
+Start Instrument with the intended server-side root, for example:
+
+```sh
+uv run --locked uav-debugger-instrument --experiment-root local/experiments
+```
+
+Choose **Local experiments** and review the listed **declared** metadata.
+**Refresh catalog** requests a new snapshot. **Open in Analyze** rereads the
+selected evidence through the saved-run validator; listing metadata never
+establishes capture integrity. Runs remain browsable after restarting the
+service without restoring execution state.
+
+The catalog recognizes only `<root>/<name>/run.json` and
+`<root>/<name>/evidence/run.json`. Root-relative keys identify entries, including
+both layouts when present below one child. The root comes from the launcher;
+the browser cannot supply an arbitrary server path. An absent root produces an
+empty catalog with an explicit issue and is not created. Links and special
+files are rejected, and directory descriptors stay pinned while evidence is
+read.
+
+Scanning examines at most **200 direct children**, reads at most **1 MiB per
+manifest** and **8 MiB of manifest bytes in total**, and identifies a partial
+catalog when a scan bound is reached. It reads no captures, traces or
+`control.json`. A manifest declaring `running` is listed as unfinalized but
+cannot be opened through the catalog; no process liveness is inferred.
+
+Each later interaction rereads the selected local evidence and checks the
+expected run fingerprint. If the files have changed, reopen the run to analyze
+their new state. A stale response or report must not replace the currently
+selected run or capture. Browsing and opening remain read-only; comparison and
+Experiment execution are separate workflows in the existing interface.
+
 ## Review import status
 
 Provenance retains the source label, fingerprint, input size, selected profile,
@@ -259,8 +355,9 @@ explicit Start or an Experiment CLI command.
 
 ## Local data boundary
 
-The HTTP interface performs stateless analysis of the fixed example or uploaded
-bytes. It does not accept an arbitrary server filesystem path.
+The HTTP interface performs stateless analysis of the fixed example, uploaded
+bytes or a fixed-layout catalog entry beneath the configured root. It does not
+accept an arbitrary server filesystem path.
 
 | Route | Response |
 | --- | --- |
@@ -268,11 +365,14 @@ bytes. It does not accept an arbitrary server filesystem path.
 | `GET /api/config` | Schema version, installed application version and optional local full-workspace URL. |
 | `GET /api/example` | Analysis or Markdown report for the installed example with the requested selection. |
 | `POST /api/analyze` | Analysis or Markdown report for a raw `application/octet-stream` recording body, limited to 10 MiB. |
+| `POST /api/run` | Saved-run analysis or report from bounded, in-memory `multipart/form-data` directory uploads. |
+| `GET /api/catalog` | Bounded snapshot of declared manifest metadata beneath the configured experiment root. |
+| `GET /api/catalog/open` | Reread and validate a selected root-relative catalog key for analysis or report export. |
 | `GET /` and `/assets/...` | Packaged interface, fonts and icons. |
 | `GET /vendor/plotly.min.js` | JavaScript bundle from the installed Plotly dependency. |
 
-The config and JSON analysis responses declare `schema_version: 3`. Analysis accepts
-these query parameters:
+The config and JSON analysis responses declare `schema_version: 4`. Recording
+analysis accepts these query parameters:
 
 | Parameter | Meaning |
 | --- | --- |
@@ -304,6 +404,25 @@ integers. `raw_frame_hex` contains the original frame; `raw_record_hex` also
 includes its outer timestamp. Markdown responses use `text/markdown` and an
 attachment filename derived from the recording fingerprint.
 
+Saved-run requests additionally accept `point` (`receiver` or `relay-input`),
+`run_sha256` for the expected complete evidence fingerprint, and independent
+zero-based `evidence_page`, `gate_page` and `trace_page` selections. The `trace`
+parameter accepts `actions` (default) or `observations`. Run reports require
+`run_sha256`; a capture-only hash cannot guard changed manifests or actions.
+Their filename is `uav-debugger-run-<first 12 fingerprint characters>.md`.
+`GET /api/catalog/open` requires the catalog `key`, never a filesystem path.
+An explicitly requested missing observation point is rejected instead of being
+silently replaced by another point.
+
+`POST /api/run` takes file parts named `files`, with each multipart filename set
+to its relative directory name, as supplied by the browser directory picker.
+A shared selected-directory prefix, when present, is removed before fixed
+artifact names are validated. All file parts contribute to the 64-file and 64 MiB input bounds,
+even when their contents do not contribute to the evidence fingerprint.
+The whole multipart body is limited to 65 MiB, with at most 1 MiB of multipart
+overhead. Each part accepts at most eight headers and 8 KiB of header content;
+relative filenames are bounded to 4,096 bytes and the boundary to 70 bytes.
+
 Invalid queries or filters return `400`, uploads exceeding the byte limit return
 `413`, and unsupported media types or content encodings return `415`. A mismatch
 with the expected SHA-256 returns `409`. Partial and empty imports return
@@ -311,12 +430,13 @@ analysis outcomes rather than transport errors.
 
 Each request imports its own bytes and computes the applied selection. For an
 uploaded file, the browser resends that file when applying filters, changing the
-line gap, inspecting a message, paging or exporting a report. The server keeps no
-mutable recording session or cache and writes no recording or report to disk.
-Browser tabs own independent inputs, selections and inspectors; theme preference
-is the only persisted browser setting. Reloading the page does not restore an
-uploaded file. The **10 MiB** input-byte limit does not bound total process memory
-or guarantee performance.
+line gap, inspecting a message, paging or exporting a report. Uploaded run
+requests similarly resend their selected files; catalog requests reread the
+fixed local evidence. The server keeps no mutable analysis session or cache and
+writes no uploaded recording, run or report to disk. Browser tabs own independent
+inputs, selections and inspectors; theme preference is the only persisted
+browser setting. Reloading the page does not restore an uploaded input. Input
+byte limits do not bound total process memory or guarantee performance.
 
 There is no Experiment command endpoint or execution bridge. This bounded API
 is an implementation contract for the current workspace, not a general

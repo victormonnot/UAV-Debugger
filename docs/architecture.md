@@ -12,9 +12,10 @@ validated evidence. Broader integrations remain future work.
 The source checkout additionally provides the [Instrument workspace](instrument.md),
 a custom local interface for supported recordings, exact source/type/time
 filters, import provenance, activity/attitude observations, original-message
-inspection and Markdown reports. Saved-run workflows and Experiment execution
-remain in the complete Streamlit interface during migration. Instrument is not
-part of the published v0.2.0 artifacts.
+inspection and Markdown reports. It also opens saved experiments and browses
+the local run catalog. Comparison and Experiment execution remain in the
+complete Streamlit interface during migration. Instrument is not part of the
+published v0.2.0 artifacts.
 
 ## Shared analysis, optional experiment execution
 
@@ -68,16 +69,23 @@ builder with the same applied selection and line-gap setting. The upload name
 is a display label, never a server filesystem path. No Experiment execution
 endpoint is exposed.
 
+`POST /api/run` accepts at most 64 files and 64 MiB of file bytes through a
+streaming multipart parser with memory-only buffers. The bounds include files
+excluded from analysis; paths and duplicate names are checked before retaining
+the fixed evidence artifacts. `GET /api/catalog` scans the launcher-configured
+root, while `GET /api/catalog/open` calls the existing pinned-directory loader
+for a relative key. Neither route resolves manifest paths or restores execution.
+
 The browser tab owns its selected file, draft controls and last applied result.
 Applying filters, inspecting a record, paging messages or issues, and exporting
-a report resubmit the same file; each request imports and analyzes its own
-bytes. The server keeps no recording cache, mutable session or execution
-controller and writes no uploaded recording or report to disk. Tabs do not
-share recordings or filters. Replacement and Clear invalidate pending responses
-and remove the previous view; an invalid filter submission keeps the last
-applied view intact.
+a report resubmit uploaded bytes or reread the selected local run. Each request
+validates its own evidence. The server keeps no recording cache, mutable
+analysis session or execution controller and writes no uploaded recording, run
+or report to disk. Tabs do not share inputs or filters. Replacement and Clear
+invalidate pending responses and remove the previous view; an invalid filter
+submission keeps the last applied view intact.
 
-The schema version 3 payload separates whole-recording provenance and counts
+The schema version 4 payload separates whole-recording provenance and counts
 from the applied selection, activity bins and attitude availability. Selected
 messages and global import issues use independent pages of at most 100 entries.
 The inspector is absent until an explicit original record index is requested
@@ -101,6 +109,24 @@ explicitly inspected record, but their counts and interval evidence cover the
 full applied selection. Export requires the expected recording SHA-256 and
 rejects changed bytes; this fingerprint can also guard JSON analysis requests.
 
+Saved-run responses retain declared outcome, evidence status and requested
+settings separately from validated gate actions and capture observations. The
+run timeline uses the run's host monotonic clock and remains independent of
+the selected capture's Unix-time filters. Exact nanoseconds and metadata cross
+the JSON boundary as strings or serialized JSON text, not rounded browser
+integers. Capture selection, evidence issues, gates and trace references have
+independent state; their tables are bounded to 100 entries per page. Timeline
+bins count all consistent references, but more than 100 gate intervals produces
+an explicit display-limit outcome instead of silently omitting intervals.
+
+The complete run fingerprint guards follow-up requests and run reports; checking
+only the selected capture's hash would not detect changed manifests or action
+traces. Changing a run or observation point clears the preceding capture
+selection and inspector. The existing run-report builder keeps its bounded
+excerpts and omission counts and appends the selected capture's report when
+available. Missing captures remain unavailable rather than acquiring invented
+zero counts or timestamps.
+
 Fonts and Lucide icons are distributed with the interface, including their
 license texts. The installed Plotly package supplies its local JavaScript
 bundle. No runtime CDN is required. Optional navigation to a separately started
@@ -115,10 +141,14 @@ validates trace clocks and capture references, and preserves usable prefixes wit
 issues. It uses the existing importer and has no dependency on `experiment.py`,
 `sitl.py`, subprocesses or network transports. `run_report.py` builds a bounded
 Markdown summary and can append the existing selected-capture report.
-`run_view.py` presents uploaded directory evidence, a within-run activity timeline
-and paged trace references. `app.py` reuses the ordinary capture filters and
-inspector for either observation point. A changed run or point invalidates the
-previous selection; unreadable replacement evidence removes the previous export.
+`saved_run_ui.py` shares framework-independent upload normalization and the
+within-run activity timeline between both interfaces. `run_view.py` presents
+uploaded directory evidence and paged trace references in the existing
+interface. `app.py` reuses the ordinary capture filters and
+inspector for either observation point in the existing interface. Instrument
+reuses the same file-only evidence and report boundaries through its saved-run
+routes. A changed run or point invalidates the previous selection; unreadable
+replacement evidence removes the previous export.
 
 ## Saved-run comparison boundary
 
@@ -138,7 +168,11 @@ The file-only catalog reads declared manifest metadata under the configured
 `--experiment-root`. It recognizes a CLI evidence directory directly below the
 root or the `evidence` child of a browser run container. It does not traverse
 arbitrary directory trees, load captures during listing, write an index or infer
-process state from old controller files.
+process state from old controller files. Both launchers use the configured root;
+an absent root produces an empty result with an issue and is never created by
+catalog browsing. Relative keys identify entries, not arbitrary caller-supplied
+paths. Opening pins root and child directories through descriptors, rejecting
+symlinks and non-regular artifact files.
 
 The scan is bounded to 200 direct children, 1 MiB per manifest and 8 MiB of
 manifest bytes in total; truncation remains visible. Entering **Local experiments**
@@ -146,7 +180,10 @@ and **Refresh catalog** produce metadata snapshots. Explicit opening or
 comparison reads the selected files through the saved-run validator before
 passing them to the existing Analyze views. Declared `running` entries remain
 unfinalized and cannot be opened through the catalog. Retained files remain
-independent of the server's transient execution history.
+independent of the server's transient execution history. Instrument rereads and
+checks the complete run fingerprint on subsequent interactions; changed local
+evidence must be opened again instead of combining stale capture state with
+new manifest or trace bytes.
 
 See [local browsing](saved-experiments.md#browse-local-experiments) for layouts,
 failure states and the distinction between metadata and validated observations.
@@ -270,7 +307,8 @@ measurement semantics. An initial importer does not imply all UAVs are supported
 
 The implementation retains Python 3.12, pymavlink 2.4.49, Streamlit 1.63.0,
 Plotly 7.0.0, in-memory records, uv, pytest and Ruff. Instrument adds Starlette
-1.7.0 and Uvicorn 0.53.0 with packaged HTML, CSS and JavaScript. Playwright is an optional
+1.7.0, Uvicorn 0.53.0 and python-multipart 0.0.32 with packaged HTML, CSS and
+JavaScript. Playwright is an optional
 browser-test dependency. The [first milestone](first-milestone.md) documents
 the original v0.1.0 Analyze scope.
 
@@ -279,7 +317,7 @@ the original v0.1.0 Analyze scope.
 | Runtime | Python 3.12; Linux x86_64 | One runtime for decoding, analysis, presentation and local execution. |
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
 | Full interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection, downloads and explicit Experiment execution. |
-| Instrument interface | Packaged HTML/CSS/JavaScript; Starlette and Uvicorn on `127.0.0.1` | Custom presentation with bounded, stateless recording analysis through the existing Python core. |
+| Instrument interface | Packaged HTML/CSS/JavaScript; Starlette, Uvicorn and streaming multipart parsing on `127.0.0.1` | Bounded, stateless recording and saved-run analysis through the existing Python core. |
 | Timeline | Plotly with explicit source/type/time controls | Activity and attitude plots with point-to-record inspection; zoom does not change filters. |
 | Session data | Python data structures in memory; original experiment evidence on disk | Per-session recording/run/pair analysis and a shared bounded execution history, with no automatic recovery or execution on restart. |
 | Report | Markdown download | Readable evidence summary with source fingerprints and record references. |

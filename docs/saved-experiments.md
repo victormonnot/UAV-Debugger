@@ -11,7 +11,68 @@ The reader supports the actual `uav-debugger-experiment-v1` synthetic format and
 nor an active runner is required. Opening saved evidence never executes paths or
 commands from its manifest, opens a telemetry transport or resumes an experiment.
 
+The source checkout also provides these single-run and local catalog workflows
+in [Instrument](instrument.md). Its additions are not part of the published
+v0.2.0 artifacts. Saved-run comparison and explicit Experiment execution remain
+in the existing interface.
+
+## Use Instrument
+
+Start the custom interface with the intended server-side catalog root:
+
+```sh
+uv run --locked uav-debugger-instrument --experiment-root local/experiments
+```
+
+Open [Instrument](http://127.0.0.1:8765), then choose an input:
+
+- **Saved experiment**: use **Open saved experiment** to select one directory
+  on the browser computer. Choose the directory containing `run.json`, or the
+  `evidence` directory inside a browser-generated run. The uploader replaces
+  the current input and rejects mixed directories or duplicate filenames.
+- **Local experiments**: browse declared manifest metadata under the configured
+  root on the server. **Refresh catalog** obtains a new snapshot. **Open in
+  Analyze** rereads a terminal run through the saved-evidence validator.
+- **Recording**: open a standalone capture or the bundled telemetry example,
+  independently of any saved run.
+
+Read **Declared outcome** separately from **Evidence status**, then review
+**Requested settings**, **Applied forwarding interruption** and **Observed
+captures**. **Run timeline** uses the run's monotonic clock, with startup,
+measurement origin and gate markings derived from actual consistent references.
+Its counts include every consistent observation in at most 200 bins, independent
+of capture filters. More than 100 applied gate intervals prevents timeline
+rendering with an explicit display limit; interval references remain available
+through pagination rather than being silently dropped.
+
+Under **Observation point**, choose **Receiver** or **Relay input** to use the
+ordinary capture filters, charts, messages and inspector. The initial choice is
+receiver when present, otherwise relay input; a missing capture is not replaced
+with an invented empty one. Changing point resets that capture's filters and
+record inspection. **Evidence issues**, applied intervals and **Trace
+references** have independent pages of up to 100 entries. **Run provenance**
+retains original file fingerprints and declared clock metadata.
+
+**Download report** exports the run summary and the selected capture's applied
+analysis, including an explicitly inspected record when present. Without a
+capture, the run's evidence and limitations still support a report. Its counts
+are not restricted to a visible table page, and bounded excerpts identify
+omissions. Clearing or replacing the input never deletes original files.
+
+Instrument resends selected upload bytes or rereads the local entry for each
+analysis request. Subsequent operations and exports check the complete run
+fingerprint; changed local evidence must be opened again. Uploads remain in
+memory, with no temporary upload file or saved server-side analysis session.
+The existing file-count, byte, artifact and trace limits below still apply,
+including excluded files in upload count and total-byte limits. See the
+[Instrument guide](instrument.md#inspect-a-saved-experiment) for the service
+contract and local access options.
+
 ## Browse local experiments
+
+The following controls describe the existing `uav-debugger-analyze` interface,
+including its comparison workflow. Instrument uses the same catalog layouts,
+read limits and validation rules through the controls described above.
 
 1. Start the local application with the output root to inspect, for example:
 
@@ -78,6 +139,9 @@ action/observation traces. Full opening uses the independent saved-run limits
 below and may reject evidence that had readable listing metadata.
 
 ## Open and inspect
+
+The following steps describe the existing interface. Instrument's equivalent
+single-run workflow is described under [Use Instrument](#use-instrument).
 
 1. Start [Analyze](analyze.md#install-and-launch) and choose **Saved experiment**
    under **Analyze input**.
