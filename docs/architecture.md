@@ -10,10 +10,11 @@ a bounded [saved baseline/blackout comparison](comparison.md) reuses the same
 validated evidence. Broader integrations remain future work.
 
 The source checkout additionally provides the [Instrument workspace](instrument.md),
-a custom local interface currently limited to the bundled recording, source
-selection and attitude observations. The complete Streamlit interface remains
-available during migration. Instrument is not part of the published v0.2.0
-artifacts.
+a custom local interface for supported recordings, exact source/type/time
+filters, import provenance and activity/attitude observations. Record inspection,
+reports, saved-run workflows and Experiment execution remain in the complete
+Streamlit interface during migration. Instrument is not part of the published
+v0.2.0 artifacts.
 
 ## Shared analysis, optional experiment execution
 
@@ -59,17 +60,29 @@ not depend on the runner's JSON event schema.
 ## Instrument presentation boundary
 
 `instrument.py` serves packaged HTML, CSS and JavaScript through Starlette and
-Uvicorn on loopback. Its fixed `/api/example` request reads the installed
-synthetic recording and calls the existing importer, `build_attitude_view` and
-`attitude_chart`. The browser owns the displayed recording and selected source;
-the server maintains no mutable recording session or execution controller.
-No upload, arbitrary path reader or Experiment execution endpoint is exposed.
+Uvicorn on loopback. `GET /api/example` reads the installed synthetic recording;
+`POST /api/analyze` accepts raw recording bytes with a streamed 10 MiB limit.
+Both reuse the existing importer, exact selection, observation intervals and
+activity/attitude chart builders. The upload name is a display label, never a
+server filesystem path. No Experiment execution endpoint is exposed.
 
-The schema version 1 payload preserves provenance, original capture timestamps,
-import issues and chart point references. Exact capture timestamps cross the
-JSON boundary as decimal strings. Relative plot coordinates are display numbers
-and never replace original evidence. The frontend changes appearance and source
-selection; the existing Python modules own import and chart interpretation.
+The browser tab owns its selected file, draft controls and last applied result.
+Applying filters or changing the line gap resubmits the same file; each request
+imports and analyzes its own bytes. The server keeps no recording cache,
+mutable session or execution controller and writes no uploaded recording to
+disk. Tabs do not share recordings or filters. Replacement and Clear invalidate
+pending responses and remove the previous view; an invalid filter submission
+keeps the last applied view intact.
+
+The schema version 2 payload separates whole-recording provenance and counts
+from the applied selection, activity bins and attitude availability. Import
+issues remain global and are paged in groups of at most 100. Exact capture
+timestamps and inclusive filter bounds cross the JSON boundary as decimal
+strings. Relative plot coordinates are display numbers and never replace
+original evidence. Time offsets stay anchored to the first imported record,
+including when a later clock regression produces negative offsets. The Python
+modules own import and chart interpretation; the frontend owns controls and
+presentation without reimplementing decoding or time selection.
 
 Fonts and Lucide icons are distributed with the interface, including their
 license texts. The installed Plotly package supplies its local JavaScript
@@ -249,7 +262,7 @@ the original v0.1.0 Analyze scope.
 | Runtime | Python 3.12; Linux x86_64 | One runtime for decoding, analysis, presentation and local execution. |
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
 | Full interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection, downloads and explicit Experiment execution. |
-| Instrument interface | Packaged HTML/CSS/JavaScript; Starlette and Uvicorn on `127.0.0.1` | Custom presentation with a bounded read-only connection to existing Python analysis. |
+| Instrument interface | Packaged HTML/CSS/JavaScript; Starlette and Uvicorn on `127.0.0.1` | Custom presentation with bounded, stateless recording analysis through the existing Python core. |
 | Timeline | Plotly with explicit source/type/time controls | Activity and attitude plots with point-to-record inspection; zoom does not change filters. |
 | Session data | Python data structures in memory; original experiment evidence on disk | Per-session recording/run/pair analysis and a shared bounded execution history, with no automatic recovery or execution on restart. |
 | Report | Markdown download | Readable evidence summary with source fingerprints and record references. |

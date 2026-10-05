@@ -113,6 +113,38 @@ review.
 
 ## Verification status and release conditions
 
+### Instrument recording-workspace checks
+
+On 2026-10-05, the expanded Instrument recording workspace passed **237 focused
+tests in 12.20 seconds** in the development environment. A freshly built wheel,
+installed into a separate locked Python 3.12.3 environment, then passed **358
+tests in 76.29 seconds**. That run includes the importer, exact selections,
+charts, telemetry, execution boundary, service and distribution checks, all
+**30 Instrument Chromium cases**, and two existing Analyze browser workflows.
+Imports resolved inside the installed environment, not to the source package.
+
+The checks cover file opening/replacement/clear, immutable input provenance,
+empty and partial imports, opaque messages, explicit filter application,
+microsecond boundaries near the unsigned 64-bit limit, hidden capture-clock
+regressions, nonfinite attitude values, the 5,000-point limit, paginated import
+issues, stale-response rejection and independent browser tabs. Service checks
+also enforce the streamed 10 MiB input cap, same-origin upload restrictions,
+strict request validation and absence of execution or recording-file writes.
+
+Both themes and both plots were checked at 320, 390, 1024 and 1440 pixels.
+Rendered text/axis contrast met 4.5:1 and trace/bar contrast met 3:1; desktop and
+mobile screenshots were reviewed. The live preview was checked through the
+native file picker, filtering and explicit navigation to the existing interface.
+Browser external HTTP/WebSocket requests were blocked in the automated tests;
+the Python server was not network-namespace isolated. These focused checks do
+not repeat the complete Experiment/native SITL suite or constitute hosted
+release evidence.
+
+Ruff lint/formatting, JavaScript syntax, fixture, dependency lock and archive
+checks pass. The archives still contain 100 source files and 46 wheel members,
+including all 15 local interface assets. No runtime dependency, supported input
+profile or published v0.2.0 artifact changed in this addition.
+
 ### Instrument workspace development checks
 
 On 2026-10-05, focused checks of the Instrument service, package contents and

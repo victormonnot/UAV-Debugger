@@ -20,10 +20,11 @@ are listed in [GitHub Releases](https://github.com/victormonnot/UAV-Debugger/rel
 and hosted CI status.
 
 The source checkout also provides the new [Instrument workspace](docs/instrument.md):
-a custom local interface with light/dark themes and analysis of the bundled
-recording. Its current scope is limited to provenance, import status, source
-selection and attitude observations. The existing interface below retains the
-complete file, report and Experiment workflows during the transition.
+a custom local interface for opening supported recordings, applying source,
+message-type and exact time filters, and reading activity and attitude plots.
+It includes input provenance, import issues and light/dark themes. The existing
+interface below retains record inspection, reports and the complete saved-run
+and Experiment workflows during the transition.
 
 See the [Experiment interface](docs/experiment-ui.md),
 [saved Experiment inspection](docs/saved-experiments.md) and
@@ -83,13 +84,16 @@ After installation, start the custom interface with:
 uv run --locked uav-debugger-instrument
 ```
 
-Open [Instrument](http://127.0.0.1:8765) and load the bundled example. Its
-observations are read by the existing Python importer, with the original
-fingerprint, capture clock and import warnings retained. Source selection and
-the attitude plot use the same analysis logic as the full interface. Fonts,
-icons and plotting assets are served locally.
+Open [Instrument](http://127.0.0.1:8765) and choose **Load example** or
+**Open recording**. Files up to **10 MiB** use the existing importer and retain
+their fingerprint, capture clock and import warnings. Select a source, message
+type and inclusive time bounds, then choose **Apply filters**. **Activity** and
+**Attitude** use the same analysis logic as the full interface; plot zoom does
+not change the applied filters. Fonts, icons and plotting assets are served
+locally. See the [Instrument guide](docs/instrument.md) for partial imports,
+capacity limits and file replacement behavior.
 
-Opening other files, exporting reports, saved-run comparison and Experiment
+Record inspection, exporting reports, saved-run comparison and Experiment
 execution remain in `uav-debugger-analyze`. Instrument can link to that interface
 when it is started separately; see the [launch and handoff guide](docs/instrument.md).
 Instrument does not launch an experiment, start the other server or transfer a
@@ -200,7 +204,7 @@ for local reproduction, current development checks and published-release evidenc
 
 | Document | Contents |
 | --- | --- |
-| [Instrument workspace](docs/instrument.md) | Custom interface, themes, bundled recording analysis, local assets and transition to complete workflows. |
+| [Instrument workspace](docs/instrument.md) | Open recordings, apply exact filters, inspect activity and attitude, and continue to complete workflows. |
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
 | [Experiment interface](docs/experiment-ui.md) | Explicit Start/Stop, shared execution, simulator setup and saved-evidence handoff. |
 | [Compare saved experiments](docs/comparison.md) | Pair eligibility, measurement-relative windows, observed differences and reports. |
