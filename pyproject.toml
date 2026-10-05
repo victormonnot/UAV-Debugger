@@ -10,7 +10,13 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.12"
-dependencies = ["pymavlink==2.4.49", "streamlit==1.63.0", "plotly==7.0.0"]
+dependencies = [
+    "pymavlink==2.4.49",
+    "streamlit==1.63.0",
+    "plotly==7.0.0",
+    "starlette==1.7.0",
+    "uvicorn==0.53.0",
+]
 
 [project.urls]
 Repository = "https://github.com/victormonnot/UAV-Debugger"
@@ -21,6 +27,7 @@ Issues = "https://github.com/victormonnot/UAV-Debugger/issues"
 uav-debugger = "uav_debugger.__main__:main"
 uav-debugger-analyze = "uav_debugger.analyze:main"
 uav-debugger-experiment = "uav_debugger.experiment:main"
+uav-debugger-instrument = "uav_debugger.instrument:main"
 
 [dependency-groups]
 dev = ["pytest==9.1.1", "ruff==0.16.7"]
@@ -33,6 +40,21 @@ packages = ["src/uav_debugger"]
 include = [
     "/src/uav_debugger/*.py",
     "/src/uav_debugger/data/*.tlog",
+    "/src/uav_debugger/instrument_static/index.html",
+    "/src/uav_debugger/instrument_static/app.js",
+    "/src/uav_debugger/instrument_static/theme.js",
+    "/src/uav_debugger/instrument_static/style.css",
+    "/src/uav_debugger/instrument_static/vendor/ibm-plex-sans-latin-400-normal.woff2",
+    "/src/uav_debugger/instrument_static/vendor/ibm-plex-sans-latin-500-normal.woff2",
+    "/src/uav_debugger/instrument_static/vendor/ibm-plex-sans-latin-600-normal.woff2",
+    "/src/uav_debugger/instrument_static/vendor/ibm-plex-mono-latin-400-normal.woff2",
+    "/src/uav_debugger/instrument_static/vendor/ibm-plex-mono-latin-500-normal.woff2",
+    "/src/uav_debugger/instrument_static/vendor/marcellus-latin-400-normal.woff2",
+    "/src/uav_debugger/instrument_static/vendor/lucide.min.js",
+    "/src/uav_debugger/instrument_static/vendor/ibm-plex-sans-LICENSE.txt",
+    "/src/uav_debugger/instrument_static/vendor/ibm-plex-mono-LICENSE.txt",
+    "/src/uav_debugger/instrument_static/vendor/marcellus-LICENSE.txt",
+    "/src/uav_debugger/instrument_static/vendor/lucide-LICENSE.txt",
     "/tests/test_*.py",
     "/tests/conftest.py",
     "/tests/fixtures/*",
@@ -53,6 +75,7 @@ include = [
     "/docs/first-milestone.md",
     "/docs/importer.md",
     "/docs/analyze.md",
+    "/docs/instrument.md",
     "/docs/experiment.md",
     "/docs/experiment-ui.md",
     "/docs/sitl.md",

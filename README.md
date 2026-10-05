@@ -19,6 +19,12 @@ are listed in [GitHub Releases](https://github.com/victormonnot/UAV-Debugger/rel
 [verification and release preparation](docs/verification.md) for actual checks
 and hosted CI status.
 
+The source checkout also provides the new [Instrument workspace](docs/instrument.md):
+a custom local interface with light/dark themes and analysis of the bundled
+recording. Its current scope is limited to provenance, import status, source
+selection and attitude observations. The existing interface below retains the
+complete file, report and Experiment workflows during the transition.
+
 See the [Experiment interface](docs/experiment-ui.md),
 [saved Experiment inspection](docs/saved-experiments.md) and
 [baseline/blackout comparison](docs/comparison.md).
@@ -68,6 +74,26 @@ uv run --locked python -m uav_debugger tests/fixtures/telemetry-gap.tlog
 The [importer guide](docs/importer.md) documents the Python API, JSON output and
 exit codes; the [fixture documentation](tests/fixtures/README.md) records the
 example's provenance and expected observations.
+
+## Instrument workspace
+
+After installation, start the custom interface with:
+
+```sh
+uv run --locked uav-debugger-instrument
+```
+
+Open [Instrument](http://127.0.0.1:8765) and load the bundled example. Its
+observations are read by the existing Python importer, with the original
+fingerprint, capture clock and import warnings retained. Source selection and
+the attitude plot use the same analysis logic as the full interface. Fonts,
+icons and plotting assets are served locally.
+
+Opening other files, exporting reports, saved-run comparison and Experiment
+execution remain in `uav-debugger-analyze`. Instrument can link to that interface
+when it is started separately; see the [launch and handoff guide](docs/instrument.md).
+Instrument does not launch an experiment, start the other server or transfer a
+recording to it. This addition is not part of the published v0.2.0 artifacts.
 
 ## Run a local Experiment
 
@@ -174,6 +200,7 @@ for local reproduction, current development checks and published-release evidenc
 
 | Document | Contents |
 | --- | --- |
+| [Instrument workspace](docs/instrument.md) | Custom interface, themes, bundled recording analysis, local assets and transition to complete workflows. |
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
 | [Experiment interface](docs/experiment-ui.md) | Explicit Start/Stop, shared execution, simulator setup and saved-evidence handoff. |
 | [Compare saved experiments](docs/comparison.md) | Pair eligibility, measurement-relative windows, observed differences and reports. |

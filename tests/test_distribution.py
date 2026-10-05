@@ -92,6 +92,13 @@ include = ["/src/uav_debugger/*.py", "/src/uav_debugger/data/*.tlog",
         ).encode(),
         "scripts/check_distribution.py": SCRIPT.read_bytes(),
     }
+    files.update(
+        {f"src/{name}": f"Test asset: {name}\n".encode() for name in checker.INSTRUMENT_ASSETS}
+    )
+    asset_includes = ", ".join(f'"/src/{name}"' for name in checker.INSTRUMENT_ASSETS)
+    files["pyproject.toml"] = files["pyproject.toml"].replace(
+        b"include = [", f"include = [{asset_includes}, ".encode()
+    )
     for name, content in files.items():
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -340,6 +347,59 @@ def test_changed_public_file_is_detected(distribution):
     source["README.md"] += b"stale documentation"
     _write_source(dist, source)
     with pytest.raises(ValueError, match="Source archive bytes differ: README.md"):
+        checker.check_distribution(root, dist)
+
+
+@pytest.mark.parametrize("archive", ["source", "wheel"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "app.js",
+        "vendor/ibm-plex-sans-latin-400-normal.woff2",
+        "vendor/lucide-LICENSE.txt",
+    ],
+)
+@pytest.mark.parametrize("change", ["missing", "changed"])
+def test_instrument_assets_are_required_and_match_source(distribution, archive, name, change):
+    root, dist, source, wheel = distribution
+    member = f"uav_debugger/instrument_static/{name}"
+    files = source if archive == "source" else wheel
+    if archive == "source":
+        member = f"src/{member}"
+    if change == "missing":
+        del files[member]
+    else:
+        files[member] += b"altered"
+    if archive == "source":
+        _write_source(dist, source)
+    else:
+        _write_wheel(dist, wheel)
+    with pytest.raises(ValueError, match="missing|bytes differ"):
+        checker.check_distribution(root, dist)
+
+
+def test_instrument_assets_require_explicit_source_includes(distribution):
+    root, dist, source, _ = distribution
+    config = source["pyproject.toml"].replace(
+        b'"/src/uav_debugger/instrument_static/app.js"',
+        b'"/src/uav_debugger/instrument_static/*.js"',
+    )
+    (root / "pyproject.toml").write_bytes(config)
+    with pytest.raises(ValueError, match="Instrument asset needs an explicit source include"):
+        checker.check_distribution(root, dist)
+
+
+@pytest.mark.parametrize("archive", ["source", "wheel"])
+def test_undeclared_instrument_asset_is_rejected(distribution, archive):
+    root, dist, source, wheel = distribution
+    member = "uav_debugger/instrument_static/vendor/private-recording.tlog"
+    if archive == "source":
+        source[f"src/{member}"] = b"must not ship"
+        _write_source(dist, source)
+    else:
+        wheel[member] = b"must not ship"
+        _write_wheel(dist, wheel)
+    with pytest.raises(ValueError, match="unexpected.*private-recording"):
         checker.check_distribution(root, dist)
 
 

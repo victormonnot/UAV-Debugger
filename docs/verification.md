@@ -95,7 +95,8 @@ server was isolated from external networking.
 `scripts/check_distribution.py` requires exactly one source archive and one
 wheel for the version declared in `pyproject.toml`. It compares source-archive
 files against the explicit Hatch inclusion list, and wheel modules/data against
-the package source. Unexpected, missing, duplicated or changed files cause a
+the package source. This includes the 15 explicitly declared Instrument HTML,
+CSS, JavaScript, font and license files. Unexpected, missing, duplicated or changed files cause a
 failure. It also checks distribution metadata and wheel integrity entries.
 The package declares `MIT` as its SPDX license expression. The corresponding
 metadata headers must agree with `pyproject.toml`; source and wheel archives must
@@ -111,6 +112,31 @@ declared inputs; changes to the inclusion list and source files still require
 review.
 
 ## Verification status and release conditions
+
+### Instrument workspace development checks
+
+On 2026-10-05, focused checks of the Instrument service, package contents and
+reused analysis/chart/telemetry/execution boundaries passed **188 tests** in the
+development environment. A freshly installed wheel in a separate locked Python
+3.12.3 environment then passed **118 tests in 46.18 seconds** from a working
+directory outside the source package: service and distribution checks, all
+**15 Instrument Chromium cases**, and two existing Analyze browser workflows
+covering upload, filtering, record inspection, report download and the bundled
+example. Imports resolved inside the installed environment.
+
+Instrument checks cover original timestamps and source separation, unconnected
+observation gaps, failed and cancelled requests, independent browser tabs,
+appearance persistence and explicit handoff without execution. Both themes were
+checked at 320, 390, 1024 and 1440 pixels, with text/axis contrast of at least
+4.5:1 and plotted trace contrast of at least 3:1 against their backgrounds.
+Browser HTTP and WebSocket requests to non-local hosts were blocked; this run
+did not isolate the Python server in a network namespace. It did not rerun the
+complete Experiment or native SITL suites, and is not hosted release evidence.
+
+Ruff lint/formatting, JavaScript syntax and archive checks passed. The archives
+contain 100 source files and 46 wheel members, including all 15 Instrument
+assets. These unreleased source additions retain version metadata 0.2.0 but do
+not change the published v0.2.0 artifacts or their historical verification below.
 
 ### 0.2.0 release preparation
 

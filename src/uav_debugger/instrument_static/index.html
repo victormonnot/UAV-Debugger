@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>UAV Debugger | Instrument</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/theme.js"></script>
+  <script src="/assets/vendor/lucide.min.js" defer></script>
+  <script src="/vendor/plotly.min.js" defer></script>
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to analysis</a>
+  <header class="app-header">
+    <div class="identity"><h1>UAV Debugger</h1><span class="product-caption">Instrument</span></div>
+    <div class="header-actions">
+      <label class="theme-control" for="theme-select"><i data-lucide="sun-moon" aria-hidden="true"></i><span>Appearance</span></label>
+      <select id="theme-select" aria-label="Appearance"><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select>
+      <span class="local-status"><span class="status-dot"></span>Local workspace</span>
+    </div>
+  </header>
+  <nav class="mode-navigation" aria-label="Workspace mode">
+    <a class="mode-link active" href="#main" aria-current="page"><span class="mono">01</span> Analyze</a>
+    <button id="experiment-button" class="mode-link" aria-haspopup="dialog"><span class="mono">02</span> Experiment <i data-lucide="arrow-up-right" aria-hidden="true"></i></button>
+    <span class="navigation-context overline">Saved observations</span>
+  </nav>
+  <main id="main">
+    <section class="recording-header" aria-label="Current recording">
+      <div class="recording-identity"><p class="overline">Recording <span class="separator">/</span> <span id="recording-kind">No input</span></p><h2 id="recording-name">No recording selected</h2><p id="recording-meta" class="mono muted">QGC timestamped MAVLink</p></div>
+      <div class="recording-actions"><button id="load-example" class="primary"><i data-lucide="file-chart-column" aria-hidden="true"></i><span>Load example</span></button><button id="clear-recording" class="icon-button bordered" aria-label="Clear recording" data-tip="Clear recording" disabled><i data-lucide="x" aria-hidden="true"></i></button><button id="full-workspace" class="bordered" aria-haspopup="dialog"><i data-lucide="external-link" aria-hidden="true"></i><span>Existing workspace</span></button></div>
+    </section>
+    <div id="error" class="error-bar" role="alert" hidden><i data-lucide="circle-alert" aria-hidden="true"></i><span id="error-message"></span><button id="retry-example" class="bordered">Retry</button></div>
+    <div id="status" class="status-bar" role="status" aria-live="polite"><span class="status-dot"></span><span id="status-message">Ready</span></div>
+    <div class="instrument-layout" id="analysis-workspace">
+      <aside class="source-panel" aria-label="Recording sources">
+        <div class="section-heading"><h3 class="overline">Sources</h3><span id="source-count" class="mono muted">0</span></div>
+        <div id="source-empty" class="empty-label">No sources</div>
+        <div id="source-list" class="source-list" aria-label="Source selection"></div>
+        <div class="panel-section"><p class="overline">Message</p><p class="field-value mono">ATTITUDE</p></div>
+        <div class="panel-section"><p class="overline">Display</p><dl class="fact-list"><div><dt>Unit</dt><dd>rad</dd></div><div><dt>Clock</dt><dd>Capture</dd></div><div><dt>Max. line gap</dt><dd>1.000 s</dd></div><div><dt>Samples</dt><dd id="sample-count">0</dd></div></dl></div>
+        <div class="panel-section file-totals"><p class="overline">Recording total</p><dl class="fact-list"><div><dt>Records</dt><dd id="record-count">0</dd></div><div><dt>Decoded</dt><dd id="decoded-count">0</dd></div><div><dt>Opaque</dt><dd id="opaque-count">0</dd></div></dl></div>
+      </aside>
+      <section class="chart-panel" aria-labelledby="chart-title">
+        <div class="chart-toolbar"><h3 id="chart-title">Attitude <span class="mono muted">/ rad</span></h3><div class="chart-actions"><button id="reset-chart" class="icon-button" aria-label="Reset chart view" data-tip="Reset chart view" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i></button><button id="focus-chart" class="icon-button" aria-label="Focus chart" aria-pressed="false" data-tip="Focus chart" disabled><i data-lucide="maximize" aria-hidden="true"></i></button></div></div>
+        <div id="plot-legend" class="plot-legend" aria-label="Visible attitude series"><button data-series="0" aria-pressed="true" disabled><span class="line-swatch roll"></span>Roll</button><button data-series="1" aria-pressed="true" disabled><span class="line-swatch pitch"></span>Pitch</button><button data-series="2" aria-pressed="true" disabled><span class="line-swatch yaw"></span>Yaw</button><span id="plot-context" class="mono muted">No source selected</span></div>
+        <div class="plot-area"><div id="empty-plot" class="empty-plot"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><h3>No observations loaded</h3><span class="muted">telemetry-gap.tlog <span class="separator">/</span> bundled synthetic recording</span></div><div id="attitude-plot" aria-label="Recorded roll, pitch and yaw in radians over capture time" hidden></div><div id="plot-unavailable" class="empty-plot" hidden><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><h3 id="plot-unavailable-text">No attitude observations</h3></div></div>
+        <div class="chart-footer"><span id="plot-summary">Capture time relative to the first recorded message.</span><span id="gap-caption" class="observation-note" hidden></span></div>
+        <details id="observations-details" class="observations-details" hidden><summary>Plotted observations <span id="observations-count" class="mono muted"></span></summary><div class="table-scroll"><table><caption class="sr-only">Original plotted samples, with exact capture timestamps</caption><thead><tr><th>Record</th><th>Offset (s)</th><th>Roll (rad)</th><th>Pitch (rad)</th><th>Yaw (rad)</th><th>Capture timestamp (us)</th></tr></thead><tbody id="observation-rows"></tbody></table></div></details>
+      </section>
+      <aside id="evidence" class="evidence-panel" aria-label="Recording evidence">
+        <div class="section-heading"><h3 class="overline">Evidence</h3><i data-lucide="fingerprint" aria-hidden="true"></i></div>
+        <h4 id="import-status">No import</h4><p id="import-description" class="muted">Original recording</p>
+        <dl class="fact-list evidence-facts"><div><dt>Input size</dt><dd id="input-size">N/A</dd></div><div><dt>Consumed</dt><dd id="consumed-size">N/A</dd></div><div><dt>Remaining</dt><dd id="remaining-size">N/A</dd></div><div><dt>Capture span</dt><dd id="capture-span">N/A</dd></div></dl>
+        <div class="panel-section"><p class="overline">Capture origin <span class="unit">/ Unix us</span></p><p id="capture-origin" class="mono break-value">N/A</p><p class="microcopy">Payload clocks remain separate.</p></div>
+        <details id="provenance-details"><summary>Input provenance</summary><dl class="stacked-facts"><dt>Profile</dt><dd id="profile">N/A</dd><dt>Dialect</dt><dd id="dialect">N/A</dd><dt>Decoder</dt><dd id="decoder">N/A</dd><dt>SHA-256</dt><dd id="sha256">N/A</dd></dl></details>
+        <details id="issues-details"><summary><span>Import issues</span><span id="issue-count" class="issue-count mono">0</span></summary><p id="issues-empty" class="muted">No import</p><ol id="issue-list"></ol></details>
+        <p class="observation-limit">An interval without observations does not establish packet loss or its cause.</p>
+      </aside>
+    </div>
+  </main>
+  <footer class="app-footer"><span id="footer-state" class="mono">FILE-ONLY ANALYSIS</span><span class="footer-provenance">Capture clock <span class="separator">/</span> original timestamps preserved</span><span id="version" class="mono"></span></footer>
+  <dialog id="workspace-dialog" aria-labelledby="workspace-title"><div class="dialog-heading"><h2 id="workspace-title">Existing workspace</h2><button id="close-workspace" class="icon-button" aria-label="Close existing workspace dialog" data-tip="Close"><i data-lucide="x" aria-hidden="true"></i></button></div><p id="workspace-context">Recordings, saved experiments and execution</p><p id="workspace-availability" class="muted">No existing workspace linked.</p><a id="classic-link" class="primary action-link" target="_blank" rel="noopener noreferrer" hidden>Open existing workspace <i data-lucide="arrow-up-right" aria-hidden="true"></i></a><p class="dialog-note">Opening the workspace does not start an experiment.</p></dialog>
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+</body>
+</html>

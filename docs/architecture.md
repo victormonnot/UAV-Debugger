@@ -9,6 +9,12 @@ local UDP path and save captures for those same analysis components. See the
 a bounded [saved baseline/blackout comparison](comparison.md) reuses the same
 validated evidence. Broader integrations remain future work.
 
+The source checkout additionally provides the [Instrument workspace](instrument.md),
+a custom local interface currently limited to the bundled recording, source
+selection and attitude observations. The complete Streamlit interface remains
+available during migration. Instrument is not part of the published v0.2.0
+artifacts.
+
 ## Shared analysis, optional experiment execution
 
 ```mermaid
@@ -49,6 +55,28 @@ starts the local sender and relay; file opening and presentation reruns do not.
 The importer now represents file bytes, decoded records and import issues in
 `ImportResult`, `Record` and `ImportIssue`. This concrete recording model does
 not depend on the runner's JSON event schema.
+
+## Instrument presentation boundary
+
+`instrument.py` serves packaged HTML, CSS and JavaScript through Starlette and
+Uvicorn on loopback. Its fixed `/api/example` request reads the installed
+synthetic recording and calls the existing importer, `build_attitude_view` and
+`attitude_chart`. The browser owns the displayed recording and selected source;
+the server maintains no mutable recording session or execution controller.
+No upload, arbitrary path reader or Experiment execution endpoint is exposed.
+
+The schema version 1 payload preserves provenance, original capture timestamps,
+import issues and chart point references. Exact capture timestamps cross the
+JSON boundary as decimal strings. Relative plot coordinates are display numbers
+and never replace original evidence. The frontend changes appearance and source
+selection; the existing Python modules own import and chart interpretation.
+
+Fonts and Lucide icons are distributed with the interface, including their
+license texts. The installed Plotly package supplies its local JavaScript
+bundle. No runtime CDN is required. Optional navigation to a separately started
+full workspace uses a configured loopback port and transfers no recording state
+or execution command. See the [Instrument guide](instrument.md) for routes,
+launcher options and the current workflow boundary.
 
 ## Saved-run analysis boundary
 
@@ -211,7 +239,8 @@ measurement semantics. An initial importer does not imply all UAVs are supported
 ## Implementation stack
 
 The implementation retains Python 3.12, pymavlink 2.4.49, Streamlit 1.63.0,
-Plotly 7.0.0, in-memory records, uv, pytest and Ruff. Playwright is an optional
+Plotly 7.0.0, in-memory records, uv, pytest and Ruff. Instrument adds Starlette
+1.7.0 and Uvicorn 0.53.0 with packaged HTML, CSS and JavaScript. Playwright is an optional
 browser-test dependency. The [first milestone](first-milestone.md) documents
 the original v0.1.0 Analyze scope.
 
@@ -219,7 +248,8 @@ the original v0.1.0 Analyze scope.
 | --- | --- | --- |
 | Runtime | Python 3.12; Linux x86_64 | One runtime for decoding, analysis, presentation and local execution. |
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
-| Interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection and download in one application. |
+| Full interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection, downloads and explicit Experiment execution. |
+| Instrument interface | Packaged HTML/CSS/JavaScript; Starlette and Uvicorn on `127.0.0.1` | Custom presentation with a bounded read-only connection to existing Python analysis. |
 | Timeline | Plotly with explicit source/type/time controls | Activity and attitude plots with point-to-record inspection; zoom does not change filters. |
 | Session data | Python data structures in memory; original experiment evidence on disk | Per-session recording/run/pair analysis and a shared bounded execution history, with no automatic recovery or execution on restart. |
 | Report | Markdown download | Readable evidence summary with source fingerprints and record references. |
@@ -275,10 +305,9 @@ filter state. Plot zoom only changes the display.
 See [execution and caching](https://docs.streamlit.io/develop/concepts/architecture/caching)
 and [Plotly charts](https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart).
 
-This approach provides a small navigable analyzer alongside the JSON inspection
-command. An API and custom web frontend would become
-useful if richer coordinated interactions or synchronized video justify them.
-Database storage, native packaging and separate execution services would follow
+The full interface and JSON inspection command remain available while
+Instrument gains additional workflows. Database storage, native packaging and
+separate execution services would follow
 demonstrated needs. The local Experiment schema covers the implemented path;
 unused adapters and a general target framework are outside this increment.
 
@@ -288,8 +317,9 @@ reject implicit lock changes; see
 The source distribution uses an explicit public-file inclusion list. The
 project's original code, documentation and synthetic fixture use the
 [MIT License](../LICENSE). Source and wheel distributions include the license
-text and [direct runtime dependency notices](../THIRD_PARTY_NOTICES.md);
-dependencies retain their own terms.
+text, [third-party notices](../THIRD_PARTY_NOTICES.md) and the explicitly declared
+Instrument browser assets and their license texts; dependencies and vendored
+assets retain their own terms.
 
 See the [first milestone](first-milestone.md) for the published Analyze scope,
 and the [mode workflows](workflows.md) for current and intended user experience.

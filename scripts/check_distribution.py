@@ -3,7 +3,7 @@
 
 Run after building into a clean directory. The source archive must contain the
 public Hatch include list, and the wheel must match the package's Python modules,
-sole bundled synthetic recording and explicitly declared license files. This is
+bundled synthetic recording, Instrument assets and declared license files. This is
 a project check, not a general wheel or source-distribution validator.
 """
 
@@ -28,6 +28,26 @@ from pathlib import Path, PurePosixPath
 BUNDLED_FIXTURE = "uav_debugger/data/telemetry-gap.tlog"
 TEST_FIXTURE = "tests/fixtures/telemetry-gap.tlog"
 FIXTURE_MANIFEST = "tests/fixtures/telemetry-gap.expected.json"
+INSTRUMENT_ASSETS = tuple(
+    f"uav_debugger/instrument_static/{name}"
+    for name in (
+        "index.html",
+        "app.js",
+        "theme.js",
+        "style.css",
+        "vendor/ibm-plex-sans-latin-400-normal.woff2",
+        "vendor/ibm-plex-sans-latin-500-normal.woff2",
+        "vendor/ibm-plex-sans-latin-600-normal.woff2",
+        "vendor/ibm-plex-mono-latin-400-normal.woff2",
+        "vendor/ibm-plex-mono-latin-500-normal.woff2",
+        "vendor/marcellus-latin-400-normal.woff2",
+        "vendor/lucide.min.js",
+        "vendor/ibm-plex-sans-LICENSE.txt",
+        "vendor/ibm-plex-mono-LICENSE.txt",
+        "vendor/marcellus-LICENSE.txt",
+        "vendor/lucide-LICENSE.txt",
+    )
+)
 
 
 def _require(condition: bool, message: str) -> None:
@@ -215,6 +235,11 @@ def check_distribution(root: Path, dist_dir: Path) -> str:
 
     expected_source: set[str] = set()
     patterns = metadata["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    for name in INSTRUMENT_ASSETS:
+        _require(
+            f"/src/{name}" in patterns,
+            f"Instrument asset needs an explicit source include: {name}",
+        )
     for name in license_files:
         _require(
             name in {pattern.removeprefix("/") for pattern in patterns},
@@ -238,7 +263,7 @@ def check_distribution(root: Path, dist_dir: Path) -> str:
         path.relative_to(root / "src").as_posix()
         for path in (root / "src" / "uav_debugger").glob("*.py")
         if path.is_file()
-    } | {BUNDLED_FIXTURE}
+    } | {BUNDLED_FIXTURE, *INSTRUMENT_ASSETS}
     dist_info = f"{stem}.dist-info"
     expected_wheel = (
         expected_package
