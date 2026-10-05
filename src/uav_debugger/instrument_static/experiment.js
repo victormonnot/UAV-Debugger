@@ -66,6 +66,8 @@
     text("experiment-evidence-status", state.validated && run && state.validated.id === run.run_id
       ? state.validated.status + " (last read)" : "Not validated");
     text("experiment-output", run?.output);
+    text("experiment-requested", run ? JSON.stringify(run.requested, null, 2) : "No requested settings");
+    text("experiment-control-file", run?.control_file);
     for (const [id, key] of [["source", "source"], ["scenario", "scenario"], ["duration", "duration_s"], ["blackout-at", "blackout_at_s"], ["blackout-duration", "blackout_duration_s"]]) {
       text("experiment-requested-" + id, run?.requested[key]);
     }
@@ -133,6 +135,7 @@
   }
   async function command(kind, body) {
     if (!state.connected || state.busy) return;
+    const finishFocus = InstrumentUI.retainFocus();
     cancelPoll(); cancelHandoff();
     const token = state.info.action_token;
     state.busy = true; error(null); render();
@@ -151,6 +154,7 @@
         : failure.message);
     } finally {
       clearTimeout(timeout); state.busy = false; render();
+      finishFocus({ restore: state.visible, target: !$("experiment-stop").disabled ? $("experiment-stop") : !$("experiment-start").disabled ? $("experiment-start") : $("experiment-run-id") });
       if (state.visible) refresh();
     }
   }
@@ -161,6 +165,7 @@
   async function handoff(destination) {
     const run = selected();
     if (!state.connected || state.busy || state.handoffBusy || !run?.can_open) return;
+    const finishFocus = InstrumentUI.retainFocus();
     cancelHandoff();
     const request = state.handoff, controller = new AbortController();
     state.handoffController = controller; state.handoffBusy = true; state.validated = null;
@@ -181,6 +186,7 @@
       text("experiment-handoff-status", "Evidence unavailable / no handoff");
     } finally {
       if (request === state.handoff) { state.handoffBusy = false; state.handoffController = null; render(); }
+      finishFocus({ restore: request === state.handoff && state.visible });
     }
   }
   function init(callbacks) {

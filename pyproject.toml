@@ -43,6 +43,7 @@ include = [
     "/src/uav_debugger/data/*.tlog",
     "/src/uav_debugger/instrument_static/index.html",
     "/src/uav_debugger/instrument_static/app.js",
+    "/src/uav_debugger/instrument_static/ui.js",
     "/src/uav_debugger/instrument_static/runs.js",
     "/src/uav_debugger/instrument_static/comparison.js",
     "/src/uav_debugger/instrument_static/experiment.js",

@@ -159,11 +159,11 @@ below and may reject evidence that had readable listing metadata.
 
 ## Open and inspect
 
-The following steps describe the existing interface. Instrument's equivalent
+The following steps describe the classic interface. Instrument's equivalent
 single-run workflow is described under [Use Instrument](#use-instrument).
 
-1. Start [Analyze](analyze.md#install-and-launch) and choose **Saved experiment**
-   under **Analyze input**.
+1. Start the [classic interface](analyze.md#existing-launcher-compatibility)
+   and choose **Saved experiment** under **Analyze input**.
 2. Under **Open saved experiment**, select the run directory containing
    `run.json`, the JSONL traces and the captures. Select the directory on the
    computer running the browser; transfer the saved directory there first when

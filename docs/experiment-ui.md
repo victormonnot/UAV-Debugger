@@ -130,8 +130,9 @@ The listener remains `127.0.0.1`, and usage statistics remain disabled.
 
 1. Complete a baseline and click **Use as baseline** for that run.
 2. Start a blackout with the same source, duration and profile. When it finishes,
-   click **Use as blackout**. The **Run** selector also lets you choose an earlier
-   retained run and assign its corresponding role.
+   click **Use as blackout**. **Selected experiment** in Instrument, or **Run**
+   in the classic interface, also lets you choose an earlier retained run and
+   assign its corresponding role.
 3. Check the displayed run identifiers and click **Compare selected runs**.
 4. Analyze validates both evidence sets and opens
    [Compare experiments](comparison.md). Review compatibility, the explicit

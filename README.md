@@ -11,22 +11,15 @@ a local UDP relay to a receiver. Explicit Start/Stop controls and a CLI produce
 captures before and after the relay, retaining requested settings, applied
 actions and actual observations separately.
 
-**This source checkout targets version 0.2.0.** It adds local Experiment
-execution, saved-run inspection and comparison, a read-only experiment catalog
-and configurable forwarding interruptions to the offline Analyze workflow.
-The commands below use this checkout. Published versions and their artifacts
-are listed in [GitHub Releases](https://github.com/victormonnot/UAV-Debugger/releases). See
-[verification and release preparation](docs/verification.md) for actual checks
-and hosted CI status.
-
-The source checkout also provides the new [Instrument workspace](docs/instrument.md):
-a custom local interface for opening supported recordings, applying source,
-message-type and exact time filters, reading activity and attitude plots,
-inspecting original messages and exporting Markdown evidence reports.
-It also opens saved experiments, browses local run directories and compares a
-saved baseline with a blackout, with input provenance, evidence checks and
-light/dark themes. Its dedicated **Experiment** mode explicitly starts and stops
-the same bounded local workers, then opens saved evidence in Analyze.
+**Instrument is the recommended interface for the current source checkout.**
+Its custom Analyze / Experiment workspace includes light/dark themes, file
+inspection, saved-run browsing, comparison and explicit local worker controls.
+These are unreleased source additions, not changes to the published **v0.2.0**
+artifacts. Package metadata remains 0.2.0. The commands below use this checkout;
+published artifacts remain listed in
+[GitHub Releases](https://github.com/victormonnot/UAV-Debugger/releases).
+See [Instrument](docs/instrument.md) for the current interface and
+[verification](docs/verification.md) for actual checks and hosted CI status.
 
 See the [Experiment interface](docs/experiment-ui.md),
 [saved Experiment inspection](docs/saved-experiments.md) and
@@ -40,32 +33,40 @@ commands from the repository root:
 
 ```sh
 uv sync --locked
-uv run --locked uav-debugger-analyze
+uv run --locked uav-debugger-instrument
 ```
 
-Open [Analyze](http://127.0.0.1:8501) in a browser on the same computer and click
+Open [Instrument](http://127.0.0.1:8765) in a browser on the same computer and click
 **Load example**. The bundled synthetic recording needs no upload and contains
 12 messages from two sources. Select source **1 / 1**, message type
 **ATTITUDE**, start **1** and end **5**, then click **Apply filters**: records
 **#2** and **#8** show a four-second interval between those observations.
 
-The **Attitude** plot shows roll, pitch and yaw in radians. Click a point or use
-**Record** to inspect its decoded fields, original capture timestamp and frame
+The **Attitude** plot shows roll, pitch and yaw in radians. Click a marker or a
+record in **Messages** to inspect its decoded fields, original capture timestamp and frame
 bytes. The example's four-second gap remains disconnected at the default
 one-second maximum line gap. **Download report** exports the applied filters, plot settings, input
 provenance, import limitations and the currently inspected record. Five repeated
 timestamp warnings are expected in this fixture.
 
 Choose your own file under **Open recording** to replace the example, or use
-**Clear example** to return to an empty view. To use Analyze on a remote machine,
+**Clear recording** to return to an empty view. To use Analyze on a remote machine,
 see [access through SSH](docs/analyze.md#access-through-ssh).
 
-The launcher listens on `127.0.0.1` and disables usage statistics. Analysis
+The launcher listens on `127.0.0.1` and serves its display assets locally. Analysis
 requires no vehicle, simulator or ARGOS installation. Dependency installation
-can require network access. Recordings remain unchanged, and the application
-holds one recording, one saved run, or a selected pair for comparison per browser
-session in memory. The **10 MiB capture limit** and **64 MiB saved-run limit** bound input bytes,
+can require network access. Recordings remain unchanged. Each browser tab owns
+its inputs and comparison roles; analysis requests resend uploads or reread
+saved evidence without a server-side analysis cache. The **10 MiB capture limit**
+and **64 MiB per saved-run limit** bound input bytes,
 not total memory use or guaranteed performance.
+
+The historical `uav-debugger-analyze` command still launches the complete
+Streamlit interface on port **8501**. It is not required to use Instrument,
+and no launcher or port is redirected. Published **v0.2.0** artifacts retain
+that interface and do not include Instrument. A wheel built from this checkout
+includes the current source behavior; it is not the historical release artifact.
+See [interface coverage and differences](docs/instrument.md#interface-coverage-and-differences).
 
 See the [Analyze guide](docs/analyze.md) for filtering, reports, alternate ports
 and observation limits. For a command-line summary:
@@ -80,7 +81,7 @@ example's provenance and expected observations.
 
 ## Instrument workspace
 
-After installation, start the custom interface with:
+The recommended source interface starts with:
 
 ```sh
 uv run --locked uav-debugger-instrument
@@ -90,7 +91,7 @@ Open [Instrument](http://127.0.0.1:8765) and choose **Load example** or
 **Open recording**. Files up to **10 MiB** use the existing importer and retain
 their fingerprint, capture clock and import warnings. Select a source, message
 type and inclusive time bounds, then choose **Apply filters**. **Activity** and
-**Attitude** use the same analysis logic as the full interface; plot zoom does
+**Attitude** use the same analysis logic as the Streamlit interface; plot zoom does
 not change the applied filters. **Messages** pages the selected records in
 original order. Inspect a record from the table or an attitude marker to read
 its exact timestamp, decoded fields and original bytes. **Download report**
@@ -147,7 +148,7 @@ under **Analyze input**, or **Browse saved experiments** in Experiment. The
 catalog reads declared manifest metadata under `--experiment-root`; **Open in
 Analyze** and **Compare selected runs** validate the selected evidence before
 inspection. It does not restart runs. See
-[browsing local experiments](docs/saved-experiments.md#browse-local-experiments).
+[browsing local experiments](docs/instrument.md#browse-local-experiments).
 
 The same scenarios are available from the command line:
 

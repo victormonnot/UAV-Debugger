@@ -33,6 +33,7 @@ INSTRUMENT_ASSETS = tuple(
     for name in (
         "index.html",
         "app.js",
+        "ui.js",
         "runs.js",
         "comparison.js",
         "experiment.js",

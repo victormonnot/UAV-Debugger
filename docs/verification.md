@@ -1,7 +1,8 @@
 # Verification and release checks
 
-This document records verification of UAV Debugger **0.2.0** and its preceding
-development versions. The 0.2.0 package includes local synthetic and pinned
+This document records verification of UAV Debugger **0.2.0**, its preceding
+development versions and unreleased Instrument additions in the current source
+checkout. Published 0.2.0 artifacts do not include Instrument. The 0.2.0 package includes local synthetic and pinned
 ArduCopter SITL Experiment workflows,
 explicit browser Start/Stop and CLI controls, offline saved-run inspection,
 baseline/blackout comparison, read-only local experiment browsing and bounded
@@ -37,6 +38,13 @@ Browser tests additionally block non-local HTTP and WebSocket requests. Explicit
 `--run-browser` verification fails if Playwright cannot be imported; a missing
 Chromium installation also fails when the browser launches. Ordinary pytest
 runs continue to skip browser checks unless requested.
+
+Instrument integration checks include keyboard journeys and real Chromium
+browser zoom. The zoom fixture uses the full bundled Chromium channel with a
+temporary test-only extension and verifies its tab zoom, CSS viewport and
+device-pixel ratio. Installing `chromium` as below supplies that browser;
+installing only the headless shell is insufficient for these cases. The
+extension is created in the test directory and is not an application asset.
 
 The job has read-only repository permissions and does not upload distributions,
 create releases or publish packages. Dependency and browser installation happen
@@ -95,7 +103,7 @@ server was isolated from external networking.
 `scripts/check_distribution.py` requires exactly one source archive and one
 wheel for the version declared in `pyproject.toml`. It compares source-archive
 files against the explicit Hatch inclusion list, and wheel modules/data against
-the package source. This includes the 18 explicitly declared Instrument HTML,
+the package source. This includes the 19 explicitly declared Instrument HTML,
 CSS, JavaScript, font and license files. Unexpected, missing, duplicated or changed files cause a
 failure. It also checks distribution metadata and wheel integrity entries.
 The package declares `MIT` as its SPDX license expression. The corresponding
@@ -112,6 +120,59 @@ declared inputs; changes to the inclusion list and source files still require
 review.
 
 ## Verification status and release conditions
+
+### Instrument integration checks
+
+On 2026-10-05, a fresh locked Python 3.12.3 environment with the installed wheel
+passed the complete suite: **1,246 tests in 726.02 seconds**, with no failures
+or skips. Execution used an external working directory, verified site-packages
+imports and a user/network namespace with only loopback enabled for tests and
+Python servers. All **193 Chromium cases** ran: 155 Instrument and 38 classic
+interface cases, with browser HTTP/WebSocket restrictions as well. All **14
+native SITL cases** ran against the already verified pinned executable.
+
+The cross-workspace checks follow recording upload through filters, explicit
+inspection and Markdown download using the keyboard, then pair upload through
+comparison, report export and single-run inspection. They check visible focus
+after asynchronous operations, deliberate focus changes while a request is
+pending, the workspace skip link, and the optional Classic dialog's Escape
+and focus-return behavior.
+
+Navigation regressions preserve unapplied comparison drafts, a real user-drawn
+plot zoom and the last applied report when returning from Experiment or the
+catalog. Direct handoffs avoid requesting a previously selected comparison;
+completed-but-delayed responses cannot replace the new saved-run view. Returning
+to a catalog-backed pair still revalidates both identities and rejects changed
+evidence. Experiment exposes all requested settings and the controller file
+without conflating those requests with observed forwarding effects.
+
+Eight appearance cases visit recording, messages/inspector, saved run, catalog,
+comparison and Experiment in both themes: 1440/320-pixel viewports at 100%, and
+1440/640-pixel windows at real 200% browser zoom, yielding 720/320 CSS pixels.
+They check page overflow, populated plots and rendered text contrast of at
+least 4.5:1 on selected controls and evidence fields. CDP captures use zoom-aware
+page dimensions and verify the resulting PNG width and height. These checks
+supplement the existing chart, theme and responsive coverage; they are not a
+claim of complete accessibility conformance or support for other browsers.
+Desktop, narrow and zoomed screenshots were reviewed in both themes. A separate
+source-preview check retained the example across Analyze/Experiment, checked
+both themes and Classic navigation, and issued no Start/Stop or external request.
+An additional isolated source check verified visible keyboard focus after the
+skip link, Start and Stop in both themes using two short synthetic workers.
+
+Ruff lint/formatting, JavaScript syntax, lock, unchanged fixture, whitespace and
+archive checks pass. Final archives contain **116 source files, 54 wheel
+members and 19 static assets**. All 52 wheel payloads other than RECORD and
+METADATA match the fully tested installation; the only METADATA difference is
+a corrected README link to the Instrument catalog guide. Final metadata is
+checked against the source documents. No dependency, backend execution logic
+or evidence schema changed.
+
+The current source documentation recommends Instrument, records differences
+from Streamlit and retains the historical launcher/port unchanged. The
+compatibility interface is still packaged and tested; the optional Classic
+navigation control is absent unless explicitly configured. This source
+transition does not publish a release or alter published v0.2.0 artifacts.
 
 ### Instrument execution checks
 
@@ -522,7 +583,7 @@ The acceptance path from an installed wheel is:
 6. Verify the optional native profile separately with its pinned local executable,
    keeping its namespace requirements and observation limits explicit.
 
-See [installation and launch](analyze.md#install-and-launch), the
+See [classic launcher compatibility](analyze.md#existing-launcher-compatibility), the
 [Experiment interface](experiment-ui.md), [saved-run inspection](saved-experiments.md)
 and [comparison](comparison.md) for the corresponding user controls. This is a
 release candidate, not a published v0.2.0 release; the published baseline remains

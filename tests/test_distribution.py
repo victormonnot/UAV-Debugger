@@ -355,6 +355,7 @@ def test_changed_public_file_is_detected(distribution):
     "name",
     [
         "app.js",
+        "ui.js",
         "runs.js",
         "comparison.js",
         "experiment.js",

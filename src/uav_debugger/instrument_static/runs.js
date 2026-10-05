@@ -125,6 +125,7 @@
     setBusy(busy);
   }
   async function loadCatalog() {
+    const finishFocus = InstrumentUI.retainFocus();
     cancelCatalog();
     const request = catalogRequest, controller = new AbortController();
     catalogController = controller; catalogBusy = true;
@@ -147,6 +148,7 @@
         catalogBusy = false; catalogController = null;
         $("catalog-view").setAttribute("aria-busy", "false"); setBusy(busy);
       }
+      finishFocus({ restore: request === catalogRequest });
     }
   }
   function renderCatalog() {

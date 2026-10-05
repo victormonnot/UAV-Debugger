@@ -1,7 +1,8 @@
 # Instrument workspace
 
-Instrument is UAV Debugger's custom local web interface for saved telemetry
-recordings. Open a supported file or the bundled example, review import status
+Instrument is the recommended local interface for UAV Debugger's current source
+checkout. It opens saved telemetry recordings. Open a supported file or the
+bundled example, review import status
 and provenance, apply exact source/type/time filters, and inspect activity and
 attitude observations. Inspect original messages and download Markdown evidence
 reports for the applied selection. Light, dark and system appearance use local
@@ -14,6 +15,42 @@ blackout on an explicit common measurement-relative window.
 The dedicated **Experiment** mode provides explicit Start/Stop controls for
 the existing bounded local workers. Analyze remains independent of execution.
 Instrument is not included in the published v0.2.0 artifacts.
+
+## Interface coverage and differences
+
+Both Instrument and the existing Streamlit interface support the implemented
+recording, saved-run, catalog, baseline/blackout comparison and explicit
+Experiment workflows. They share the importer, analysis and report builders,
+saved-evidence validation, comparator and worker controller. This is workflow
+coverage, not an assertion that their controls or session behavior are identical.
+
+| Area | Instrument behavior |
+| --- | --- |
+| Recording analysis | Exact inclusive filters, activity/attitude views, original-record inspection, global issues and Markdown export. Inspection starts empty; a record must be chosen explicitly. Frame and complete timestamped record bytes are available separately. |
+| Saved experiments | Both capture points, requested/applied/observed evidence, paged issues/traces/gates and reports, including runs without available captures. |
+| Catalog and comparison | Read-only discovery, uploaded/catalog/mixed pairs, guarded revalidation, exact common windows, both-point metrics and blocked-result reports. |
+| Experiment | Explicit Synthetic or configured pinned SITL Start/Stop, shared server history, controller evidence and validated terminal handoffs. |
+
+Instrument resends upload bytes or rereads catalog evidence for each analysis
+request; Streamlit retains parsed inputs in server-side browser-session memory.
+There is no cross-interface upload, filter, role or controller-history transfer.
+Both accept the same saved evidence, but reopening it is explicit. Separate
+servers own separate workers even when configured with the same output root.
+
+Instrument applies line-gap changes explicitly and applies comparison source,
+type and window together. It offers native chart controls rather than the
+generic Plotly modebar or Streamlit table tools; chart-image export is not
+exposed. Saved-run timelines with more than 100 applied gates are explicitly
+unavailable, with the complete gate table still paged. Comparison summaries
+cap reasons/differences and per-run gates/issues at 100 with omission counts;
+metadata previews are bounded. These display limits do not silently reduce
+aggregate metrics or alter the original files.
+
+The historical `uav-debugger-analyze` command, its default port **8501** and
+Streamlit dependencies remain included alongside Instrument on **8765**.
+Instrument does not require that server to run. No automatic migration,
+launcher redirection or removal is performed. Published v0.2.0 artifacts
+remain unchanged; a locally built current-source wheel is a different artifact.
 
 ## Launch
 
@@ -357,7 +394,9 @@ role immediately removes the previous comparison and report and resets its
 controls. An unreadable replacement cannot leave the old result active.
 **Clear comparison** removes both roles. Role assignments survive navigation
 to Recording, Saved experiment and Local experiments within the tab, but not
-page reload. Leaving comparison cancels pending comparison responses and
+page reload. Returning from another input or Experiment preserves unapplied
+filter drafts and chart zoom while revalidating the applied evidence. Drafts
+still do not change a report until Apply. Leaving comparison cancels pending comparison responses and
 downloads. A changed or unavailable catalog role invalidates that role and
 the pair's result; reopen the evidence before comparing again.
 
@@ -406,7 +445,11 @@ Repeated Stop is idempotent. If a command response is lost, refresh status;
 the interface never automatically repeats Start.
 
 After termination, choose a retained run under **Selected experiment** and review **Declared outcome**,
-settings, controller clocks and diagnostics. **Open in Analyze** validates its
+settings, controller clocks and diagnostics. **All requested settings** retains
+the complete requested configuration, including fixed source-profile settings;
+**Controller clocks and diagnostics** also identifies the **Control file**.
+These values describe controller requests, not observed forwarding effects.
+**Open in Analyze** validates its
 saved evidence before opening the saved-run view. **Use as baseline** and
 **Use as blackout** validate and assign terminal evidence to the existing
 comparison; **Compare selected runs** opens the pair. Controller status does
@@ -439,14 +482,15 @@ Then start Instrument with the matching optional handoff port:
 uv run --locked uav-debugger-instrument --port 8765 --classic-port 8501
 ```
 
-This exposes a link to the separately running full workspace. The ports must
+This exposes **Classic interface**, with **Open classic interface** linking to
+the separately running Streamlit server. The ports must
 differ. Instrument does not start, supervise or verify that server, and no
 recording or selection is transferred across the link. Choose Analyze or
-Experiment within the full workspace as needed. This optional link is separate
+Experiment within that interface as needed. This optional link is separate
 from Instrument's own Experiment mode. The two servers own independent workers
 and histories; starting one does not connect their controllers.
-Without `--classic-port`, the dialog reports that no existing workspace is linked.
-Use the commands above to start and link it. With SSH access, forward both
+Without `--classic-port`, the classic-interface control is hidden. Use the
+commands above only when that separate interface is needed. With SSH access, forward both
 configured ports to open both interfaces from the browser computer.
 
 The existing `uav-debugger-analyze` and `uav-debugger-experiment` commands retain

@@ -234,6 +234,7 @@
     await analyze(input, {}, "import");
   }
   async function analyze(input, filters, purpose, issuePage = 0, extra = {}) {
+    const finishFocus = InstrumentUI.retainFocus();
     cancelReport();
     const request = ++state.request;
     state.controller?.abort();
@@ -319,6 +320,7 @@
         state.pendingInput = null;
         updateControls();
       }
+      finishFocus({ restore: request === state.request && workspace === "analyze" });
     }
   }
   function setOptions(id, firstLabel, entries) {
@@ -472,6 +474,7 @@
   }
   async function downloadReport() {
     if (!state.input || state.busy || state.reportBusy) return;
+    const finishFocus = InstrumentUI.retainFocus();
     const request = ++state.reportRequest, controller = new AbortController();
     const input = state.input, saved = Boolean(state.data.run);
     const fingerprint = state.data.run?.identity || state.data.recording.sha256;
@@ -507,6 +510,7 @@
         state.reportController = null;
         updateControls();
       }
+      finishFocus({ restore: request === state.reportRequest && workspace === "analyze" });
     }
   }
   function renderSelection() {
@@ -687,24 +691,35 @@
       });
     }
   }
+  function showAnalysis(mode) {
+    const returning = workspace === "experiment", changed = state.inputMode !== mode;
+    if (returning) selectWorkspace("analyze", false);
+    selectInputMode(mode);
+    if (!changed) {
+      if (mode === "catalog") runs.loadCatalog();
+      else if (mode === "comparison" && returning) comparison.enter();
+      else renderPlot();
+    }
+    $(mode + "-input-tab").focus();
+  }
   runs.init({
-    openCatalog: key => openInput({ kind: "catalog", key }),
+    openCatalog: key => { showAnalysis("saved"); openInput({ kind: "catalog", key }); },
     assign: (role, key) => comparison.assign(role, { kind: "catalog", key }),
     page: parameters => {
       if (state.input && !state.busy) analyze(state.input, appliedFilters(), "run-page", state.data.issue_page, parameters);
     },
   });
   experiment.init({
-    inspect: key => { selectWorkspace("analyze"); selectInputMode("saved"); openInput({ kind: "catalog", key }); },
+    inspect: key => { showAnalysis("saved"); openInput({ kind: "catalog", key }); },
     assign: (role, key, run) => comparison.assign(role, { kind: "catalog", key }, run),
-    compare: () => { selectWorkspace("analyze"); selectInputMode("comparison"); },
+    compare: () => showAnalysis("comparison"),
     hasPair: () => comparison.hasPair(),
     pair: () => comparison.pair(),
-    browse: () => { selectWorkspace("analyze"); if (state.inputMode === "catalog") runs.loadCatalog(); else selectInputMode("catalog"); },
+    browse: () => showAnalysis("catalog"),
   });
   comparison.init({
-    show: () => selectInputMode("comparison"),
-    inspect: input => { selectInputMode("saved"); openInput(input); },
+    show: () => showAnalysis("comparison"),
+    inspect: input => { showAnalysis("saved"); openInput(input); },
     changed: () => experiment.controls(),
   });
   for (const role of ["baseline", "blackout"]) $("use-run-" + role).addEventListener("click", () => {
@@ -818,7 +833,7 @@
     $(`observations-${direction}`).addEventListener("click", () => { state.observationPage += step; renderObservationPage(); });
     $(`messages-${direction}`).addEventListener("click", () => changeMessagePage(state.data.selection.messages.page + step));
   }
-  function selectWorkspace(mode) {
+  function selectWorkspace(mode, resume = true) {
     if (workspace === mode) return;
     if (workspace === "experiment") experiment.leave();
     else { cancelReport(); if (state.inputMode === "comparison") comparison.leave(); }
@@ -835,10 +850,10 @@
     }
     document.querySelector(".navigation-context").textContent = mode === "experiment" ? "Explicit local execution" : "Saved observations";
     if (mode === "experiment") experiment.enter();
-    else { renderPlot(); if (state.inputMode === "comparison") comparison.enter(); }
+    else if (resume) { renderPlot(); if (state.inputMode === "comparison") comparison.enter(); }
   }
   function openWorkspace() {
-    text("workspace-title", "Existing workspace");
+    text("workspace-title", "Classic interface");
     text("workspace-context", "Recordings, saved experiments and execution");
     text("workspace-availability", classicURL ? "Separate local service / no recording is transferred." : "No existing workspace linked.");
     $("classic-link").hidden = !classicURL;
@@ -866,7 +881,7 @@
     comparison.configure(config);
     if (config.classic_url) {
       const url = new URL(config.classic_url);
-      if (url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) { url.hostname = location.hostname; classicURL = url.href; }
+      if (url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) { url.hostname = location.hostname; classicURL = url.href; $("full-workspace").hidden = false; }
     }
   }).catch(() => text("version", "Service unavailable"));
   const tooltip = $("tooltip");

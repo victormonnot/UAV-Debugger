@@ -9,14 +9,22 @@ local UDP path and save captures for those same analysis components. See the
 a bounded [saved baseline/blackout comparison](comparison.md) reuses the same
 validated evidence. Broader integrations remain future work.
 
-The source checkout additionally provides the [Instrument workspace](instrument.md),
-a custom local interface for supported recordings, exact source/type/time
+The recommended interface for this source checkout is the
+[Instrument workspace](instrument.md), a custom local interface for supported recordings, exact source/type/time
 filters, import provenance, activity/attitude observations, original-message
 inspection and Markdown reports. It also opens saved experiments, browses
 the local run catalog and compares baseline/blackout pairs. Its dedicated
 Experiment mode explicitly owns the same bounded workers and terminal evidence
 handoffs. The complete Streamlit interface remains available. Instrument is not part of the
 published v0.2.0 artifacts.
+
+The historical `uav-debugger-analyze` entry point still starts Streamlit on
+port 8501; Instrument uses `uav-debugger-instrument` on port 8765. Neither
+launcher redirects to the other, and the compatibility interface remains in
+the package. Both share domain modules and saved evidence formats, not browser
+state or execution ownership. Inputs, applied filters, comparison roles and
+controller history are not migrated between servers. Published release artifacts
+remain separate from a wheel built from the current source tree.
 
 ## Shared analysis, optional experiment execution
 
@@ -369,15 +377,17 @@ the original v0.1.0 Analyze scope.
 | --- | --- | --- |
 | Runtime | Python 3.12; Linux x86_64 | One runtime for decoding, analysis, presentation and local execution. |
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
-| Full interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection, downloads and explicit Experiment execution. |
-| Instrument interface | Packaged HTML/CSS/JavaScript; Starlette, Uvicorn and streaming multipart parsing on `127.0.0.1` | Stateless file analysis and comparison; separate explicit worker controls through the existing Python core. |
+| Recommended source interface | Instrument: packaged HTML/CSS/JavaScript, Starlette, Uvicorn and streaming multipart parsing on `127.0.0.1:8765` | Stateless file analysis and comparison; separate explicit worker controls through the existing Python core. |
+| Compatibility interface | Streamlit served on `127.0.0.1:8501` | Retain the historical launcher and its complete Analyze / Experiment workflows without automatic state transfer. |
 | Timeline | Plotly with explicit source/type/time controls | Activity and attitude plots with point-to-record inspection; zoom does not change filters. |
-| Session data | Python data structures in memory; original experiment evidence on disk | Per-session recording/run/pair analysis and a shared bounded execution history, with no automatic recovery or execution on restart. |
+| Session data | Per-tab inputs in Instrument; per-session imports in Streamlit; original experiment evidence on disk | Analysis state is isolated, controller history is shared only within one server, and no state or execution is recovered automatically on restart. |
 | Report | Markdown download | Readable evidence summary with source fingerprints and record references. |
 | Experiment | Standard-library sockets, selectors, subprocesses, clocks, signals and JSON; existing pinned MAVLink encoder | A bounded local path and explicitly owned browser worker; SITL additionally requires local Linux namespace tools. |
 | Environment and checks | `pyproject.toml`, `uv.lock`, pytest and Ruff | Reproducible dependencies, behavioral tests and basic source checks. |
 
-Streamlit runs the Python backend on the host and presents the interface in a
+Instrument serves its packaged frontend and Plotly assets locally through the
+stateless analysis routes described above. The compatibility interface uses
+Streamlit to run the Python backend on the host and present its interface in a
 browser. The launcher binds to loopback and disables usage statistics; display
 assets are bundled. Browser access can also use [SSH forwarding](analyze.md#access-through-ssh).
 See [Streamlit architecture](https://docs.streamlit.io/develop/concepts/architecture/architecture)
@@ -402,8 +412,7 @@ selected observations in at most 200 activity bins and plots the three attitude
 angles without decimation. Connecting lines break at clock discontinuities,
 unavailable values, angle jumps greater than π and the user-selected maximum
 capture-time interval. This threshold is a display setting, not a diagnosis.
-The Streamlit
-presentation pages records and issues rather than transferring an entire dense
+Both interfaces page records and issues rather than transferring an entire dense
 recording to the browser. `report.py` exports provenance, applied filters,
 coverage, interval references, attitude plot settings, global import issues and explicitly inspected
 record details without depending on Streamlit.
@@ -426,8 +435,8 @@ filter state. Plot zoom only changes the display.
 See [execution and caching](https://docs.streamlit.io/develop/concepts/architecture/caching)
 and [Plotly charts](https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart).
 
-The full interface and JSON inspection command remain available while
-Instrument gains additional workflows. Database storage, native packaging and
+The compatibility interface and JSON inspection command remain available
+alongside the recommended Instrument workflow. Database storage, native packaging and
 separate execution services would follow
 demonstrated needs. The local Experiment schema covers the implemented path;
 unused adapters and a general target framework are outside this increment.

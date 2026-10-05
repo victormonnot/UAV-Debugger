@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Instrument, a packaged local Analyze / Experiment interface with light, dark
+  and system appearance, local fonts/icons/plots and a dedicated launcher on
+  loopback port 8765.
+- Recording upload/example workflows with exact applied filters, activity and
+  attitude, explicit original-record inspection, preserved bytes and Markdown
+  reports through the existing analysis core.
+- Saved-run uploads, read-only local catalog browsing, uploaded/catalog/mixed
+  baseline-blackout comparisons and guarded evidence/report rereads.
+- Explicit shared Experiment Start/Stop, bounded history, controller clocks and
+  diagnostics, and validated terminal-run handoffs using the existing worker
+  and optional isolated pinned SITL path.
+
+### Changed
+
+- Recommend Instrument for the current source checkout. The historical
+  `uav-debugger-analyze` command and Streamlit interface on port 8501 remain
+  available without redirection or automatic state transfer.
+
+### Scope
+
+- These additions are not included in published v0.2.0 artifacts. Saved evidence
+  formats, importer limits and execution boundaries remain explicit; opening
+  files or switching modes never starts an experiment. No release or publication
+  is implied by this source change.
+
 ## 0.2.0
 
 Version **0.2.0** adds bounded local experiments and saved-run analysis to the

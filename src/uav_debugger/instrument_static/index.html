@@ -10,13 +10,14 @@
   <script src="/assets/theme.js"></script>
   <script src="/assets/vendor/lucide.min.js" defer></script>
   <script src="/vendor/plotly.min.js" defer></script>
+  <script src="/assets/ui.js" defer></script>
   <script src="/assets/runs.js" defer></script>
   <script src="/assets/comparison.js" defer></script>
   <script src="/assets/experiment.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to analysis</a>
+  <a class="skip-link" href="#main">Skip to workspace</a>
   <header class="app-header">
     <div class="identity"><h1>UAV Debugger</h1><span class="product-caption">Instrument</span></div>
     <div class="header-actions">
@@ -30,12 +31,12 @@
     <button id="experiment-button" class="mode-link" aria-controls="experiment-view"><span class="mono">02</span> Experiment</button>
     <span class="navigation-context overline">Saved observations</span>
   </nav>
-  <main id="main">
+  <main id="main" tabindex="-1">
     <div id="analyze-view">
     <div class="input-navigation chart-tabs" role="tablist" aria-label="Analyze input"><button id="recording-input-tab" role="tab" aria-selected="true" aria-controls="analysis-workspace">Recording</button><button id="saved-input-tab" role="tab" aria-selected="false" aria-controls="analysis-workspace" tabindex="-1">Saved experiment</button><button id="catalog-input-tab" role="tab" aria-selected="false" aria-controls="catalog-view" tabindex="-1">Local experiments</button><button id="comparison-input-tab" role="tab" aria-selected="false" aria-controls="comparison-view" tabindex="-1">Compare experiments</button></div>
     <section id="recording-header" class="recording-header" aria-label="Current input">
       <div class="recording-identity"><p class="overline"><span id="input-caption">Recording</span> <span class="separator">/</span> <span id="recording-kind">No input</span></p><h2 id="recording-name">No recording selected</h2><p id="recording-meta" class="mono muted">QGC timestamped MAVLink</p></div>
-      <div class="recording-actions"><input id="recording-file" type="file" hidden><button id="open-recording" class="primary"><i data-lucide="folder-open" aria-hidden="true"></i><span>Open recording</span></button><button id="load-example" class="bordered"><i data-lucide="file-chart-column" aria-hidden="true"></i><span>Load example</span></button><button id="clear-recording" class="icon-button bordered" aria-label="Clear recording" data-tip="Clear recording" disabled><i data-lucide="x" aria-hidden="true"></i></button><button id="full-workspace" class="icon-button bordered" aria-label="Existing workspace" data-tip="Existing workspace" aria-haspopup="dialog"><i data-lucide="external-link" aria-hidden="true"></i></button></div>
+      <div class="recording-actions"><input id="recording-file" type="file" hidden><button id="open-recording" class="primary"><i data-lucide="folder-open" aria-hidden="true"></i><span>Open recording</span></button><button id="load-example" class="bordered"><i data-lucide="file-chart-column" aria-hidden="true"></i><span>Load example</span></button><button id="clear-recording" class="icon-button bordered" aria-label="Clear recording" data-tip="Clear recording" disabled><i data-lucide="x" aria-hidden="true"></i></button><button id="full-workspace" class="icon-button bordered" aria-label="Classic interface" data-tip="Classic interface" aria-haspopup="dialog" hidden><i data-lucide="external-link" aria-hidden="true"></i></button></div>
     </section>
     <div id="run-upload-actions" class="run-upload-actions" hidden><input id="run-files" type="file" webkitdirectory multiple hidden><button id="open-run" class="primary"><i data-lucide="folder-open" aria-hidden="true"></i>Open saved experiment</button><span class="mono muted">64 MiB / 64 files</span></div>
     <div id="run-comparison-actions" class="comparison-handoff" hidden><button id="use-run-baseline" class="bordered"><i data-lucide="bookmark-plus" aria-hidden="true"></i>Use as baseline</button><button id="use-run-blackout" class="bordered"><i data-lucide="bookmark-plus" aria-hidden="true"></i>Use as blackout</button><button id="compare-saved-runs" class="bordered" disabled><i data-lucide="git-compare-arrows" aria-hidden="true"></i>Compare selected runs</button><p id="run-comparison-assigned" class="muted"></p></div>
@@ -174,12 +175,13 @@
           <details id="experiment-target-details"><summary>Source profile</summary><p id="experiment-profile" class="microcopy"></p><p id="experiment-binary" class="mono break-value" hidden></p></details>
         </aside>
         <section class="experiment-monitor" aria-label="Selected experiment">
-          <div class="experiment-selected"><div><p class="overline">Selected run</p><h3 id="experiment-run-id" class="mono">No experiment selected</h3></div><button id="experiment-stop" class="bordered experiment-stop" disabled><i data-lucide="square" aria-hidden="true"></i>Stop experiment</button></div>
+          <div class="experiment-selected"><div><p class="overline">Selected run</p><h3 id="experiment-run-id" class="mono" tabindex="-1">No experiment selected</h3></div><button id="experiment-stop" class="bordered experiment-stop" disabled><i data-lucide="square" aria-hidden="true"></i>Stop experiment</button></div>
           <div class="experiment-metrics"><div><span class="overline">Controller state</span><strong id="experiment-process-state">Idle</strong></div><div><span class="overline">Declared outcome</span><strong id="experiment-outcome">N/A</strong></div><div><span class="overline">Controller elapsed / s</span><strong id="experiment-elapsed" class="mono">N/A</strong></div><div><span class="overline">Evidence status</span><strong id="experiment-evidence-status">Not validated</strong></div></div>
           <p id="experiment-active-notice" class="experiment-notice" hidden></p>
           <div class="experiment-section"><h3>Requested configuration</h3><dl class="fact-list"><div><dt>Source</dt><dd id="experiment-requested-source">N/A</dd></div><div><dt>Scenario</dt><dd id="experiment-requested-scenario">N/A</dd></div><div><dt>Measurement duration / s</dt><dd id="experiment-requested-duration">N/A</dd></div><div><dt>Blackout start / s</dt><dd id="experiment-requested-blackout-at">N/A</dd></div><div><dt>Blackout duration / s</dt><dd id="experiment-requested-blackout-duration">N/A</dd></div></dl></div>
+          <details id="experiment-requested-details" class="experiment-section"><summary>All requested settings</summary><pre id="experiment-requested" class="evidence-code" tabindex="0" aria-label="All requested settings">No requested settings</pre></details>
           <div class="experiment-section"><h3>Saved evidence</h3><p id="experiment-output" class="mono break-value">N/A</p><div class="experiment-handoff"><button id="experiment-open-analyze" class="primary" disabled><i data-lucide="scan-search" aria-hidden="true"></i>Open in Analyze</button><button id="experiment-use-baseline" class="bordered" disabled><i data-lucide="bookmark-plus" aria-hidden="true"></i>Use as baseline</button><button id="experiment-use-blackout" class="bordered" disabled><i data-lucide="bookmark-plus" aria-hidden="true"></i>Use as blackout</button></div><p id="experiment-handoff-status" class="microcopy" role="status"></p></div>
-          <details id="experiment-details" class="experiment-section"><summary>Controller clocks and diagnostics</summary><p class="microcopy">Host monotonic nanoseconds / Unix microseconds. Controller requests, not applied forwarding gates.</p><pre id="experiment-clocks" class="evidence-code" tabindex="0" aria-label="Exact controller clocks"></pre><dl class="fact-list"><div><dt>Stop reason</dt><dd id="experiment-stop-reason">N/A</dd></div><div><dt>Return code</dt><dd id="experiment-returncode">N/A</dd></div><div><dt>Forced termination</dt><dd id="experiment-forced">N/A</dd></div></dl><pre id="experiment-diagnostics" class="evidence-code" tabindex="0" aria-label="Controller diagnostics">No diagnostics</pre></details>
+          <details id="experiment-details" class="experiment-section"><summary>Controller clocks and diagnostics</summary><p class="microcopy">Host monotonic nanoseconds / Unix microseconds. Controller requests, not applied forwarding gates.</p><pre id="experiment-clocks" class="evidence-code" tabindex="0" aria-label="Exact controller clocks"></pre><dl class="fact-list"><div><dt>Stop reason</dt><dd id="experiment-stop-reason">N/A</dd></div><div><dt>Return code</dt><dd id="experiment-returncode">N/A</dd></div><div><dt>Forced termination</dt><dd id="experiment-forced">N/A</dd></div></dl><dl class="stacked-facts"><dt>Control file</dt><dd id="experiment-control-file">N/A</dd></dl><pre id="experiment-diagnostics" class="evidence-code" tabindex="0" aria-label="Controller diagnostics">No diagnostics</pre></details>
         </section>
         <aside class="experiment-history-panel" aria-label="Server experiment history">
           <div class="section-heading"><h3 class="overline">Server history</h3><span id="experiment-history-count" class="mono muted">0 / 20</span></div>
@@ -192,7 +194,7 @@
     </section>
   </main>
   <footer class="app-footer"><span id="footer-state" class="mono">FILE-ONLY ANALYSIS</span><span id="experiment-footer" class="mono" hidden>PROCESS CONTROL / INDEPENDENT CLOCKS</span><span class="footer-provenance">Capture clock <span class="separator">/</span> original timestamps preserved</span><span id="version" class="mono"></span></footer>
-  <dialog id="workspace-dialog" aria-labelledby="workspace-title"><div class="dialog-heading"><h2 id="workspace-title">Existing workspace</h2><button id="close-workspace" class="icon-button" aria-label="Close existing workspace dialog" data-tip="Close"><i data-lucide="x" aria-hidden="true"></i></button></div><p id="workspace-context">Recordings, saved experiments and execution</p><p id="workspace-availability" class="muted">No existing workspace linked.</p><a id="classic-link" class="primary action-link" target="_blank" rel="noopener noreferrer" hidden>Open existing workspace <i data-lucide="arrow-up-right" aria-hidden="true"></i></a><p class="dialog-note">Opening the workspace does not start an experiment.</p></dialog>
+  <dialog id="workspace-dialog" aria-labelledby="workspace-title"><div class="dialog-heading"><h2 id="workspace-title">Classic interface</h2><button id="close-workspace" class="icon-button" aria-label="Close classic interface dialog" data-tip="Close"><i data-lucide="x" aria-hidden="true"></i></button></div><p id="workspace-context">Recordings, saved experiments and execution</p><p id="workspace-availability" class="muted">Separate local service</p><a id="classic-link" class="primary action-link" target="_blank" rel="noopener noreferrer" hidden>Open classic interface <i data-lucide="arrow-up-right" aria-hidden="true"></i></a><p class="dialog-note">Opening the workspace does not start an experiment.</p></dialog>
   <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 </body>
 </html>

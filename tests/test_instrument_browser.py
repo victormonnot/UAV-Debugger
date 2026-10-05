@@ -144,7 +144,7 @@ def instrument_page(instrument_server, request):
         finally:
             try:
                 if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
-                    output_dir = ROOT / "local" / "instrument-brick6" / "browser"
+                    output_dir = ROOT / "local" / "instrument-brick7" / "browser"
                     output_dir.mkdir(parents=True, exist_ok=True)
                     page.evaluate(
                         "() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }"
@@ -517,6 +517,20 @@ def test_experiment_mode_is_explicit_and_does_not_execute(instrument_page):
     expect(page.locator("#experiment-view")).to_be_hidden()
     expect(page.locator("#load-example")).to_be_visible()
     assert api_requests and set(api_requests) == {"/api/experiment/status"}
+
+
+def test_configured_classic_dialog_is_keyboard_accessible_and_restores_focus(instrument_page):
+    page, expect = instrument_page
+    button = page.locator("#full-workspace")
+    expect(button).to_be_visible()
+    button.focus()
+    page.keyboard.press("Enter")
+    expect(page.locator("#workspace-dialog")).to_be_visible()
+    expect(page.locator("#classic-link")).to_have_attribute("href", "http://127.0.0.1:8501/")
+    expect(page.locator("#classic-link")).to_have_text("Open classic interface")
+    page.keyboard.press("Escape")
+    expect(page.locator("#workspace-dialog")).to_be_hidden()
+    expect(button).to_be_focused()
 
 
 def test_upload_replacement_and_example_reset_input_and_applied_selection(instrument_page):
@@ -1288,7 +1302,7 @@ def test_loaded_workspace_fits_and_remains_readable(instrument_page, width, them
     expect(page.locator("#message-rows tr")).to_have_count(2)
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
     if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
-        output_dir = ROOT / "local" / "instrument-brick6" / "browser"
+        output_dir = ROOT / "local" / "instrument-brick7" / "browser"
         output_dir.mkdir(parents=True, exist_ok=True)
         page.evaluate("() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }")
         page.screenshot(path=output_dir / f"messages-{theme}-{width}.png", full_page=True)

@@ -181,6 +181,7 @@
     return { url: "/api/run", options: { ...options, method: "POST", body } };
   }
   async function assign(role, input, run = null) {
+    const finishFocus = InstrumentUI.retainFocus();
     clearRole(role);
     const item = state[role], request = ++item.request, controller = new AbortController();
     item.controller = controller; item.pending = true; renderRoles();
@@ -203,6 +204,8 @@
       if (request !== item.request || error.name === "AbortError") return;
       item.error = error instanceof TypeError ? "The local service could not be reached. Reopen the saved evidence." : error.message;
       item.pending = false; item.controller = null; renderRoles();
+    } finally {
+      finishFocus({ restore: request === item.request });
     }
   }
   function pairRequest(filters, point, signal, report = false) {
@@ -225,6 +228,7 @@
   }
   async function compare(filters, purpose = "apply", point = state.result?.selection.point || "receiver") {
     if (!hasPair()) return;
+    const finishFocus = InstrumentUI.retainFocus();
     cancelRequest();
     const request = state.request, controller = new AbortController();
     state.controller = controller; state.busy = true; $("comparison-error").hidden = true;
@@ -237,7 +241,8 @@
       if (request !== state.request) return;
       state.result = data.comparison;
       for (const role of roles) state[role].run = state.result.runs[role];
-      plotView++; renderRoles(); renderResult(purpose !== "point");
+      if (purpose !== "refresh") plotView++;
+      renderRoles(); renderResult(!["point", "refresh"].includes(purpose));
     } catch (error) {
       if (request !== state.request || error.name === "AbortError") return;
       if (error.status === 409 || (error instanceof TypeError && roles.some(role => state[role].input?.kind === "catalog"))) invalidate(error);
@@ -246,10 +251,12 @@
       $("comparison-error").hidden = false;
     } finally {
       if (request === state.request) { state.busy = false; state.controller = null; controls(); }
+      finishFocus({ restore: request === state.request && state.active });
     }
   }
   async function download() {
     if (!state.result || state.busy || state.reportBusy) return;
+    const finishFocus = InstrumentUI.retainFocus();
     const request = ++state.reportRequest, controller = new AbortController();
     const filename = "uav-debugger-comparison-" + state.baseline.run.identity.slice(0, 8) + "-" + state.blackout.run.identity.slice(0, 8) + ".md";
     state.reportController = controller; state.reportBusy = true; $("comparison-report-error").hidden = true; controls();
@@ -272,6 +279,7 @@
       $("comparison-report-error").hidden = false;
     } finally {
       if (request === state.reportRequest) { state.reportBusy = false; state.reportController = null; controls(); }
+      finishFocus({ restore: request === state.reportRequest && state.active });
     }
   }
   function renderPlot() {
@@ -313,7 +321,7 @@
   }
   function enter() {
     state.active = true; renderRoles(); renderResult(false);
-    if (hasPair()) compare(state.result ? applied() : {}, "initial");
+    if (hasPair()) compare(state.result ? applied() : {}, state.result ? "refresh" : "initial");
   }
   function leave() {
     state.active = false; cancelRequest(); plotRevision++;

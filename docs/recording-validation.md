@@ -62,7 +62,8 @@ vehicle-clock synchronization or a complete flight history.
 
 ## Reproduce the browser workflow
 
-Launch Analyze using the [user guide](analyze.md), then:
+Launch the [classic interface](analyze.md#existing-launcher-compatibility) used
+for these historical checks, then:
 
 1. Under **Open recording**, select the extracted `.tlog` file.
 2. Expect **22,291 imported records**, **2 sources** and the explicit warning

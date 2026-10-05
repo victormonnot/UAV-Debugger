@@ -1,6 +1,13 @@
 # Workflows
 
-The **0.2.0** source checkout's [Analyze interface](analyze.md) covers
+For the current **0.2.0** source checkout, use the recommended
+[Instrument workspace](instrument.md):
+
+```sh
+uv run --locked uav-debugger-instrument
+```
+
+Open [Instrument](http://127.0.0.1:8765). Its [Analyze mode](analyze.md) covers
 opening supported recordings and saved experiments, filtering observations,
 inspecting records and exporting evidence. The
 [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
@@ -10,9 +17,16 @@ local setup and isolation. A bounded [saved baseline/blackout comparison](compar
 is available in Analyze. Video and broader simulator/bench integrations remain
 future capabilities.
 
+The historical `uav-debugger-analyze` launcher and port 8501 remain available
+for the Streamlit interface, without redirection or removal. Published v0.2.0
+artifacts do not include Instrument. Switching interfaces does not transfer
+uploads, selections, comparison roles, controller history or active-worker
+ownership; reopen saved files explicitly. Both interfaces can inspect the
+same retained evidence format.
+
 ## Find saved experiments after restart
 
-1. Launch the application with `--experiment-root` pointing to the saved output
+1. Launch `uav-debugger-instrument` with `--experiment-root` pointing to the saved output
    root; `local/experiments` is the default.
 2. Choose **Local experiments** in Analyze, or **Browse saved experiments** from
    Experiment. Review the declared manifest metadata and any catalog issues.
@@ -28,11 +42,14 @@ saved declaration, not a live process state or a passed evidence check.
 
 ## Analyze an existing session
 
-1. Open one recording in a supported format and identify its sources.
+1. Choose **Recording**, then **Open recording** or **Load example**, and identify
+   the imported sources.
 2. Review what was imported, what is missing and any parsing limitations.
 3. Filter source, message type and time; inspect activity and attitude plots.
-4. Follow a question from an event to its underlying source evidence.
-5. Save a report with evidence references and observation limits.
+4. Inspect an explicit record from **Messages**, **Record index** or an attitude
+   marker; retain its original timestamps, decoded fields and bytes.
+5. Choose **Download report** for the applied selection, inspected record and
+   observation limits. Unapplied filter drafts and plot zoom are not report filters.
 
 For example, a user investigating a telemetry gap can inspect the last and next
 available messages from a selected source. If the recording contains no
@@ -46,8 +63,8 @@ When reliable alignment is unavailable, that uncertainty remains visible.
 
 ## Run from the local interface
 
-1. Start `uv run --locked uav-debugger-analyze` and choose **Experiment** under
-   **Mode**. Select **Synthetic**, **Baseline** and a six-second duration.
+1. Start `uv run --locked uav-debugger-instrument` and choose **Experiment**.
+   Select **Synthetic**, **Baseline** and a six-second measurement duration.
 2. Click **Start experiment**. Wait for completion or use **Stop experiment**
    to request interruption. Mode changes and browser disconnects leave the
    bounded worker running; all tabs share one active run per server.

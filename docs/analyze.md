@@ -5,6 +5,12 @@ It provides source and time filters, activity and attitude plots, message inspec
 and a Markdown evidence report. The same file-only importer is available through the
 [Python API and command-line summary](importer.md).
 
+**Instrument is the recommended interface for the current source checkout.**
+This guide uses its recording controls unless an existing-interface difference
+is stated. The historical Streamlit launcher and port 8501 remain available;
+published v0.2.0 artifacts contain that interface, not Instrument. See
+[interface coverage and differences](instrument.md#interface-coverage-and-differences).
+
 The optional [Experiment interface](experiment-ui.md) and [CLI](experiment.md)
 produce `relay-input.tlog` and `receiver.tlog` captures for this same workflow.
 Open them individually; their outer timestamps identify actual reads at different
@@ -18,7 +24,7 @@ The application opens in **Analyze** mode; choose **Experiment** separately to
 configure an explicit launch. A completed or interrupted browser run can open
 directly in Analyze through **Open in Analyze**, without uploading its files.
 Choose **Local experiments** under **Analyze input** to
-[browse saved runs on the server](saved-experiments.md#browse-local-experiments),
+[browse saved runs on the server](instrument.md#browse-local-experiments),
 including runs retained before a restart. Browsing reads declared metadata;
 opening or comparing selected runs performs the evidence checks.
 
@@ -29,28 +35,38 @@ install the locked dependencies and start Analyze:
 
 ```sh
 uv sync --locked
-uv run --locked uav-debugger-analyze
+uv run --locked uav-debugger-instrument
 ```
 
-Open [http://127.0.0.1:8501](http://127.0.0.1:8501) in a browser on the same
+Open [Instrument](http://127.0.0.1:8765) in a browser on the same
 computer. Keep the terminal process running while using the interface; press
 `Ctrl+C` there to stop it.
 
 The module entry point supports another local port:
 
 ```sh
-uv run --locked python -m uav_debugger.analyze --port 8502
+uv run --locked python -m uav_debugger.instrument --port 8766
 ```
 
-For that command, open [http://127.0.0.1:8502](http://127.0.0.1:8502). Ports must
-be between 1 and 65535. The launcher binds to `127.0.0.1`, disables usage
-statistics and does not automatically open a browser. Its connection serves the
+For that command, open [Instrument on the alternate port](http://127.0.0.1:8766).
+Ports must be between 1 and 65535. The launcher binds to `127.0.0.1`
+and does not automatically open a browser. Its connection serves the
 local interface; opening a recording never connects to a vehicle or starts an
 experiment.
 
 Dependency installation can require network access. The application uses local
 files and bundled display components after installation; it needs no simulator,
 ARGOS installation or external service to analyze a recording.
+
+### Existing launcher compatibility
+
+`uv run --locked uav-debugger-analyze` still starts Streamlit on port 8501.
+`python -m uav_debugger.analyze --port 8502` remains its alternate-port module
+entry point. It disables usage statistics and retains its existing controls;
+neither command redirects to Instrument. This second server is optional, not
+an Instrument prerequisite. Its uploads, filters, comparison roles, active
+worker and in-memory history are not transferred. Reopen saved files or browse
+the same explicit output root to analyze retained evidence in another interface.
 
 ### Install the wheel
 
@@ -66,15 +82,17 @@ that wheel. Replace the absolute path below with the generated artifact's path:
 ```sh
 uv venv --python 3.12
 uv pip install --python .venv/bin/python /absolute/path/to/uav_debugger-0.2.0-py3-none-any.whl
-.venv/bin/uav-debugger-analyze --experiment-root ./experiments
+.venv/bin/uav-debugger-instrument --experiment-root ./experiments
 ```
 
-The installed launcher includes the bundled example and optional Experiment
+This current-source wheel includes Instrument, the bundled example and optional Experiment
 interface. New browser runs use the explicitly selected `experiments` root;
 the local catalog reads that same root, which is created only by Start.
 Dependency installation may need network
 access. The source quick start above remains the path for installing from the
 repository's complete dependency lock.
+Although its package version is still 0.2.0, a newly built source wheel is not
+the published v0.2.0 artifact. The latter does not include Instrument.
 
 ## Access through SSH
 
@@ -84,14 +102,15 @@ forward using the same destination and authentication options as your normal
 SSH connection:
 
 ```sh
-ssh -N -L 127.0.0.1:8501:127.0.0.1:8501 user@remote-host
+ssh -N -L 127.0.0.1:8765:127.0.0.1:8765 user@remote-host
 ```
 
 Replace `user@remote-host` with your SSH destination and keep the tunnel running.
-Open [http://127.0.0.1:8501](http://127.0.0.1:8501) in your local browser.
+Open [Instrument](http://127.0.0.1:8765) in your local browser.
 Analyze continues listening on remote loopback; the SSH connection forwards the
-browser traffic to it. If local port 8501 is occupied, change only the first
-port to 8502 and open `http://127.0.0.1:8502` instead. See the
+browser traffic to it. If local port 8765 is occupied, change only the first
+port to 8766 and open `http://127.0.0.1:8766` instead. For the unchanged
+Streamlit launcher, forward its default port 8501 instead. See the
 [OpenSSH local forwarding documentation](https://man.openbsd.org/ssh#L).
 
 **Load example** reads the bundled recording on the server, so no file transfer
@@ -104,15 +123,15 @@ your particular remote host is not part of the automated browser verification.
 
 1. Click **Load example**. The bundled recording opens without uploading a file
    and is identified as a **Synthetic example** in the interface and report.
-2. Review **Recording provenance** and **Import issues**. The example contains
+2. Review **Input provenance** and **Import issues** under **Evidence**. The example contains
    12 decoded records from two sources, with five expected repeated-timestamp
    warnings from its artificial logging clock.
 3. Set **Source** to **1 / 1**, **Message type** to **ATTITUDE**, **Start (s)** to
    **1**, and **End (s)** to **5**. Click **Apply filters**.
-4. The selection contains records **#2** and **#8**. **Longest observed interval**
+4. The selection contains records **#2** and **#8**. **Longest interval**
    reads **4 s**. **Attitude** shows two points per angle, disconnected at the
-   default **Maximum line gap (s)** of **1**. Click a point or choose an entry
-   under **Record** to inspect its fields and original frame bytes.
+   default **Maximum line gap (s)** of **1**. Click a marker or a record button
+   in **Messages** to inspect its fields and original bytes.
 5. Click **Download report** to save a Markdown summary containing the applied
    selection and the currently inspected record.
 
@@ -124,7 +143,7 @@ complete expected sequence, source identities and synthetic provenance.
 
 The example uses the same importer, filters, inspector and report as uploaded
 recordings. Its bytes match `tests/fixtures/telemetry-gap.tlog`; it is included
-in installed packages and requires no download. **Clear example** removes it
+in installed packages and requires no download. **Clear recording** removes it
 from the current session. Uploading a file replaces the example and resets the
 filters. Clearing that upload leaves an empty view, without restoring the
 example. Loading the example after an upload clears the uploader and replaces
@@ -146,12 +165,12 @@ produce negative relative times; the original file order remains unchanged.
 
 Click **Apply filters** to update the plots, table, interval metric and report.
 Editing the controls alone leaves the previous selection active. Invalid bounds
-produce an error and preserve that previous selection. **Applied time range**
+produce an error and preserve that previous selection. **Applied selection**
 shows the bounds currently used. A valid selection with no matching records
 still permits a report describing its filters and the import outcome.
 
-**Imported records** and **Sources** summarize the complete accepted input.
-**Selected records** counts the active filtered selection. Import issues always
+**Recording total** and **Sources** summarize the complete accepted input.
+**Selected** counts the active filtered selection. Import issues always
 describe the whole input, including records outside the filters.
 
 ## Read the activity plot and intervals
@@ -162,12 +181,12 @@ keeps the plot bounded; use the message table and inspector for individual
 timestamps. Zooming the plot changes its display without changing the filters
 or report.
 
-**Longest observed interval** considers consecutive selected records with the
+**Longest interval** considers consecutive selected records with the
 same system ID, component ID and message ID. It does not measure between
 different sources or message types. A pair crossing a capture-clock regression
 has no established duration, even when the regressing record is hidden by a
 filter. Pairs with opaque endpoints are also excluded from the duration metric.
-Repeated timestamps can yield a zero interval. A dash means no eligible pair
+Repeated timestamps can yield a zero interval. **N/A** means no eligible pair
 exists in the selection.
 
 Capture timestamps are integer Unix-epoch microseconds under the selected
@@ -192,8 +211,8 @@ show a request to narrow the time bounds. No points are silently decimated, and
 the message table and report still cover the full filtered selection.
 
 **Maximum line gap (s)** controls whether consecutive samples are connected.
-It defaults to **1 second** and takes effect when the text edit is submitted
-with Enter or by leaving the field. It accepts positive decimal seconds with
+It defaults to **1 second** and takes effect with **Apply line gap** or Enter.
+Leaving the field alone does not apply it in Instrument. It accepts positive decimal seconds with
 microsecond precision. Invalid input preserves the last valid setting; the
 caption shows the applied value. The setting changes the display and report,
 not the selected records or interval metric.
@@ -213,7 +232,7 @@ file order are retained across breaks. Float coordinates are used only for
 display; hover labels retain exact capture timestamps and record byte ranges.
 
 Click a marker to inspect its original message. The **Messages** table moves to
-the relevant page, **Record** selects that message, and the downloaded report
+the relevant page, **Inspector** opens that message, and the downloaded report
 includes its evidence. Manual record selection remains available. Changing
 filters, the gap setting or the recording clears the previous plot selection.
 Plot zoom changes only the display and is not a report filter.
@@ -221,8 +240,9 @@ Plot zoom changes only the display and is not a report filter.
 ## Inspect records and import issues
 
 The **Messages** table shows up to 100 selected records per page in original
-file order. Use **Page** to navigate and **Record** to inspect a message from
-that page. Record numbers are zero-based indices in the original imported
+file order. Use the paging controls and a record button to inspect a message,
+or enter an original **Record index** and choose **Inspect record**. No record
+is selected automatically. Record numbers are zero-based indices in the original imported
 sequence; filtering and paging do not renumber them.
 
 The inspector shows the original integer capture timestamp, wire version,
@@ -235,7 +255,7 @@ decoded fields.
 **Import issues** has separate pages of up to 100 entries, with issue counts,
 record indices and byte offsets. Damaged input or an unsupported feature stops
 the importer at the affected record. Earlier accepted records remain
-inspectable, and **Recording provenance** identifies the input fingerprint,
+inspectable, and **Input provenance** identifies the input fingerprint,
 decoded profile, consumed bytes and unprocessed remainder. Empty input has its
 own visible outcome. These outcomes remain available in a status report.
 
@@ -289,7 +309,7 @@ memory, which depends on record density and message contents.
 Files over the analysis limit are rejected even if their browser upload completes.
 
 A Chromium measurement before attitude plotting was added, on Linux x86_64
-with Python 3.12.3, loaded
+with Python 3.12.3 and the existing Streamlit interface, loaded
 10,485,750 bytes containing 419,430 synthetic HEARTBEAT records with increasing
 timestamps. Upload through a ready report took 6.800 seconds; applying inclusive
 1–5 second bounds took 0.503 seconds and selected exactly 4,001 records. The
@@ -297,10 +317,12 @@ activity bins retained the full count and the downloaded report matched the
 new selection. Peak server RSS was 548.2 MiB, excluding the browser. This is
 one measured message mix, not a general response-time or memory guarantee.
 
-The Recording input retains one recording per browser session. Applying filters, changing pages
-or inspecting messages reuses its import result; it does not decode the file
-again. Changing the recording replaces that session's analysis. This is
-temporary in-memory state, with no saved session or shared recording cache.
+Instrument retains the selected File in its browser tab and resends its bytes
+for filters, paging, inspection and reports. Each request imports its own bytes;
+there is no shared recording cache or saved analysis session. The existing
+Streamlit interface instead retains one parsed input per browser session and
+reuses that result. Changing input replaces the active recording in either
+interface. Neither transfers an upload or selection to the other.
 
 Active execution belongs to the separate [Experiment mode](experiment-ui.md).
 Video synchronization, broader session comparison, additional recording formats
@@ -317,12 +339,15 @@ To install the optional browser dependencies and run the Chromium workflow:
 ```sh
 uv sync --locked --group browser
 uv run --locked --group browser playwright install chromium
-uv run --locked --group browser pytest --run-browser tests/test_analyze_browser.py
+uv run --locked --group browser pytest --run-browser tests/test_instrument_browser.py
 ```
 
 These checks launch the local interface and use a real browser. The browser
 harness blocks non-local requests while exercising the application. Installing
 the browser is separate from running the tests and may require network access.
+The historical Streamlit recording workflows remain in
+`tests/test_analyze_browser.py`. The results below describe their stated older
+versions, not a current Instrument verification claim.
 
 For version 0.1.0 on 2026-09-22, on Linux x86_64 with Python 3.12.3,
 all 292 tests passed in a fresh environment
