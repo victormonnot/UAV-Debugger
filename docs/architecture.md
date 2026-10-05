@@ -11,10 +11,10 @@ validated evidence. Broader integrations remain future work.
 
 The source checkout additionally provides the [Instrument workspace](instrument.md),
 a custom local interface for supported recordings, exact source/type/time
-filters, import provenance and activity/attitude observations. Record inspection,
-reports, saved-run workflows and Experiment execution remain in the complete
-Streamlit interface during migration. Instrument is not part of the published
-v0.2.0 artifacts.
+filters, import provenance, activity/attitude observations, original-message
+inspection and Markdown reports. Saved-run workflows and Experiment execution
+remain in the complete Streamlit interface during migration. Instrument is not
+part of the published v0.2.0 artifacts.
 
 ## Shared analysis, optional experiment execution
 
@@ -63,26 +63,43 @@ not depend on the runner's JSON event schema.
 Uvicorn on loopback. `GET /api/example` reads the installed synthetic recording;
 `POST /api/analyze` accepts raw recording bytes with a streamed 10 MiB limit.
 Both reuse the existing importer, exact selection, observation intervals and
-activity/attitude chart builders. The upload name is a display label, never a
-server filesystem path. No Experiment execution endpoint is exposed.
+activity/attitude chart builders. Markdown export calls the existing report
+builder with the same applied selection and line-gap setting. The upload name
+is a display label, never a server filesystem path. No Experiment execution
+endpoint is exposed.
 
 The browser tab owns its selected file, draft controls and last applied result.
-Applying filters or changing the line gap resubmits the same file; each request
-imports and analyzes its own bytes. The server keeps no recording cache,
-mutable session or execution controller and writes no uploaded recording to
-disk. Tabs do not share recordings or filters. Replacement and Clear invalidate
-pending responses and remove the previous view; an invalid filter submission
-keeps the last applied view intact.
+Applying filters, inspecting a record, paging messages or issues, and exporting
+a report resubmit the same file; each request imports and analyzes its own
+bytes. The server keeps no recording cache, mutable session or execution
+controller and writes no uploaded recording or report to disk. Tabs do not
+share recordings or filters. Replacement and Clear invalidate pending responses
+and remove the previous view; an invalid filter submission keeps the last
+applied view intact.
 
-The schema version 2 payload separates whole-recording provenance and counts
-from the applied selection, activity bins and attitude availability. Import
-issues remain global and are paged in groups of at most 100. Exact capture
+The schema version 3 payload separates whole-recording provenance and counts
+from the applied selection, activity bins and attitude availability. Selected
+messages and global import issues use independent pages of at most 100 entries.
+The inspector is absent until an explicit original record index is requested
+and validated against the applied selection. Its decoded fields are serialized
+to a JSON text string in Python, retaining integer values beyond JavaScript's
+exact numeric range and explicit tags for byte arrays and nonfinite floats.
+Original record and frame bytes are separate hexadecimal values. Exact capture
 timestamps and inclusive filter bounds cross the JSON boundary as decimal
 strings. Relative plot coordinates are display numbers and never replace
 original evidence. Time offsets stay anchored to the first imported record,
 including when a later clock regression produces negative offsets. The Python
 modules own import and chart interpretation; the frontend owns controls and
 presentation without reimplementing decoding or time selection.
+
+Attitude marker events carry original record references, not inferred records
+from display coordinates. Inspection resolves the corresponding message page
+without replacing the visible chart. Applying filters or a line-gap setting,
+changing the message page or replacing the recording clears the inspected
+record; draft edits and visual zoom do not. Reports include at most the one
+explicitly inspected record, but their counts and interval evidence cover the
+full applied selection. Export requires the expected recording SHA-256 and
+rejects changed bytes; this fingerprint can also guard JSON analysis requests.
 
 Fonts and Lucide icons are distributed with the interface, including their
 license texts. The installed Plotly package supplies its local JavaScript

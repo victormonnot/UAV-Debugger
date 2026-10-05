@@ -113,6 +113,40 @@ review.
 
 ## Verification status and release conditions
 
+### Instrument inspection and report checks
+
+On 2026-10-05, Instrument record inspection and reporting passed **392 focused
+source-environment tests in 14.18 seconds**. A newly built wheel installed in
+a separate locked Python 3.12.3 environment then passed **440 tests in 103.72
+seconds**, including all **46 Instrument Chromium cases** and two existing
+Analyze browser workflows. Imports resolved to the installed package. The
+remaining checks cover the importer, exact selections, telemetry, charts,
+Markdown reports, execution boundaries, service and distribution.
+
+The checks verify original record indices across 100-row message pages,
+marker-to-record inspection across pages, keyboard focus retention, exact
+capture and 64-bit payload clocks, nonfinite values, opaque frames and original
+byte ranges/content. Actual downloaded reports retain applied filters and line
+gap, explicitly inspected records and full-selection counts. Empty and partial
+imports, empty selections, issue limits, invalid indices, fingerprint mismatch
+and completed-but-delayed inspection/report responses are covered. Clicking an
+unobserved interval or an activity bin does not select an individual record.
+
+Both themes passed the rendered text/axis contrast threshold of 4.5:1 and
+marker/bar threshold of 3:1 at 320, 390, 1024 and 1440 pixels. Marker checks now
+include effective SVG opacity, and Instrument keeps markers fully opaque.
+Message-table and inspector screenshots were reviewed. The live preview also
+passed native file selection, filtering, keyboard inspection, original-byte
+display, Markdown download and navigation to the existing interface.
+
+Ruff lint/formatting, JavaScript syntax, fixture, lock and archive checks pass.
+The archives contain 100 source files and 46 wheel members, including all 15
+local interface assets. Browser external HTTP/WebSocket requests were blocked;
+the Python server was not network-namespace isolated. These focused checks do
+not repeat the complete Experiment/native SITL suite, establish hosted CI
+success or change the published v0.2.0 artifacts. No dependency or input profile
+changed.
+
 ### Instrument recording-workspace checks
 
 On 2026-10-05, the expanded Instrument recording workspace passed **237 focused

@@ -4,6 +4,7 @@ import hashlib
 import importlib
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -136,8 +137,11 @@ def instrument_page(instrument_server, request):
         finally:
             try:
                 if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
-                    output_dir = ROOT / "local" / "instrument-brick2" / "browser"
+                    output_dir = ROOT / "local" / "instrument-brick3" / "browser"
                     output_dir.mkdir(parents=True, exist_ok=True)
+                    page.evaluate(
+                        "() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }"
+                    )
                     page.screenshot(path=output_dir / f"{request.node.name}.png", full_page=True)
             finally:
                 context.close()
@@ -228,6 +232,69 @@ def release_response(page):
     page.evaluate(
         "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
     )
+
+
+def download_report(page, destination):
+    with page.expect_download() as pending:
+        page.locator("#download-report").click()
+    download = pending.value
+    download.save_as(destination)
+    assert download.failure() is None
+    assert download.suggested_filename.endswith(".md")
+    report = destination.read_text(encoding="utf-8")
+    blocks = [
+        json.loads(match.group(2))
+        for match in re.finditer(r"^(`{3,})json\n(.*?)\n\1$", report, re.M | re.S)
+    ]
+    assert len(blocks) >= 4
+    return report, blocks
+
+
+def click_attitude_marker(page, point_index):
+    marker = (
+        page.locator("#attitude-plot .scatterlayer .trace")
+        .first.locator("path.point")
+        .nth(point_index)
+    )
+    marker.scroll_into_view_if_needed()
+    bounds = marker.bounding_box()
+    assert bounds is not None
+    page.mouse.click(bounds["x"] + bounds["width"] / 2, bounds["y"] + bounds["height"] / 2)
+
+
+def inspect_record(page, expect, index):
+    page.locator("#messages-tab").click()
+    page.locator(f'#message-rows button[data-record-index="{index}"]').click()
+    expect(page.locator("#inspector-title")).to_have_text(f"Record #{index}")
+    expect(page.locator("#inspector-content")).to_be_visible()
+
+
+def literal_payload_recording():
+    from pymavlink.dialects.v20 import common
+
+    encoder = common.MAVLink(None, srcSystem=1, srcComponent=1)
+    payload_text = "<img src=x onerror=alert(1)> `literal`"
+    frames = [
+        common.MAVLink_system_time_message(
+            time_unix_usec=(1 << 64) - 1, time_boot_ms=(1 << 32) - 1
+        ).pack(encoder),
+        common.MAVLink_attitude_message(
+            time_boot_ms=123,
+            roll=float("nan"),
+            pitch=float("inf"),
+            yaw=float("-inf"),
+            rollspeed=0,
+            pitchspeed=0,
+            yawspeed=0,
+        ).pack(encoder),
+        common.MAVLink_statustext_message(severity=6, text=payload_text.encode()).pack(encoder),
+        bytes.fromhex("fd 01 00 00 00 03 01 ff ff ff 00 00 00"),
+    ]
+    origin = (1 << 64) - 10
+    data = b"".join(
+        (origin + index).to_bytes(8, "big") + frame for index, frame in enumerate(frames)
+    )
+    return data, origin, frames, payload_text
 
 
 def test_example_retains_provenance_gaps_and_separate_sources(instrument_page):
@@ -716,12 +783,14 @@ def test_completed_filter_response_cannot_revive_cleared_or_replaced_upload(
     expect(page.locator("#error")).to_be_hidden()
 
 
-def test_import_issue_pages_are_bounded_without_changing_selection(instrument_page):
+def test_import_issue_pages_are_bounded_without_changing_selection(instrument_page, tmp_path):
     page, expect = instrument_page
     data = recording((0, 1_700_000_000_000_000) for _ in range(205))
     upload(page, data, name="repeated-timestamps.tlog")
     expect(page.locator("#record-count")).to_have_text("205")
     expect(page.locator("#issue-count")).to_have_text("204")
+    inspect_record(page, expect, 0)
+    page.locator("#evidence-tab").click()
     page.locator("#issues-details summary").click()
     expect(page.locator("#issue-list li")).to_have_count(100)
     expect(page.locator("#issues-previous")).to_be_disabled()
@@ -733,6 +802,358 @@ def test_import_issue_pages_are_bounded_without_changing_selection(instrument_pa
     expect(page.locator("#issues-next")).to_be_disabled()
     expect(page.locator("#selected-count")).to_have_text("205")
     expect(page.locator("#sha256")).to_have_text(hashlib.sha256(data).hexdigest())
+    expect(page.locator("#inspector-title")).to_have_text("Record #0")
+    _, blocks = download_report(page, tmp_path / "after-issue-paging.md")
+    assert blocks[2]["import_issue_count"] == 204
+    assert blocks[2]["reported_issue_count"] == 100
+    assert blocks[2]["omitted_issue_count"] == 104
+    assert blocks[4]["index"] == 0
+
+
+def test_messages_plot_inspection_and_report_share_original_evidence(instrument_page, tmp_path):
+    page, expect = instrument_page
+    selected_attitude(page, expect)
+    expect(page.locator("#download-report")).to_be_enabled()
+    _, blocks = download_report(page, tmp_path / "without-explicit-record.md")
+    assert len(blocks) == 4
+    assert blocks[2]["explicit_detail_record_count"] == 0
+
+    page.locator("#attitude-tab").focus()
+    page.keyboard.press("ArrowRight")
+    expect(page.locator("#messages-tab")).to_be_focused()
+    expect(page.locator("#messages-tab")).to_have_attribute("aria-selected", "true")
+    record_button = page.locator('#message-rows button[data-record-index="2"]')
+    record_button.focus()
+    page.keyboard.press("Enter")
+    expect(page.locator("#inspector-title")).to_have_text("Record #2")
+    expect(page.locator("#inspector-content")).to_be_visible()
+    expect(record_button).to_be_focused()
+    expect(page.locator("#message-rows tr")).to_have_count(2)
+    expect(page.locator("#messages-range")).to_have_text("1 to 2 of 2 records")
+    expect(page.locator("#inspector-capture")).to_have_text("1700000001000000")
+    expect(page.locator("#inspector-time")).to_have_text("1")
+    expect(page.locator("#inspector-message")).to_contain_text("ATTITUDE")
+    expect(page.locator("#inspector-source")).to_have_text("1 / 1")
+    expect(page.locator("#inspector-checksum")).to_contain_text("valid")
+    expect(page.locator("#inspector-record-range")).to_have_text("[54, 90)")
+    expect(page.locator("#inspector-frame-range")).to_have_text("[62, 90)")
+    assert (
+        json.loads(page.locator("#inspector-fields").inner_text())
+        == EXPECTED["records"][2]["fields"]
+    )
+    frame = EXPECTED["records"][2]["frame_hex"]
+    assert re.sub(r"\s+", "", page.locator("#inspector-raw-frame").inner_text()) == frame
+    page.locator("#record-bytes-tab").click()
+    assert re.sub(r"\s+", "", page.locator("#inspector-raw-record").inner_text()) == (
+        FIXTURE.read_bytes()[54:90].hex()
+    )
+
+    show_attitude(page, expect)
+    click_attitude_marker(page, 1)
+    expect(page.locator("#inspector-title")).to_have_text("Record #8")
+    expect(page.locator("#attitude-tab")).to_have_attribute("aria-selected", "true")
+    # Pending control edits and chart zoom are not changes to the applied evidence.
+    page.locator("#source-filter").select_option("2:1")
+    page.locator("#start-filter").fill("2")
+    page.locator("#line-gap").fill("5")
+    page.evaluate(
+        "() => Plotly.relayout(document.querySelector('#attitude-plot'), "
+        "{'xaxis3.range': [2, 4], 'xaxis3.autorange': false})"
+    )
+    page.locator("#theme-select").select_option("light")
+    report, blocks = download_report(page, tmp_path / "selected-point.md")
+    provenance, selection, coverage, issues, detail = blocks
+    assert provenance["sha256"] == EXPECTED["sha256"]
+    assert selection == {
+        "sources": [[1, 1]],
+        "message_ids": [30],
+        "start_us": 1_700_000_001_000_000,
+        "end_us": 1_700_000_005_000_000,
+        "bounds": "inclusive",
+        "relative_origin_us": 1_700_000_000_000_000,
+    }
+    assert coverage["filtered_record_count"] == 2
+    assert coverage["explicit_detail_record_count"] == 1
+    assert coverage["attitude_plot"]["max_gap_us"] == 1_000_000
+    assert coverage["observation_intervals"]["longest"]["delta_us"] == 4_000_000
+    assert len(issues) == 5
+    assert detail["index"] == 8
+    assert detail["raw_frame_hex"] == EXPECTED["records"][8]["frame_hex"]
+    assert detail["fields"] == EXPECTED["records"][8]["fields"]
+    assert "packet loss" in report and "clock" in report
+    expect(page.locator("#filter-state")).to_have_text("Unapplied changes")
+
+    page.locator("#apply-gap").click()
+    expect(page.locator("#applied-gap")).to_have_text("Applied: 5 s")
+    expect(page.locator("#inspector-content")).to_be_hidden()
+    _, blocks = download_report(page, tmp_path / "new-gap.md")
+    assert blocks[1] == selection
+    assert blocks[2]["attitude_plot"]["max_gap_us"] == 5_000_000
+    assert blocks[2]["explicit_detail_record_count"] == 0
+    assert len(blocks) == 4
+
+
+def test_original_record_paging_plot_selection_and_direct_index(instrument_page, tmp_path):
+    page, expect = instrument_page
+    origin = 1_700_000_000_000_000
+    data = recording((2, origin + index * 100_000) for index in range(205))
+    upload(page, data, name="paged-observations.tlog")
+    expect(page.locator("#record-count")).to_have_text("205")
+    page.locator("#messages-tab").click()
+    expect(page.locator("#message-rows tr")).to_have_count(100)
+    expect(page.locator("#messages-range")).to_have_text("1 to 100 of 205 records")
+    expect(page.locator("#messages-previous")).to_be_disabled()
+    page.locator("#messages-next").click()
+    expect(page.locator("#messages-page")).to_have_value("2")
+    expect(page.locator("#message-rows tr").first).to_have_attribute("data-record-index", "100")
+    inspect_record(page, expect, 110)
+    page.locator("#messages-next").click()
+    expect(page.locator("#message-rows tr")).to_have_count(5)
+    expect(page.locator("#messages-next")).to_be_disabled()
+    expect(page.locator("#inspector-content")).to_be_hidden()
+    page.locator("#messages-page").fill("1")
+    page.locator("#messages-page").press("Enter")
+    expect(page.locator("#message-rows tr").first).to_have_attribute("data-record-index", "0")
+
+    show_attitude(page, expect)
+    page.wait_for_function("() => document.querySelector('#attitude-plot').data?.length === 3")
+    page.evaluate(
+        "() => Plotly.relayout(document.querySelector('#attitude-plot'), "
+        "{'xaxis3.range': [10.7, 11.3], 'xaxis3.autorange': false})"
+    )
+    click_attitude_marker(page, 110)
+    expect(page.locator("#inspector-title")).to_have_text("Record #110")
+    expect(page.locator("#inspector-capture")).to_have_text(str(origin + 11_000_000))
+    page.locator("#messages-tab").click()
+    expect(page.locator("#messages-page")).to_have_value("2")
+    expect(page.locator('#message-rows button[data-record-index="110"]')).to_have_attribute(
+        "aria-pressed", "true"
+    )
+    _, blocks = download_report(page, tmp_path / "page-two-point.md")
+    assert blocks[0]["sha256"] == hashlib.sha256(data).hexdigest()
+    assert blocks[2]["filtered_record_count"] == 205
+    assert blocks[4]["index"] == 110
+    frame = bytes.fromhex(EXPECTED["records"][2]["frame_hex"])
+    assert blocks[4]["offset"] == 110 * (8 + len(frame))
+    assert blocks[4]["timestamp_us"] == origin + 11_000_000
+    assert blocks[4]["raw_frame_hex"] == frame.hex()
+
+    page.locator("#record-index").fill("204")
+    page.locator("#inspect-record").click()
+    expect(page.locator("#inspector-title")).to_have_text("Record #204")
+    expect(page.locator("#messages-page")).to_have_value("3")
+    page.locator("#record-index").fill("205")
+    page.locator("#inspect-record").click()
+    expect(page.locator("#inspector-error")).to_be_visible()
+    expect(page.locator("#inspector-title")).to_have_text("Record #204")
+    _, blocks = download_report(page, tmp_path / "rejected-index.md")
+    assert blocks[4]["index"] == 204
+    apply_filters(page, expect, start="0", end="1", count=11)
+    expect(page.locator("#inspector-content")).to_be_hidden()
+    expect(page.locator("#messages-page")).to_have_value("1")
+    _, blocks = download_report(page, tmp_path / "narrowed-records.md")
+    assert len(blocks) == 4
+    assert blocks[2]["filtered_record_count"] == 11
+    assert blocks[2]["explicit_detail_record_count"] == 0
+
+
+def test_inspector_keeps_device_clock_nonfinite_opaque_and_text_literal(instrument_page, tmp_path):
+    page, expect = instrument_page
+    data, origin, frames, payload_text = literal_payload_recording()
+    name = "capture_<img src=x onerror=alert(1)>```_.tlog"
+    upload(page, data, name=name)
+    expect(page.locator("#record-count")).to_have_text("4")
+    expect(page.locator("#capture-origin")).to_have_text(str(origin))
+    inspect_record(page, expect, 0)
+    expect(page.locator("#inspector-capture")).to_have_text(str(origin))
+    fields = json.loads(page.locator("#inspector-fields").inner_text())
+    assert fields["time_unix_usec"] == (1 << 64) - 1
+    assert fields["time_boot_ms"] == (1 << 32) - 1
+    _, blocks = download_report(page, tmp_path / "exact-clocks.md")
+    assert blocks[0]["source_name"] == name
+    assert blocks[4]["timestamp_us"] == origin
+    assert blocks[4]["fields"]["time_unix_usec"] == (1 << 64) - 1
+
+    inspect_record(page, expect, 1)
+    fields = json.loads(page.locator("#inspector-fields").inner_text())
+    assert fields["roll"] == {"non_finite_float": "nan"}
+    assert fields["pitch"] == {"non_finite_float": "inf"}
+    assert fields["yaw"] == {"non_finite_float": "-inf"}
+    _, blocks = download_report(page, tmp_path / "nonfinite.md")
+    assert blocks[4]["fields"] == fields
+
+    inspect_record(page, expect, 2)
+    fields = json.loads(page.locator("#inspector-fields").inner_text())
+    assert fields["text"] == payload_text
+    assert page.locator("#inspector-fields img, #recording-name img").count() == 0
+    report, blocks = download_report(page, tmp_path / "literal-labels.md")
+    assert blocks[0]["source_name"] == name
+    assert blocks[4]["fields"]["text"] == payload_text
+    assert "<img" not in report
+
+    inspect_record(page, expect, 3)
+    expect(page.locator("#inspector-opaque")).to_be_visible()
+    expect(page.locator("#inspector-fields")).to_be_hidden()
+    expect(page.locator("#inspector-checksum")).to_contain_text("unverified")
+    expect(page.locator("#inspector-capture")).to_have_text(str(origin + 3))
+    assert re.sub(r"\s+", "", page.locator("#inspector-raw-frame").inner_text()) == frames[3].hex()
+    _, blocks = download_report(page, tmp_path / "opaque.md")
+    assert blocks[4]["index"] == 3
+    assert blocks[4]["fields"] is None
+    assert blocks[4]["raw_frame_hex"] == frames[3].hex()
+
+
+@pytest.mark.parametrize("kind", ["empty", "invalid", "partial"])
+def test_report_keeps_empty_and_partial_import_outcomes(instrument_page, tmp_path, kind):
+    page, expect = instrument_page
+    data = {"empty": b"", "invalid": b"bad", "partial": FIXTURE.read_bytes()[:-3]}[kind]
+    upload(page, data, name=f"{kind}.tlog")
+    expect(page.locator("#sha256")).to_have_text(hashlib.sha256(data).hexdigest())
+    expect(page.locator("#download-report")).to_be_enabled()
+    report, blocks = download_report(page, tmp_path / f"{kind}.md")
+    provenance, _, coverage, issues = blocks
+    assert provenance["sha256"] == hashlib.sha256(data).hexdigest()
+    assert provenance["size_bytes"] == len(data)
+    assert coverage["imported_record_count"] == (11 if kind == "partial" else 0)
+    assert coverage["filtered_record_count"] == coverage["imported_record_count"]
+    assert coverage["explicit_detail_record_count"] == 0
+    assert coverage["consumed_bytes"] + coverage["remaining_bytes"] == len(data)
+    assert coverage["traversal"] == ("empty" if kind == "empty" else "stopped")
+    if kind != "empty":
+        assert any(issue["severity"] == "error" for issue in issues)
+    assert "No record details were explicitly selected." in report
+
+
+def test_no_match_report_and_explicit_clear_do_not_export_previous_inspection(
+    instrument_page, tmp_path
+):
+    page, expect = instrument_page
+    selected_attitude(page, expect)
+    inspect_record(page, expect, 8)
+    page.locator("#clear-inspector").click()
+    expect(page.locator("#inspector-content")).to_be_hidden()
+    _, blocks = download_report(page, tmp_path / "cleared-inspector.md")
+    assert blocks[2]["explicit_detail_record_count"] == 0
+    assert len(blocks) == 4
+    inspect_record(page, expect, 2)
+    apply_filters(page, expect, start="2", end="4", count=0)
+    expect(page.locator("#message-rows tr")).to_have_count(0)
+    expect(page.locator("#inspector-content")).to_be_hidden()
+    _, blocks = download_report(page, tmp_path / "no-matching-records.md")
+    assert blocks[1]["start_us"] == 1_700_000_002_000_000
+    assert blocks[1]["end_us"] == 1_700_000_004_000_000
+    assert blocks[2]["filtered_record_count"] == 0
+    assert blocks[2]["explicit_detail_record_count"] == 0
+    assert len(blocks) == 4
+
+
+@pytest.mark.parametrize("pending_kind", ["inspector", "report"])
+@pytest.mark.parametrize("next_action", ["clear", "replace", "filter"])
+def test_completed_inspection_and_download_cannot_survive_changed_evidence(
+    instrument_page, pending_kind, next_action
+):
+    page, expect = instrument_page
+    upload(page, FIXTURE.read_bytes(), name="initial.tlog")
+    expect(page.locator("#record-count")).to_have_text("12")
+    downloads = []
+    page.on("download", lambda download: downloads.append(download))
+    hold_next_response(page, "/api/analyze")
+    if pending_kind == "inspector":
+        page.locator("#messages-tab").click()
+        page.locator('#message-rows button[data-record-index="8"]').click()
+    else:
+        page.locator("#download-report").click()
+    page.wait_for_function("() => typeof window.releaseResponse === 'function'")
+    if next_action == "clear":
+        page.locator("#clear-recording").click()
+        assert_cleared(page, expect)
+    elif next_action == "replace":
+        upload(page, recording([(3, 123_456_789)]), name="replacement.tlog")
+        expect(page.locator("#record-count")).to_have_text("1")
+    else:
+        apply_filters(page, expect, source="2:1", message="30", count=5)
+    release_response(page)
+    expect(page.locator("#inspector-content")).to_be_hidden()
+    assert downloads == []
+    if next_action == "clear":
+        assert_cleared(page, expect)
+        expect(page.locator("#download-report")).to_be_disabled()
+    elif next_action == "replace":
+        expect(page.locator("#recording-name")).to_have_text("replacement.tlog")
+        expect(page.locator("#record-count")).to_have_text("1")
+        expect(page.locator("#capture-origin")).to_have_text("123456789")
+    else:
+        expect(page.locator("#selected-count")).to_have_text("5")
+        expect(page.locator("#applied-source")).to_contain_text("2 / 1")
+
+
+def test_failed_report_preserves_inspection_and_retries_current_evidence(instrument_page, tmp_path):
+    page, expect = instrument_page
+    selected_attitude(page, expect)
+    inspect_record(page, expect, 8)
+
+    def fail_report(route):
+        route.fulfill(
+            status=503,
+            content_type="application/json",
+            body=json.dumps({"error": "Report is temporarily unavailable."}),
+        )
+
+    page.route("**/api/example?*format=markdown*", fail_report)
+    page.locator("#download-report").click()
+    expect(page.locator("#report-error")).to_be_visible()
+    expect(page.locator("#inspector-title")).to_have_text("Record #8")
+    page.unroute("**/api/example?*format=markdown*", fail_report)
+    _, blocks = download_report(page, tmp_path / "retried-report.md")
+    assert blocks[4]["index"] == 8
+    expect(page.locator("#report-error")).to_be_hidden()
+
+
+def test_newer_explicit_record_wins_over_completed_older_inspection(instrument_page, tmp_path):
+    page, expect = instrument_page
+    selected_attitude(page, expect)
+    page.locator("#messages-tab").click()
+    hold_next_response(page, "/api/example")
+    page.locator('#message-rows button[data-record-index="2"]').click()
+    page.wait_for_function("() => typeof window.releaseResponse === 'function'")
+    page.locator('#message-rows button[data-record-index="8"]').click()
+    expect(page.locator("#inspector-title")).to_have_text("Record #8")
+    release_response(page)
+    expect(page.locator("#inspector-title")).to_have_text("Record #8")
+    expect(page.locator('#message-rows button[data-record-index="8"]')).to_have_attribute(
+        "aria-pressed", "true"
+    )
+    _, blocks = download_report(page, tmp_path / "latest-explicit-record.md")
+    assert blocks[4]["index"] == 8
+
+
+def test_empty_attitude_interval_and_activity_bins_do_not_select_records(instrument_page, tmp_path):
+    page, expect = instrument_page
+    selected_attitude(page, expect)
+    click_attitude_marker(page, 0)
+    expect(page.locator("#inspector-title")).to_have_text("Record #2")
+    markers = page.locator("#attitude-plot .scatterlayer .trace").first.locator("path.point")
+    markers.first.scroll_into_view_if_needed()
+    first, last = markers.nth(0).bounding_box(), markers.nth(1).bounding_box()
+    assert first is not None and last is not None
+    page.mouse.click(
+        (first["x"] + first["width"] / 2 + last["x"] + last["width"] / 2) / 2,
+        first["y"] + first["height"] / 2,
+    )
+    expect(page.locator("#inspector-title")).to_have_text("Record #2")
+    page.locator("#clear-inspector").click()
+    expect(page.locator("#inspector-content")).to_be_hidden()
+    page.locator("#activity-tab").click()
+    bar = page.locator("#activity-plot .barlayer .point path").first
+    expect(bar).to_be_visible()
+    bar.scroll_into_view_if_needed()
+    bounds = bar.bounding_box()
+    assert bounds is not None and bounds["width"] > 0 and bounds["height"] > 0
+    page.mouse.click(bounds["x"] + bounds["width"] / 2, bounds["y"] + bounds["height"] / 2)
+    expect(page.locator("#inspector-content")).to_be_hidden()
+    _, blocks = download_report(page, tmp_path / "activity-does-not-select.md")
+    assert len(blocks) == 4
+    assert blocks[2]["explicit_detail_record_count"] == 0
 
 
 @pytest.mark.parametrize("width", [1440, 1024, 390, 320])
@@ -745,6 +1166,9 @@ def test_loaded_workspace_fits_and_remains_readable(instrument_page, width, them
     page.wait_for_function(
         "document.querySelector('#attitude-plot .scatterlayer path.point') !== null"
     )
+    click_attitude_marker(page, 1)
+    expect(page.locator("#inspector-title")).to_have_text("Record #8")
+    expect(page.locator("#inspector-content")).to_be_visible()
     bounds = page.evaluate(
         """() => ({
             viewport: innerWidth,
@@ -789,18 +1213,30 @@ def test_loaded_workspace_fits_and_remains_readable(instrument_page, width, them
                 const values = [luminance(foreground), luminance(backdrop)].sort((a, b) => a - b);
                 return (values[1] + .05) / (values[0] + .05);
             };
+            const painted = (element, property, backdrop) => {
+                const style = getComputedStyle(element), foreground = rgba(style[property]);
+                let alpha = foreground[3] ?? 1;
+                if (property === 'fill') alpha *= Number(style.fillOpacity);
+                for (let current = element; current; current = current.parentElement) {
+                    alpha *= Number(getComputedStyle(current).opacity);
+                }
+                foreground[3] = alpha;
+                return over(foreground, backdrop);
+            };
             const selectors = [
                 '#recording-name', '#capture-origin', '#record-count', '#source-count',
                 '#issue-count', '#load-example', '#theme-select', '#status',
                 '#source-filter', '#message-filter', '#start-filter', '#end-filter',
                 '#applied-range', '#selected-count', '#filter-state', '#line-gap',
+                '#download-report', '#inspector-title', '#inspector-capture',
+                '#inspector-fields', '#inspector-raw-frame', '#inspector-checksum',
             ];
             const results = selectors.map(selector => {
                 const element = document.querySelector(selector);
                 const backdrop = background(element);
                 return {
                     selector,
-                    ratio: ratio(over(rgba(getComputedStyle(element).color), backdrop), backdrop),
+                    ratio: ratio(painted(element, 'color', backdrop), backdrop),
                     minimum: 4.5,
                 };
             });
@@ -815,14 +1251,14 @@ def test_loaded_workspace_fits_and_remains_readable(instrument_page, width, them
                 )) {
                     results.push({
                         selector: graph.id + ' data marker',
-                        ratio: ratio(over(rgba(getComputedStyle(point).fill), backdrop), backdrop),
+                        ratio: ratio(painted(point, 'fill', backdrop), backdrop),
                         minimum: 3,
                     });
                 }
                 for (const tick of graph.querySelectorAll('.xtick text, .ytick text')) {
                     results.push({
                         selector: graph.id + ' axis tick',
-                        ratio: ratio(over(rgba(getComputedStyle(tick).fill), backdrop), backdrop),
+                        ratio: ratio(painted(tick, 'fill', backdrop), backdrop),
                         minimum: 4.5,
                     });
                 }
@@ -838,4 +1274,12 @@ def test_loaded_workspace_fits_and_remains_readable(instrument_page, width, them
     activity_contrast = page.evaluate(contrast_script)
     assert any(item["selector"] == "activity-plot data marker" for item in activity_contrast)
     assert all(item["ratio"] >= item["minimum"] for item in activity_contrast), activity_contrast
+    page.locator("#messages-tab").click()
+    expect(page.locator("#message-rows tr")).to_have_count(2)
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+    if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
+        output_dir = ROOT / "local" / "instrument-brick3" / "browser"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        page.evaluate("() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }")
+        page.screenshot(path=output_dir / f"messages-{theme}-{width}.png", full_page=True)
     show_attitude(page, expect)

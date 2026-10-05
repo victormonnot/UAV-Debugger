@@ -5,7 +5,8 @@
   const text = (id, value) => { $(id).textContent = String(value ?? "N/A"); };
   const state = {
     data: null, input: null, retryInput: null, pendingInput: null,
-    request: 0, controller: null, busy: false, render: 0, viewRevision: 0,
+    request: 0, controller: null, busy: false, busyPurpose: null, render: 0, viewRevision: 0,
+    reportRequest: 0, reportController: null, reportBusy: false,
     view: "activity", visible: [true, true, true], focused: false,
     observationRows: [], observationPage: 0,
   };
@@ -57,7 +58,7 @@
     $("focus-chart").setAttribute("aria-pressed", "false");
   }
   function hideErrors() {
-    ["error", "filter-error", "gap-error", "issues-error"].forEach(id => { $(id).hidden = true; });
+    ["error", "filter-error", "gap-error", "issues-error", "messages-error", "inspector-error", "report-error"].forEach(id => { $(id).hidden = true; });
   }
   function resetPlotView() {
     state.viewRevision++;
@@ -67,12 +68,15 @@
     $("observations-details").open = false;
   }
   function clearRecording() {
+    cancelReport();
     state.request++;
     state.controller?.abort();
     state.controller = null;
     state.input = state.retryInput = state.pendingInput = state.data = null;
     state.busy = false;
+    state.busyPurpose = null;
     state.view = "activity";
+    selectEvidence("evidence");
     $("recording-file").value = "";
     exitFocus();
     resetPlotView();
@@ -112,13 +116,43 @@
   }
   function updateControls() {
     const available = Boolean(state.data);
-    $("filter-fields").disabled = !state.data?.recording.record_count || state.busy;
-    $("line-gap").disabled = $("apply-gap").disabled = !state.data?.recording.record_count || state.busy;
+    const blocked = selectionBusy(), messages = state.data?.selection.messages;
+    $("filter-fields").disabled = !state.data?.recording.record_count || blocked;
+    $("line-gap").disabled = $("apply-gap").disabled = !state.data?.recording.record_count || blocked;
     $("clear-recording").disabled = !available && !state.pendingInput && !state.retryInput;
     $("analysis-workspace").setAttribute("aria-busy", String(state.busy));
     $("issues-previous").disabled = state.busy || !available || state.data.issue_page === 0;
     $("issues-next").disabled = state.busy || !available || (state.data.issue_page + 1) * state.data.issue_page_size >= state.data.issue_count;
+    $("record-index").disabled = $("inspect-record").disabled = !messages?.total_count || blocked;
+    $("messages-previous").disabled = state.busy || !messages || messages.page === 0;
+    $("messages-next").disabled = state.busy || !messages || messages.page + 1 >= messages.page_count;
+    $("messages-page").disabled = state.busy || !messages?.total_count;
+    $("download-report").disabled = !available || state.busy || state.reportBusy;
+    $("download-report").setAttribute("aria-busy", String(state.reportBusy));
+    $("clear-inspector").disabled = blocked;
+    document.querySelectorAll("#message-rows button").forEach(button => { button.disabled = blocked; });
     updateFilterState();
+  }
+  function selectionBusy() {
+    return state.busy && ["import", "filters", "gap"].includes(state.busyPurpose);
+  }
+  function requestOptions(input, filters, extra, signal) {
+    const query = new URLSearchParams();
+    for (const key of ["source", "message_id"]) { if (filters[key]) query.set(key, filters[key]); }
+    for (const key of ["start", "end", "gap"]) {
+      if (filters[key] !== undefined && filters[key] !== null) query.set(key, filters[key]);
+    }
+    for (const [key, value] of Object.entries(extra)) {
+      if (value !== null && value !== undefined) query.set(key, String(value));
+    }
+    if (input.kind === "file") query.set("name", input.file.name);
+    const options = { signal, cache: "no-store", credentials: "same-origin" };
+    if (input.kind === "file") {
+      options.method = "POST";
+      options.headers = { "Content-Type": "application/octet-stream" };
+      options.body = input.file;
+    }
+    return { url: `${input.kind === "file" ? "/api/analyze" : "/api/example"}?${query}`, options };
   }
   async function openInput(input) {
     clearRecording();
@@ -132,43 +166,43 @@
     state.retryInput = input;
     await analyze(input, {}, "import");
   }
-  async function analyze(input, filters, purpose, issuePage = 0) {
+  async function analyze(input, filters, purpose, issuePage = 0, extra = {}) {
+    cancelReport();
     const request = ++state.request;
     state.controller?.abort();
     const controller = new AbortController();
     state.controller = controller;
     state.pendingInput = input;
     state.busy = true;
+    state.busyPurpose = purpose;
     hideErrors();
     updateControls();
-    status(purpose === "import" ? "Reading recording..." : purpose === "issues" ? "Reading import issues..." : "Applying selection...", "loading");
-    const query = new URLSearchParams();
-    for (const key of ["source", "message_id"]) { if (filters[key]) query.set(key, filters[key]); }
-    for (const key of ["start", "end", "gap"]) {
-      if (filters[key] !== undefined && filters[key] !== null) query.set(key, filters[key]);
-    }
-    query.set("issue_page", String(issuePage));
-    if (input.kind === "file") query.set("name", input.file.name);
-    const options = { signal: controller.signal, cache: "no-store", credentials: "same-origin" };
-    if (input.kind === "file") {
-      options.method = "POST";
-      options.headers = { "Content-Type": "application/octet-stream" };
-      options.body = input.file;
-    }
+    status(purpose === "import" ? "Reading recording..." : purpose === "issues" ? "Reading import issues..." : purpose === "inspect" ? "Reading record..." : purpose === "messages" ? "Reading messages..." : "Applying selection...", "loading");
+    const references = purpose === "issues" ? { record_page: state.data.selection.messages.page, record_index: state.data.inspector?.index } : {};
+    const { url, options } = requestOptions(input, filters, {
+      issue_page: issuePage, sha256: purpose === "import" ? null : state.data.recording.sha256,
+      ...references, ...extra,
+    }, controller.signal);
     try {
-      const endpoint = input.kind === "file" ? "/api/analyze" : "/api/example";
-      const response = await fetch(`${endpoint}?${query}`, options);
+      const response = await fetch(url, options);
       let data;
       try { data = await response.json(); }
       catch { throw new Error("The local service returned an unreadable response."); }
       if (!response.ok) throw new Error(data.error || "The recording could not be analyzed.");
-      if (data.schema_version !== 2 || !data.recording || !data.selection || !Array.isArray(data.sources) || !Array.isArray(data.message_types) || !Array.isArray(data.issues)) {
+      if (data.schema_version !== 3 || !data.recording || !data.selection?.messages || !Array.isArray(data.sources) || !Array.isArray(data.message_types) || !Array.isArray(data.issues)) {
         throw new Error("The local service returned an unsupported recording response.");
       }
       if (request !== state.request) return;
       if (purpose === "issues") {
         for (const key of ["issues", "issue_count", "issue_counts", "issue_page", "issue_page_size"]) state.data[key] = data[key];
         renderIssues();
+      } else if (purpose === "inspect" || purpose === "messages") {
+        state.data.selection.messages = data.selection.messages;
+        state.data.inspector = data.inspector;
+        renderMessages();
+        renderInspector();
+        if (purpose === "inspect") { exitFocus(); selectEvidence("inspector"); }
+        renderPlot();
       } else {
         state.data = data;
         state.input = input;
@@ -188,7 +222,8 @@
         $("retry-example").hidden = false;
         status("Import failed", "error");
       } else {
-        const target = purpose === "gap" ? "gap-error" : purpose === "issues" ? "issues-error" : "filter-error";
+        const target = purpose === "gap" ? "gap-error" : purpose === "issues" ? "issues-error" : purpose === "inspect" ? "inspector-error" : purpose === "messages" ? "messages-error" : "filter-error";
+        if (purpose === "inspect") { exitFocus(); selectEvidence("inspector"); }
         text(target, message);
         $(target).hidden = false;
         status("Request not applied / previous selection retained", "error");
@@ -196,6 +231,7 @@
     } finally {
       if (request === state.request) {
         state.busy = false;
+        state.busyPurpose = null;
         state.controller = null;
         state.pendingInput = null;
         updateControls();
@@ -233,6 +269,8 @@
       $("provenance-details").open = false;
     }
     renderIssues();
+    renderMessages();
+    renderInspector();
     renderSelection();
     updateControls();
   }
@@ -262,9 +300,124 @@
     $("issues-pagination").hidden = pages <= 1;
     text("issues-page", `${(data?.issue_page || 0) + 1} / ${pages}`);
   }
+  function renderMessages() {
+    const messages = state.data?.selection.messages, selected = state.data?.inspector?.index;
+    const focusedIndex = document.activeElement?.closest("#message-rows button")?.dataset.recordIndex;
+    const fragment = document.createDocumentFragment();
+    for (const record of messages?.records || []) {
+      const row = document.createElement("tr"), reference = document.createElement("td"), button = document.createElement("button");
+      row.dataset.recordIndex = button.dataset.recordIndex = String(record.index);
+      row.dataset.selected = String(selected === record.index);
+      button.type = "button";
+      button.textContent = `#${record.index}`;
+      button.setAttribute("aria-label", `Inspect record #${record.index}`);
+      button.setAttribute("aria-pressed", String(selected === record.index));
+      button.addEventListener("click", () => inspectRecord(record.index));
+      reference.append(button); row.append(reference);
+      for (const value of [record.time_s, record.message_name || `ID ${record.message_id}`, `${record.system_id} / ${record.component_id}`, record.sequence, record.checksum_status]) {
+        const cell = document.createElement("td"); cell.textContent = String(value); row.append(cell);
+      }
+      fragment.append(row);
+    }
+    $("message-rows").replaceChildren(fragment);
+    if (focusedIndex !== undefined) {
+      [...$("message-rows").querySelectorAll("button")].find(button => button.dataset.recordIndex === focusedIndex)?.focus({ preventScroll: true });
+    }
+    const count = messages?.total_count || 0, first = count ? messages.page * messages.page_size + 1 : 0;
+    text("messages-range", messages ? `${first} to ${first ? first + messages.records.length - 1 : 0} of ${count} records` : "No input");
+    text("messages-empty", state.data ? "No records match the applied selection" : "No recording selected");
+    $("messages-empty").hidden = count > 0;
+    $("messages-page").value = String((messages?.page || 0) + 1);
+    $("messages-page").max = String(messages?.page_count || 1);
+    text("messages-page-count", messages?.page_count || 1);
+  }
+  function renderInspector() {
+    const record = state.data?.inspector;
+    $("inspector-content").hidden = !record;
+    $("inspector-empty").hidden = Boolean(record);
+    $("record-index").value = record ? String(record.index) : "";
+    text("inspector-title", record ? `Record #${record.index}` : "Record");
+    text("inspector-message", record ? `${record.message_name || "Opaque message"} / ${record.message_id}` : "");
+    text("inspector-source", record ? `${record.system_id} / ${record.component_id}` : "");
+    text("inspector-sequence", record?.sequence);
+    text("inspector-wire", record ? `MAVLink ${record.wire_version}` : "");
+    text("inspector-checksum", record?.checksum_status);
+    text("inspector-capture", record?.timestamp_us);
+    text("inspector-time", record?.time_s);
+    text("inspector-record-range", record ? `[${record.offset}, ${record.end_offset})` : "");
+    text("inspector-frame-range", record ? `[${record.frame_offset}, ${record.end_offset})` : "");
+    // Keep server-rendered JSON as text: parsing it would round 64-bit payload clocks.
+    text("inspector-fields", record?.fields_json || "");
+    $("inspector-fields").hidden = !record?.fields_json;
+    $("inspector-opaque").hidden = !record || record.fields_json !== null;
+    text("inspector-raw-frame", record?.raw_frame_hex.match(/.{2}/g)?.join(" ") || "");
+    text("inspector-raw-record", record?.raw_record_hex.match(/.{2}/g)?.join(" ") || "");
+  }
+  function inspectRecord(index) {
+    if (!state.input || selectionBusy()) return;
+    analyze(state.input, appliedFilters(), "inspect", state.data.issue_page, { record_index: index });
+  }
+  function changeMessagePage(page) {
+    const messages = state.data?.selection.messages;
+    if (!state.input || state.busy || !Number.isSafeInteger(page) || page < 0 || page >= messages.page_count || page === messages.page) {
+      $("messages-page").value = String((messages?.page || 0) + 1);
+      return;
+    }
+    analyze(state.input, appliedFilters(), "messages", state.data.issue_page, { record_page: page });
+  }
+  function selectEvidence(view) {
+    for (const item of ["evidence", "inspector"]) {
+      $(`${item}-tab`).setAttribute("aria-selected", String(view === item));
+      $(`${item}-tab`).tabIndex = view === item ? 0 : -1;
+      $(`${item}-view`).hidden = view !== item;
+    }
+  }
+  function cancelReport() {
+    state.reportRequest++;
+    state.reportController?.abort();
+    state.reportController = null;
+    state.reportBusy = false;
+  }
+  async function downloadReport() {
+    if (!state.input || state.busy || state.reportBusy) return;
+    const request = ++state.reportRequest, controller = new AbortController();
+    const fingerprint = state.data.recording.sha256;
+    state.reportController = controller;
+    state.reportBusy = true;
+    $("report-error").hidden = true;
+    updateControls();
+    const { url, options } = requestOptions(state.input, appliedFilters(), {
+      format: "markdown", sha256: fingerprint, record_index: state.data.inspector?.index,
+    }, controller.signal);
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "The report could not be generated.");
+      }
+      if (!response.headers.get("content-type")?.startsWith("text/markdown")) throw new Error("The local service returned an unsupported report.");
+      const blob = await response.blob();
+      if (request !== state.reportRequest) return;
+      const objectURL = URL.createObjectURL(blob), link = document.createElement("a");
+      link.href = objectURL;
+      link.download = `uav-debugger-${fingerprint.slice(0, 12)}.md`;
+      document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(objectURL), 1000);
+    } catch (error) {
+      if (request !== state.reportRequest || error.name === "AbortError") return;
+      text("report-error", error instanceof TypeError ? "The local service could not be reached. Retry the report." : error.message);
+      $("report-error").hidden = false;
+    } finally {
+      if (request === state.reportRequest) {
+        state.reportBusy = false;
+        state.reportController = null;
+        updateControls();
+      }
+    }
+  }
   function renderSelection() {
     const selection = state.data?.selection, attitude = selection?.attitude, summary = attitude?.summary;
-    const isAttitude = state.view === "attitude", current = selection?.[state.view], ready = Boolean(current?.figure);
+    const isAttitude = state.view === "attitude", isMessages = state.view === "messages", current = selection?.[state.view], ready = Boolean(current?.figure);
     const source = selection?.source ? `Source ${selection.source.join(" / ")}` : "All sources";
     const message = selection?.message_id === null ? "All messages" : state.data?.message_types.find(type => type.message_id === selection?.message_id)?.name || "All messages";
     text("selected-count", selection?.record_count ?? 0);
@@ -276,12 +429,14 @@
     text("applied-gap", `Applied: ${selection?.max_gap_s || "1"} s`);
     text("chart-title", isAttitude ? "Attitude / rad" : "Message activity");
     text("plot-context", selection ? (isAttitude && summary?.source ? `Source ${summary.source.join(" / ")}` : source) : "No input");
-    for (const view of ["activity", "attitude"]) {
+    for (const view of ["activity", "attitude", "messages"]) {
       $(`${view}-tab`).setAttribute("aria-selected", String(state.view === view));
       $(`${view}-tab`).tabIndex = state.view === view ? 0 : -1;
-      $(`${view}-plot`).hidden = state.view !== view || !ready;
+      if (view !== "messages") $(`${view}-plot`).hidden = state.view !== view || !ready;
     }
-    $("chart-view").setAttribute("aria-labelledby", `${state.view}-tab`);
+    $("chart-view").hidden = isMessages;
+    $("messages-view").hidden = !isMessages;
+    if (!isMessages) $("chart-view").setAttribute("aria-labelledby", `${state.view}-tab`);
     $("empty-plot").hidden = Boolean(selection);
     $("plot-unavailable").hidden = !selection || ready;
     const emptyStatus = {
@@ -360,6 +515,7 @@
         for (const view of ["activity", "attitude"]) globalThis.Plotly?.purge($(`${view}-plot`));
         return;
       }
+      if (state.view === "messages") return;
       const figure = state.data.selection[state.view]?.figure, plot = $(`${state.view}-plot`);
       if (!figure) { globalThis.Plotly?.purge(plot); return; }
       if (!globalThis.Plotly) throw new Error("The local chart library is unavailable.");
@@ -369,7 +525,8 @@
       data.forEach((trace, index) => {
         if (state.view === "attitude") {
           trace.line = { ...trace.line, color: colors[index], width: 2 };
-          trace.marker = { ...trace.marker, color: colors[index], size: 7 };
+          trace.marker = { ...trace.marker, color: colors[index], opacity: 1, size: trace.customdata.map(reference => reference && reference[0] === state.data.inspector?.index ? 11 : 7) };
+          trace.unselected = { marker: { opacity: 1 } };
           trace.visible = state.visible[index];
         } else trace.marker = { ...trace.marker, color: color("--activity") };
         trace.hoverlabel = { bgcolor: color("--field"), bordercolor: color("--control-line"), font: { color: color("--ink"), family: "IBM Plex Sans", size: 12 } };
@@ -392,8 +549,23 @@
         axis.fixedrange = matchMedia("(pointer: coarse)").matches;
       }
       await Plotly.react(plot, data, layout, { displayModeBar: false, displaylogo: false, responsive: false, scrollZoom: false, showLink: false, locale: "en" });
+      plot.removeAllListeners("plotly_click");
+      if (state.view === "attitude" && revision === state.render) {
+        const viewRevision = state.viewRevision;
+        plot.on("plotly_click", event => {
+          if (state.view !== "attitude" || state.viewRevision !== viewRevision || selectionBusy()) return;
+          const point = event.points?.[0];
+          if (!point || !Number.isInteger(point.curveNumber) || !Number.isInteger(point.pointNumber)) return;
+          const trace = state.data?.selection.attitude.figure?.data[point.curveNumber];
+          const reference = trace?.customdata?.[point.pointNumber];
+          if (!reference || trace.y[point.pointNumber] === null || !Number.isSafeInteger(reference[0])) return;
+          if (point.customdata?.[0] !== reference[0] || point.customdata?.[1] !== reference[1]) return;
+          inspectRecord(reference[0]);
+        });
+      }
     }).catch(() => {
       if (revision !== state.render) return;
+      if (state.view === "messages") return;
       $(`${state.view}-plot`).hidden = true;
       $("plot-unavailable").hidden = false;
       text("plot-unavailable-text", "Chart unavailable");
@@ -406,15 +578,27 @@
     $("observations-details").open = false;
     renderSelection();
   }
-  for (const view of ["activity", "attitude"]) {
-    $(`${view}-tab`).addEventListener("click", () => selectView(view));
-    $(`${view}-tab`).addEventListener("keydown", event => {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-      event.preventDefault();
-      const next = event.key === "Home" ? "activity" : event.key === "End" ? "attitude" : view === "activity" ? "attitude" : "activity";
-      selectView(next); $(`${next}-tab`).focus();
-    });
+  function bindTabs(views, select) {
+    for (const [index, view] of views.entries()) {
+      $(`${view}-tab`).addEventListener("click", () => select(view));
+      $(`${view}-tab`).addEventListener("keydown", event => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === "Home" ? 0 : event.key === "End" ? views.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + views.length) % views.length;
+        select(views[next]); $(`${views[next]}-tab`).focus();
+      });
+    }
   }
+  bindTabs(["activity", "attitude", "messages"], selectView);
+  bindTabs(["evidence", "inspector"], selectEvidence);
+  bindTabs(["frame-bytes", "record-bytes"], view => {
+    for (const kind of ["frame", "record"]) {
+      const selected = view === `${kind}-bytes`;
+      $(`${kind}-bytes-tab`).setAttribute("aria-selected", String(selected));
+      $(`${kind}-bytes-tab`).tabIndex = selected ? 0 : -1;
+      $(`inspector-raw-${kind}`).hidden = !selected;
+    }
+  });
   let resizeTimer;
   const resizeObserver = new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderPlot, 80); });
   for (const view of ["activity", "attitude"]) resizeObserver.observe($(`${view}-plot`));
@@ -452,27 +636,54 @@
   $("filter-form").addEventListener("change", updateFilterState);
   $("filter-form").addEventListener("submit", event => {
     event.preventDefault();
-    if (state.input && !state.busy) analyze(state.input, filterDraft(), "filters");
+    if (state.input && !selectionBusy()) analyze(state.input, filterDraft(), "filters");
   });
   $("reset-filters").addEventListener("click", () => {
-    if (!state.input || state.busy) return;
+    if (!state.input || selectionBusy()) return;
     const recording = state.data.recording;
     setFilterDraft({ source: "", message_id: "", start: recording.start_s, end: recording.end_s });
     analyze(state.input, filterDraft(), "filters");
   });
   $("gap-form").addEventListener("submit", event => {
     event.preventDefault();
-    if (state.input && !state.busy) analyze(state.input, { ...appliedFilters(), gap: $("line-gap").value }, "gap");
+    if (state.input && !selectionBusy()) analyze(state.input, { ...appliedFilters(), gap: $("line-gap").value }, "gap");
   });
+  $("record-form").addEventListener("submit", event => {
+    event.preventDefault();
+    if (!/^\d+$/.test($("record-index").value)) {
+      text("inspector-error", "Record index must be a non-negative integer.");
+      $("inspector-error").hidden = false;
+      selectEvidence("inspector");
+      return;
+    }
+    inspectRecord($("record-index").value);
+  });
+  $("messages-page").addEventListener("change", () => changeMessagePage(Number($("messages-page").value) - 1));
+  $("messages-page").addEventListener("keydown", event => {
+    if (event.key === "Enter") { event.preventDefault(); changeMessagePage(Number($("messages-page").value) - 1); }
+  });
+  $("clear-inspector").addEventListener("click", () => {
+    if (!state.data || selectionBusy()) return;
+    cancelReport();
+    state.request++;
+    state.controller?.abort();
+    state.controller = state.pendingInput = state.busyPurpose = null;
+    state.busy = false;
+    state.data.inspector = null;
+    $("inspector-error").hidden = true;
+    renderInspector(); renderMessages(); renderPlot(); updateControls(); recordingStatus();
+  });
+  $("download-report").addEventListener("click", downloadReport);
   for (const [direction, step] of [["previous", -1], ["next", 1]]) {
     $(`issues-${direction}`).addEventListener("click", () => {
       if (state.input && !state.busy) analyze(state.input, appliedFilters(), "issues", state.data.issue_page + step);
     });
     $(`observations-${direction}`).addEventListener("click", () => { state.observationPage += step; renderObservationPage(); });
+    $(`messages-${direction}`).addEventListener("click", () => changeMessagePage(state.data.selection.messages.page + step));
   }
   function openWorkspace(experiment) {
     text("workspace-title", experiment ? "Experiment" : "Existing workspace");
-    text("workspace-context", experiment ? "Execution is available in the existing workspace." : "Record inspection, reports and saved experiments");
+    text("workspace-context", experiment ? "Execution is available in the existing workspace." : "Saved runs, comparisons and experiments");
     text("workspace-availability", classicURL ? "Separate local service / no recording is transferred." : "No existing workspace linked.");
     $("classic-link").hidden = !classicURL;
     if (classicURL) $("classic-link").href = classicURL;

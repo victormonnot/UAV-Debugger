@@ -3,14 +3,15 @@
 Instrument is UAV Debugger's custom local web interface for saved telemetry
 recordings. Open a supported file or the bundled example, review import status
 and provenance, apply exact source/type/time filters, and inspect activity and
-attitude observations. Light, dark and system appearance use local display
-assets. The importer, telemetry model and plotting rules are shared with the
-existing interface.
+attitude observations. Inspect original messages and download Markdown evidence
+reports for the applied selection. Light, dark and system appearance use local
+display assets. The importer, telemetry model, plotting rules and report builder
+are shared with the existing interface.
 
-Record inspection, report export, saved-experiment browsing and comparison, and
-explicit Experiment execution remain available through `uav-debugger-analyze`.
-Instrument does not yet replace those workflows and is not included in the
-published v0.2.0 artifacts.
+Saved-experiment browsing, inspection and comparison, and explicit Experiment
+execution remain available through `uav-debugger-analyze`. Instrument does not
+yet replace those workflows and is not included in the published v0.2.0
+artifacts.
 
 ## Launch
 
@@ -46,6 +47,7 @@ for your normal SSH connection. Keep the tunnel running and open
 the browser computer and sends its bytes through this connection to the server.
 **Load example** reads the fixture installed on the server. See the
 [Analyze SSH guide](analyze.md#access-through-ssh) for local port conflicts.
+Reports download to the computer running the browser.
 
 ## Open a recording
 
@@ -69,6 +71,10 @@ the exact input. To inspect its four-second observation interval:
 1. Choose **Load example**.
 2. Select source **1 / 1**, message type **ATTITUDE**, start **1** and end **5**.
 3. Choose **Apply filters**, then **Attitude**.
+4. Inspect a marker or choose record **#2** from **Messages** to read its
+   original evidence in **Inspector**.
+5. Choose **Download report** to export this applied selection and the
+   inspected record.
 
 Records **#2** and **#8** remain disconnected at the default one-second maximum
 line gap. The other source has observations during that interval. This does
@@ -133,8 +139,74 @@ establishes continuous measurement or a cause for a gap. The horizontal axis is
 relative capture time; device timestamps do not replace that clock. Hover
 details retain original record indices, exact capture timestamps and byte
 ranges. Point display coordinates do not reconstruct the original timestamps.
-Detailed decoded-field and raw-frame inspection remains in the existing
-workspace.
+Clicking an attitude marker inspects its original record and selects its message
+page while leaving the chart visible. Activity bins and unobserved gaps do not
+identify an individual record and cannot select one for inspection.
+
+## Inspect messages
+
+**Messages** shows at most **100 selected records per page**, in original file
+order. Paging changes the visible rows, not the applied selection or chart
+counts. Each row retains its original zero-based record index, capture time,
+source, message identity and checksum status. Filtering and paging never
+renumber the records.
+
+Select a record from a table row or use **Record index** to inspect a specific
+original index. The index must belong to the applied selection; inspection
+navigates to its corresponding message page. No record is selected implicitly
+when a recording is opened or a page is displayed.
+
+The right-hand **Inspector** shows the exact integer capture timestamp, source,
+wire version, sequence number, checksum status, decoded fields and original
+bytes. **Evidence** retains the recording's global provenance and import issues.
+Record byte ranges include the eight-byte outer timestamp; frame byte ranges
+begin at the MAVLink marker. Both use zero-based offsets and an exclusive end.
+The hexadecimal byte displays retain the original timestamp and frame bytes,
+including the frame's checksum bytes.
+
+Decoded fields are shown as JSON text without rounding large integer values
+through JavaScript numbers. Nonfinite floating-point values and byte arrays use
+explicit tagged representations. Opaque records keep their headers and bytes
+with an unverified checksum status, without invented decoded fields.
+
+Successful filter or line-gap changes and message-page changes clear the
+inspected record. Replacing or clearing a recording also clears it. Draft
+edits, invalid filter submissions, chart zoom and switching views do not choose
+a different record or silently apply filters.
+
+## Download a report
+
+**Download report** creates a fresh Markdown evidence summary from the applied
+source/type/time filters, the applied line gap and the explicitly inspected
+record, if any. Unapplied control edits and plot zoom are not report filters.
+The report includes:
+
+- Input name, fingerprint, byte size, application version, importer profile,
+  dialect and decoder version.
+- Exact inclusive capture-time bounds, source/type filters and the original
+  relative-time origin.
+- Complete import and selected counts, traversal status, consumed bytes and
+  unprocessed remainder.
+- Observation-interval evidence, attitude plot coverage, point limits and the
+  applied line-gap setting when imported records exist.
+- Clock and observation limits, global import issues and any explicitly
+  inspected record's decoded fields, byte references and original raw frame.
+
+Counts cover the **whole applied selection**, not just the visible message
+page. Without an explicit inspection, the report contains no individual record
+details. A valid empty selection, empty file or partial import still permits an
+evidence report describing its outcome.
+
+Reports include at most **100 import issues**, with an explicit omitted count.
+Errors take priority within the limit, followed by the earliest other issues;
+included entries keep their original order. This does not truncate the imported
+or selected counts. The report describes plot settings and source evidence,
+not a chart image or a complete recording archive.
+
+The service checks the supplied bytes against the applied recording's SHA-256
+before export and rejects a mismatch rather than exporting evidence for another
+input. The download filename uses that fingerprint. Uploaded recordings and
+generated reports are not saved to server disk.
 
 ## Review import status
 
@@ -194,12 +266,12 @@ bytes. It does not accept an arbitrary server filesystem path.
 | --- | --- |
 | `GET /health` | Server availability. |
 | `GET /api/config` | Schema version, installed application version and optional local full-workspace URL. |
-| `GET /api/example` | Analysis of the installed example with the requested selection and issue page. |
-| `POST /api/analyze` | Analysis of a raw `application/octet-stream` recording body, limited to 10 MiB. |
+| `GET /api/example` | Analysis or Markdown report for the installed example with the requested selection. |
+| `POST /api/analyze` | Analysis or Markdown report for a raw `application/octet-stream` recording body, limited to 10 MiB. |
 | `GET /` and `/assets/...` | Packaged interface, fonts and icons. |
 | `GET /vendor/plotly.min.js` | JavaScript bundle from the installed Plotly dependency. |
 
-The config and analysis responses declare `schema_version: 2`. Analysis accepts
+The config and JSON analysis responses declare `schema_version: 3`. Analysis accepts
 these query parameters:
 
 | Parameter | Meaning |
@@ -209,6 +281,10 @@ these query parameters:
 | `start`, `end` | Exact decimal seconds relative to the first imported record; omitted bounds use the imported minimum and maximum timestamps. |
 | `gap` | Positive exact decimal seconds for the maximum line gap; defaults to `1`. |
 | `issue_page` | Zero-based page of up to 100 global import issues; defaults to `0`. |
+| `record_page` | Zero-based page of up to 100 selected messages; defaults to `0` unless resolved from `record_index`. |
+| `record_index` | Explicit original record index in the applied selection; omission leaves the inspector empty. |
+| `format` | `json` by default, or `markdown` for a report download. |
+| `sha256` | Expected input fingerprint: 64 lowercase hexadecimal characters, required for Markdown export and optional for JSON analysis. |
 | `name` | Upload display label for `POST /api/analyze`; never resolved as a path. |
 
 The response keeps whole-recording counts separate from selected counts. Its
@@ -219,17 +295,28 @@ point references. Relative chart coordinates and attitude angles are display
 numbers. The browser does not recover original timestamps from floating-point
 coordinates.
 
+`selection.messages` contains the page number, page size/count, complete
+selected count and the current rows. `inspector` is `null` unless `record_index`
+is explicitly supplied. When supplied alone, that index resolves its message
+page; when a page is also supplied, the index must belong to that page. Decoded
+`fields_json` stays a serialized string, not a JavaScript object with rounded
+integers. `raw_frame_hex` contains the original frame; `raw_record_hex` also
+includes its outer timestamp. Markdown responses use `text/markdown` and an
+attachment filename derived from the recording fingerprint.
+
 Invalid queries or filters return `400`, uploads exceeding the byte limit return
-`413`, and unsupported media types or content encodings return `415`. Partial
-and empty imports return analysis outcomes rather than transport errors.
+`413`, and unsupported media types or content encodings return `415`. A mismatch
+with the expected SHA-256 returns `409`. Partial and empty imports return
+analysis outcomes rather than transport errors.
 
 Each request imports its own bytes and computes the applied selection. For an
 uploaded file, the browser resends that file when applying filters, changing the
-line gap or paging issues. The server keeps no mutable recording session or
-cache and writes no recording to disk. Browser tabs own independent inputs and
-selections; theme preference is the only persisted browser setting. Reloading
-the page does not restore an uploaded file. The **10 MiB** input-byte limit does
-not bound total process memory or guarantee performance.
+line gap, inspecting a message, paging or exporting a report. The server keeps no
+mutable recording session or cache and writes no recording or report to disk.
+Browser tabs own independent inputs, selections and inspectors; theme preference
+is the only persisted browser setting. Reloading the page does not restore an
+uploaded file. The **10 MiB** input-byte limit does not bound total process memory
+or guarantee performance.
 
 There is no Experiment command endpoint or execution bridge. This bounded API
 is an implementation contract for the current workspace, not a general
@@ -240,7 +327,7 @@ integration API.
 The focused server and packaging checks are:
 
 ```sh
-uv run --locked pytest tests/test_instrument.py tests/test_distribution.py
+uv run --locked pytest tests/test_instrument.py tests/test_report.py tests/test_distribution.py
 ```
 
 Instrument's browser workflows use the repository's optional Playwright setup;

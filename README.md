@@ -21,10 +21,11 @@ and hosted CI status.
 
 The source checkout also provides the new [Instrument workspace](docs/instrument.md):
 a custom local interface for opening supported recordings, applying source,
-message-type and exact time filters, and reading activity and attitude plots.
+message-type and exact time filters, reading activity and attitude plots,
+inspecting original messages and exporting Markdown evidence reports.
 It includes input provenance, import issues and light/dark themes. The existing
-interface below retains record inspection, reports and the complete saved-run
-and Experiment workflows during the transition.
+interface below retains the complete saved-run and Experiment workflows during
+the transition.
 
 See the [Experiment interface](docs/experiment-ui.md),
 [saved Experiment inspection](docs/saved-experiments.md) and
@@ -89,12 +90,17 @@ Open [Instrument](http://127.0.0.1:8765) and choose **Load example** or
 their fingerprint, capture clock and import warnings. Select a source, message
 type and inclusive time bounds, then choose **Apply filters**. **Activity** and
 **Attitude** use the same analysis logic as the full interface; plot zoom does
-not change the applied filters. Fonts, icons and plotting assets are served
-locally. See the [Instrument guide](docs/instrument.md) for partial imports,
-capacity limits and file replacement behavior.
+not change the applied filters. **Messages** pages the selected records in
+original order. Inspect a record from the table or an attitude marker to read
+its exact timestamp, decoded fields and original bytes. **Download report**
+exports the applied selection, plot settings and explicitly inspected record,
+with counts for the whole selection rather than only the visible page.
+Fonts, icons and plotting assets are served locally. See the
+[Instrument guide](docs/instrument.md) for partial imports, capacity limits and
+file replacement behavior.
 
-Record inspection, exporting reports, saved-run comparison and Experiment
-execution remain in `uav-debugger-analyze`. Instrument can link to that interface
+Saved-experiment browsing, inspection and comparison, and Experiment execution
+remain in `uav-debugger-analyze`. Instrument can link to that interface
 when it is started separately; see the [launch and handoff guide](docs/instrument.md).
 Instrument does not launch an experiment, start the other server or transfer a
 recording to it. This addition is not part of the published v0.2.0 artifacts.
@@ -204,7 +210,7 @@ for local reproduction, current development checks and published-release evidenc
 
 | Document | Contents |
 | --- | --- |
-| [Instrument workspace](docs/instrument.md) | Open recordings, apply exact filters, inspect activity and attitude, and continue to complete workflows. |
+| [Instrument workspace](docs/instrument.md) | Open recordings, apply exact filters, inspect charts and original messages, and export evidence reports. |
 | [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
 | [Experiment interface](docs/experiment-ui.md) | Explicit Start/Stop, shared execution, simulator setup and saved-evidence handoff. |
 | [Compare saved experiments](docs/comparison.md) | Pair eligibility, measurement-relative windows, observed differences and reports. |

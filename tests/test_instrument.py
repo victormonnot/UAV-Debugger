@@ -4,10 +4,12 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
 import time
+from dataclasses import replace
 from importlib.metadata import version
 from importlib.resources import files
 from pathlib import Path
@@ -16,11 +18,14 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import pytest
+from pymavlink.dialects.v20 import common
 from starlette.requests import Request as StarletteRequest
 
 from uav_debugger import import_bytes
+from uav_debugger.analysis import Selection
 from uav_debugger.importer import MAX_INPUT_BYTES
-from uav_debugger.instrument import _recording_payload, create_app, main
+from uav_debugger.instrument import _analyze_response, _recording_payload, create_app, main
+from uav_debugger.report import build_markdown_report
 
 FIXTURE = Path(__file__).parent / "fixtures" / "telemetry-gap.tlog"
 MANIFEST = FIXTURE.with_name("telemetry-gap.expected.json")
@@ -112,7 +117,7 @@ def test_example_api_preserves_fixture_identity_and_actual_observations(instrume
     assert headers["Content-Type"] == "application/json"
     assert headers["Cache-Control"] == "no-store"
     payload = json.loads(body)
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     recording = payload["recording"]
     assert recording["synthetic"] is True
     assert recording["source_name"] == "telemetry-gap.tlog (synthetic example)"
@@ -233,7 +238,7 @@ def test_config_health_assets_and_response_headers(instrument_server):
     status, headers, body = _request(instrument_server, "/api/config")
     assert status == 200
     assert json.loads(body) == {
-        "schema_version": 2,
+        "schema_version": 3,
         "version": version("uav-debugger"),
         "classic_url": None,
         "max_recording_bytes": MAX_INPUT_BYTES,
@@ -557,6 +562,7 @@ def test_hidden_clock_regression_and_original_order_survive_api_filters(instrume
     trace = payload["selection"]["attitude"]["figure"]["data"][0]
     assert trace["y"] == [0.25, None, 0.25, 0.25]
     assert [ref[0] for ref in trace["customdata"] if ref is not None] == [0, 2, 3]
+    assert [row["index"] for row in payload["selection"]["messages"]["records"]] == [0, 2, 3]
     assert payload["issue_counts"] == {"timestamp_regression": 1}
 
 
@@ -603,7 +609,14 @@ def test_attitude_limit_is_explicit_and_can_be_resolved_by_time_filters(instrume
     assert attitude["summary"]["status"] == "too_many"
     assert attitude["summary"]["point_limit"] == 5000
     assert attitude["figure"] is None
+    assert payload["selection"]["messages"]["total_count"] == 5001
+    assert payload["selection"]["messages"]["page_count"] == 51
     assert sum(payload["selection"]["activity"]["figure"]["data"][0]["y"]) == 5001
+    last = json.loads(_upload(instrument_server, data, record_index="5000")[2])
+    assert last["selection"]["messages"]["page"] == 50
+    assert last["inspector"]["index"] == 5000
+    assert last["inspector"]["raw_frame_hex"] == frame.hex()
+    assert last["selection"]["attitude"]["summary"]["status"] == "too_many"
     narrowed = json.loads(_upload(instrument_server, data, end="0.004999")[2])
     assert narrowed["selection"]["attitude"]["summary"]["status"] == "ready"
     assert narrowed["selection"]["attitude"]["summary"]["record_count"] == 5000
@@ -626,6 +639,389 @@ def test_issue_pages_cover_original_full_recording_without_dropping_issues(instr
         assert payload["selection"]["longest_interval_us"] == "0"
         assert payload["selection"]["record_count"] == 202
     assert _upload(instrument_server, data, issue_page="3")[0] == 400
+
+
+def _report_blocks(body):
+    return [
+        json.loads(match.group(2))
+        for match in re.finditer(r"(?ms)^(`{3,})json\n(.*?)^\1[ \t]*$", body.decode())
+    ]
+
+
+def test_messages_and_explicit_inspector_preserve_original_byte_and_clock_references(
+    instrument_server,
+):
+    original = FIXTURE.read_bytes()
+    result = import_bytes(original)
+    parameters = {"source": "1:1", "message_id": "30", "start": "1", "end": "5"}
+    payload = json.loads(_upload(instrument_server, original, **parameters)[2])
+    messages = payload["selection"]["messages"]
+    assert messages["page"] == 0
+    assert messages["page_count"] == 1
+    assert messages["page_size"] == 100
+    assert messages["total_count"] == 2
+    assert payload["inspector"] is None
+    assert [record["index"] for record in messages["records"]] == [2, 8]
+    for row in messages["records"]:
+        record = result.records[row["index"]]
+        assert row == {
+            "index": record.index,
+            "time_s": "1" if record.index == 2 else "5",
+            "timestamp_us": str(record.timestamp_us),
+            "system_id": record.system_id,
+            "component_id": record.component_id,
+            "message_id": record.message_id,
+            "message_name": record.message_name,
+            "sequence": record.sequence,
+            "offset": record.offset,
+            "frame_offset": record.frame_offset,
+            "end_offset": record.end_offset,
+            "wire_version": record.wire_version,
+            "checksum_status": record.checksum_status,
+        }
+    inspected = json.loads(_upload(instrument_server, original, **parameters, record_index="8")[2])[
+        "inspector"
+    ]
+    record = result.records[8]
+    assert {key: inspected[key] for key in messages["records"][1]} == messages["records"][1]
+    assert json.loads(inspected["fields_json"]) == dict(record.fields)
+    assert inspected["raw_frame_hex"] == record.raw_frame.hex()
+    assert (
+        bytes.fromhex(inspected["raw_frame_hex"])
+        == original[record.frame_offset : record.end_offset]
+    )
+    assert bytes.fromhex(inspected["raw_record_hex"]) == original[record.offset : record.end_offset]
+    assert inspected["raw_record_hex"][:16] == record.timestamp_us.to_bytes(8, "big").hex()
+    assert FIXTURE.read_bytes() == original
+
+
+def test_message_paging_uses_filtered_file_order_and_explicit_index_reveals_its_page(
+    instrument_server,
+):
+    records = import_bytes(FIXTURE.read_bytes()).records
+    data = b"".join(
+        index.to_bytes(8, "big") + records[0 if index % 2 else 1].raw_frame for index in range(405)
+    )
+    pages = [
+        json.loads(_upload(instrument_server, data, source="1:1", record_page=str(page))[2])
+        for page in range(3)
+    ]
+    assert [len(page["selection"]["messages"]["records"]) for page in pages] == [100, 100, 2]
+    assert [
+        row["index"] for page in pages for row in page["selection"]["messages"]["records"]
+    ] == list(range(1, 405, 2))
+    for page_number, payload in enumerate(pages):
+        assert payload["selection"]["record_count"] == 202
+        assert payload["selection"]["messages"]["total_count"] == 202
+        assert payload["selection"]["messages"]["page_count"] == 3
+        assert payload["selection"]["messages"]["page"] == page_number
+        assert payload["inspector"] is None
+    focused = json.loads(_upload(instrument_server, data, source="1:1", record_index="401")[2])
+    assert focused["selection"]["messages"]["page"] == 2
+    assert focused["inspector"]["index"] == 401
+    explicit = json.loads(
+        _upload(instrument_server, data, source="1:1", record_index="401", record_page="2")[2]
+    )
+    assert explicit == focused
+    assert _upload(instrument_server, data, source="1:1", record_page="3")[0] == 400
+    assert (
+        _upload(instrument_server, data, source="1:1", record_page="1", record_index="401")[0]
+        == 400
+    )
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        {"record_index": "-1"},
+        {"record_index": "1.0"},
+        {"record_index": "1e0"},
+        {"record_index": "12"},
+        {"record_index": "0", "message_id": "30"},
+        {"record_index": "8", "end": "2"},
+        {"record_index": "2", "source": "2:1"},
+        {"record_page": "-1"},
+        {"record_page": "1"},
+        {"record_page": "0.0"},
+        {"record_page": "1e0"},
+        {"format": "html"},
+        {"sha256": ""},
+        {"sha256": "0" * 63},
+        {"sha256": "A" * 64},
+        {"sha256": "g" * 64},
+    ],
+)
+def test_inspector_and_report_parameters_are_strictly_validated(instrument_server, parameters):
+    assert _request(instrument_server, "/api/example?" + urlencode(parameters))[0] == 400
+    if "format" not in parameters and "sha256" not in parameters:
+        report_parameters = {
+            "format": "markdown",
+            "sha256": hashlib.sha256(FIXTURE.read_bytes()).hexdigest(),
+            **parameters,
+        }
+        assert _request(instrument_server, "/api/example?" + urlencode(report_parameters))[0] == 400
+
+
+@pytest.mark.parametrize("parameter", ["record_index", "record_page", "format", "sha256"])
+def test_inspection_query_parameters_cannot_be_repeated(instrument_server, parameter):
+    assert _request(instrument_server, f"/api/example?{parameter}=0&{parameter}=1")[0] == 400
+
+
+def test_empty_message_table_and_partial_import_never_invent_a_selected_record(instrument_server):
+    empty = json.loads(_upload(instrument_server, b"")[2])
+    assert empty["selection"]["messages"] == {
+        "page": 0,
+        "page_size": 100,
+        "page_count": 1,
+        "total_count": 0,
+        "records": [],
+    }
+    assert empty["inspector"] is None
+    assert _upload(instrument_server, b"", record_index="0")[0] == 400
+    assert _upload(instrument_server, b"", record_page="1")[0] == 400
+    prefix = FIXTURE.read_bytes()[:-1]
+    partial = json.loads(_upload(instrument_server, prefix, record_index="10")[2])
+    assert partial["recording"]["traversal"] == "stopped"
+    assert partial["selection"]["messages"]["total_count"] == 11
+    assert partial["inspector"]["index"] == 10
+    assert _upload(instrument_server, prefix, record_index="11")[0] == 400
+    narrowed = json.loads(_upload(instrument_server, prefix, start="2", end="2.5")[2])
+    assert narrowed["inspector"] is None
+
+
+def test_opaque_inspector_retains_raw_bytes_without_claiming_fields_or_verified_checksum(
+    instrument_server,
+):
+    frame = bytes.fromhex("fd 01 00 00 00 03 01 ff ff ff 00 00 00")
+    data = (123456789).to_bytes(8, "big") + frame
+    payload = json.loads(_upload(instrument_server, data, record_index="0")[2])
+    detail = payload["inspector"]
+    assert detail["index"] == 0
+    assert detail["message_id"] == 0xFFFFFF
+    assert detail["message_name"] is None
+    assert detail["checksum_status"] == "unverified"
+    assert detail["fields_json"] is None
+    assert detail["raw_frame_hex"] == frame.hex()
+    assert detail["raw_record_hex"] == data.hex()
+    status, _, body = _upload(
+        instrument_server,
+        data,
+        record_index="0",
+        format="markdown",
+        sha256=hashlib.sha256(data).hexdigest(),
+    )
+    assert status == 200
+    exported = _report_blocks(body)[-1]
+    assert exported["fields"] is None
+    assert exported["checksum_status"] == "unverified"
+    assert exported["raw_frame_hex"] == frame.hex()
+
+
+def test_inspector_preserves_uint64_capture_and_device_clocks_as_distinct_exact_text(
+    instrument_server,
+):
+    encoder = common.MAVLink(None, srcSystem=3, srcComponent=4)
+    device_time = (1 << 64) - 1
+    capture_time = device_time - 102
+    frame = encoder.gps_raw_int_encode(device_time, 3, 0, 0, 0, 1, 1, 0, 0, 10).pack(encoder)
+    data = capture_time.to_bytes(8, "big") + frame
+    payload = json.loads(_upload(instrument_server, data, record_index="0")[2])
+    detail = payload["inspector"]
+    assert detail["timestamp_us"] == str(capture_time)
+    assert detail["time_s"] == "0"
+    assert isinstance(detail["fields_json"], str)
+    assert f'"time_usec": {device_time}' in detail["fields_json"]
+    assert json.loads(detail["fields_json"])["time_usec"] == device_time
+    assert detail["raw_record_hex"] == data.hex()
+    assert payload["selection"]["messages"]["records"][0]["timestamp_us"] == str(capture_time)
+    status, _, body = _upload(
+        instrument_server,
+        data,
+        record_index="0",
+        format="markdown",
+        sha256=hashlib.sha256(data).hexdigest(),
+    )
+    assert status == 200
+    exported = _report_blocks(body)[-1]
+    assert exported["timestamp_us"] == capture_time
+    assert exported["fields"]["time_usec"] == device_time
+
+
+def test_inspector_uses_report_tags_for_nonfinite_values_bytes_and_literal_strings():
+    original = import_bytes(FIXTURE.read_bytes())
+    record = replace(
+        original.records[0],
+        fields={
+            "device_clock": (1 << 64) - 1,
+            "bytes": b"\x00\xff",
+            "array": (1, float("nan"), float("inf"), float("-inf")),
+            "literal": "nan",
+            "label": "</script><script>unsafe()</script>",
+        },
+    )
+    payload = _recording_payload(replace(original, records=(record,)), {"record_index": "0"})
+    fields_text = payload["inspector"]["fields_json"]
+    assert json.loads(fields_text) == {
+        "device_clock": (1 << 64) - 1,
+        "bytes": {"bytes_hex": "00ff"},
+        "array": [
+            1,
+            {"non_finite_float": "nan"},
+            {"non_finite_float": "inf"},
+            {"non_finite_float": "-inf"},
+        ],
+        "literal": "nan",
+        "label": "</script><script>unsafe()</script>",
+    }
+    json.dumps(payload, allow_nan=False)
+
+
+def test_real_nonfinite_attitude_can_be_inspected_even_when_plot_value_is_unavailable(
+    instrument_server,
+):
+    encoder = common.MAVLink(None)
+    frame = encoder.attitude_encode(123, float("nan"), 0.5, 1.0, 0, 0, 0).pack(encoder)
+    data = (100).to_bytes(8, "big") + frame
+    payload = json.loads(_upload(instrument_server, data, record_index="0")[2])
+    detail = payload["inspector"]
+    assert json.loads(detail["fields_json"])["roll"] == {"non_finite_float": "nan"}
+    assert detail["raw_record_hex"] == data.hex()
+    assert payload["selection"]["attitude"]["summary"]["invalid_value_counts"]["roll"] == 1
+
+
+@pytest.mark.parametrize("output_format", ["json", "markdown"])
+def test_fingerprint_guard_rejects_replaced_bytes_before_returning_stale_details(
+    instrument_server, output_format
+):
+    data = FIXTURE.read_bytes()
+    expected = hashlib.sha256(data).hexdigest()
+    parameters = {"sha256": expected, "record_index": "0", "format": output_format}
+    assert _upload(instrument_server, data, **parameters)[0] == 200
+    status, headers, body = _upload(instrument_server, data[:-1], **parameters)
+    assert status == 409
+    assert headers["Content-Type"] == "application/json"
+    assert "applied SHA-256" in json.loads(body)["error"]
+    assert "Content-Disposition" not in headers
+    assert _upload(instrument_server, data, **parameters)[0] == 200
+    assert (
+        _request(
+            instrument_server, "/api/example?" + urlencode({**parameters, "sha256": "0" * 64})
+        )[0]
+        == 409
+    )
+
+
+def test_markdown_download_matches_domain_report_and_only_explicitly_requested_details(
+    instrument_server,
+):
+    data = FIXTURE.read_bytes()
+    fingerprint = hashlib.sha256(data).hexdigest()
+    parameters = {
+        "source": "1:1",
+        "message_id": "30",
+        "start": "1",
+        "end": "5",
+        "gap": "1.000001",
+        "record_index": "8",
+        "format": "markdown",
+        "sha256": fingerprint,
+    }
+    status, headers, body = _request(instrument_server, "/api/example?" + urlencode(parameters))
+    assert status == 200
+    assert headers["Content-Type"] == "text/markdown; charset=utf-8"
+    assert (
+        headers["Content-Disposition"]
+        == f'attachment; filename="uav-debugger-{fingerprint[:12]}.md"'
+    )
+    assert headers["Cache-Control"] == "no-store"
+    result = import_bytes(data, source_name="telemetry-gap.tlog (synthetic example)")
+    selection = Selection(
+        sources=((1, 1),), message_ids=(30,), start_us=1700000001000000, end_us=1700000005000000
+    )
+    assert body.decode() == build_markdown_report(
+        result, selection, selected_indices=(8,), attitude_plot_gap_us=1_000_001
+    )
+    provenance, filters, coverage, _, detail = _report_blocks(body)
+    assert provenance["sha256"] == fingerprint
+    assert filters["start_us"] == 1700000001000000
+    assert coverage["filtered_record_count"] == 2
+    assert coverage["imported_record_count"] == 12
+    assert coverage["explicit_detail_record_count"] == 1
+    assert coverage["attitude_plot"]["max_gap_us"] == 1_000_001
+    assert detail["index"] == 8
+    assert detail["raw_frame_hex"] == result.records[8].raw_frame.hex()
+    without_detail = {key: value for key, value in parameters.items() if key != "record_index"}
+    blocks = _report_blocks(
+        _request(instrument_server, "/api/example?" + urlencode(without_detail))[2]
+    )
+    assert len(blocks) == 4
+    assert blocks[2]["explicit_detail_record_count"] == 0
+    assert _request(instrument_server, "/api/example?format=markdown")[0] == 400
+    assert _upload(instrument_server, data, format="markdown")[0] == 400
+
+
+def test_report_counts_cover_full_selection_not_current_pages_and_preserve_stop_error(
+    instrument_server,
+):
+    frame = import_bytes(FIXTURE.read_bytes()).records[0].raw_frame
+    data = (bytes(8) + frame) * 205 + b"truncated"
+    status, _, body = _upload(
+        instrument_server,
+        data,
+        record_page="2",
+        record_index="204",
+        issue_page="1",
+        format="markdown",
+        sha256=hashlib.sha256(data).hexdigest(),
+    )
+    assert status == 200
+    _, _, coverage, issues, detail = _report_blocks(body)
+    assert coverage["imported_record_count"] == coverage["filtered_record_count"] == 205
+    assert coverage["explicit_detail_record_count"] == 1
+    assert coverage["import_issue_count"] == 205
+    assert coverage["reported_issue_count"] == 100
+    assert coverage["omitted_issue_count"] == 105
+    assert coverage["traversal"] == "stopped"
+    assert coverage["remaining_bytes"] == len(b"truncated")
+    assert issues[-1]["severity"] == "error"
+    assert detail["index"] == 204
+
+
+@pytest.mark.parametrize("data", [b"", b"invalid recording", FIXTURE.read_bytes()[:-1]])
+def test_reports_remain_available_for_empty_and_partial_imports(instrument_server, data):
+    status, _, body = _upload(
+        instrument_server, data, format="markdown", sha256=hashlib.sha256(data).hexdigest()
+    )
+    assert status == 200
+    provenance, _, coverage, issues = _report_blocks(body)
+    result = import_bytes(data)
+    assert provenance["sha256"] == hashlib.sha256(data).hexdigest()
+    assert coverage["traversal"] == result.traversal
+    assert coverage["remaining_bytes"] == result.remaining_bytes
+    assert coverage["explicit_detail_record_count"] == 0
+    assert coverage["filtered_record_count"] == len(result.records)
+    assert len(issues) == len(result.issues)
+    assert ("attitude_plot" in coverage) is bool(result.records)
+
+
+def test_report_uses_shared_validation_without_rendering_chart_payloads(monkeypatch):
+    def forbidden(*args, **kwargs):
+        pytest.fail("Export should not construct browser chart payloads")
+
+    monkeypatch.setattr("uav_debugger.instrument._recording_payload", forbidden)
+    data = FIXTURE.read_bytes()
+    name = '../../<script>alert("label")</script>`capture`.tlog'
+    parameters = {
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "format": "markdown",
+        "record_index": "0",
+    }
+    response = _analyze_response(data, name, parameters)
+    assert response.status_code == 200
+    assert "script" not in response.headers["Content-Disposition"]
+    assert _report_blocks(response.body)[0]["source_name"] == name
+    assert b"<script>" not in response.body
+    assert FIXTURE.read_bytes() == data
 
 
 @pytest.mark.parametrize("classic_port", [0, -1, 65536, True, "8501"])
@@ -689,6 +1085,7 @@ def test_launcher_reports_an_occupied_port_without_leaving_a_process(tmp_path):
 def test_analysis_routes_never_import_execution_start_commands_or_write_files(tmp_path):
     script = """
 import asyncio
+import hashlib
 import importlib.abc
 import json
 import subprocess
@@ -715,17 +1112,31 @@ request = Request({'type': 'http', 'query_string': b''})
 payload = json.loads(route.endpoint(request).body)
 assert payload['recording']['record_count'] == 12
 data = files('uav_debugger').joinpath('data', 'telemetry-gap.tlog').read_bytes()
+query = b'record_index=8&source=1:1&message_id=30&sha256='
+query += hashlib.sha256(data).hexdigest().encode()
+request = Request({'type': 'http', 'query_string': query})
+assert json.loads(route.endpoint(request).body)['inspector']['index'] == 8
+request = Request({'type': 'http', 'query_string': query + b'&format=markdown'})
+assert b'### Record 8' in route.endpoint(request).body
 async def receive():
     return {'type': 'http.request', 'body': data, 'more_body': False}
 request = Request({
     'type': 'http', 'method': 'POST', 'scheme': 'http', 'path': '/api/analyze',
-    'root_path': '', 'server': ('127.0.0.1', 8765), 'query_string': b'name=../recording.tlog',
+    'root_path': '', 'server': ('127.0.0.1', 8765),
+    'query_string': b'name=../recording.tlog&' + query,
     'headers': [(b'host', b'127.0.0.1:8765'), (b'content-type', b'application/octet-stream')],
 }, receive=receive)
 route = next(route for route in app.routes if route.path == '/api/analyze')
 response = asyncio.run(route.endpoint(request))
 assert response.status_code == 200
 assert json.loads(response.body)['recording']['record_count'] == 12
+assert json.loads(response.body)['inspector']['index'] == 8
+request = Request({
+    **request.scope, 'query_string': request.scope['query_string'] + b'&format=markdown',
+}, receive=receive)
+response = asyncio.run(route.endpoint(request))
+assert response.status_code == 200
+assert b'### Record 8' in response.body
 assert files('uav_debugger').joinpath('data', 'telemetry-gap.tlog').read_bytes() == data
 """
     result = subprocess.run(
