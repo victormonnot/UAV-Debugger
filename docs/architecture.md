@@ -13,8 +13,9 @@ The source checkout additionally provides the [Instrument workspace](instrument.
 a custom local interface for supported recordings, exact source/type/time
 filters, import provenance, activity/attitude observations, original-message
 inspection and Markdown reports. It also opens saved experiments, browses
-the local run catalog and compares baseline/blackout pairs. Experiment execution
-remains in the complete Streamlit interface during migration. Instrument is not part of the
+the local run catalog and compares baseline/blackout pairs. Its dedicated
+Experiment mode explicitly owns the same bounded workers and terminal evidence
+handoffs. The complete Streamlit interface remains available. Instrument is not part of the
 published v0.2.0 artifacts.
 
 ## Shared analysis, optional experiment execution
@@ -66,8 +67,8 @@ Uvicorn on loopback. `GET /api/example` reads the installed synthetic recording;
 Both reuse the existing importer, exact selection, observation intervals and
 activity/attitude chart builders. Markdown export calls the existing report
 builder with the same applied selection and line-gap setting. The upload name
-is a display label, never a server filesystem path. No Experiment execution
-endpoint is exposed.
+is a display label, never a server filesystem path. These analysis endpoints do
+not initialize execution or launch a worker.
 
 `POST /api/run` accepts at most 64 files and 64 MiB of file bytes through a
 streaming multipart parser with memory-only buffers. The bounds include files
@@ -87,12 +88,13 @@ The browser tab owns its selected file, draft controls and last applied result.
 Applying filters, inspecting a record, paging messages or issues, and exporting
 a report resubmit uploaded bytes or reread the selected local run. Each request
 validates its own evidence. The server keeps no recording cache, mutable
-analysis session or execution controller and writes no uploaded recording, run
-or report to disk. Tabs do not share inputs or filters. Replacement and Clear
+analysis session and writes no uploaded recording, run or report to disk.
+The explicitly initialized Experiment controller is separate from analysis
+state. Tabs do not share inputs or filters. Replacement and Clear
 invalidate pending responses and remove the previous view; an invalid filter
 submission keeps the last applied view intact.
 
-The schema version 5 payload separates whole-recording provenance and counts
+The schema version 6 payload separates whole-recording provenance and counts
 from the applied selection, activity bins and attitude availability. Selected
 messages and global import issues use independent pages of at most 100 entries.
 The inspector is absent until an explicit original record index is requested
@@ -219,28 +221,50 @@ failure states and the distinction between metadata and validated observations.
 
 ## Browser execution boundary
 
-`experiment_view.py` is loaded only in Experiment mode. A module-level
-`ExperimentController` in `experiment_control.py` serializes starts across
-browser sessions and owns the worker independently of Streamlit reruns. A
-background monitor handles worker exit, deadlines and reaping; the latest
+`experiment_control.py` owns the shared `ExperimentController` used by both
+interfaces. Instrument's `instrument_experiment.py` allocates one controller
+lazily for an explicit valid Start; config, status, saved-file analysis and
+catalog browsing do not import execution modules or create an output root.
+The existing interface loads `experiment_view.py` only in Experiment mode and
+retains its controller in module state, independently of Streamlit reruns.
+Each server serializes starts across its connected tabs. Separately launched
+Instrument and Streamlit servers do not share controller ownership.
+A background monitor handles worker exit, deadlines and reaping; the latest
 20 run snapshots remain in server memory. History eviction and server restart
 do not delete saved outputs, discover older runs or restart execution.
 Explicit catalog browsing is independent of this controller and does not restore
 its history or claim ownership of earlier processes.
 
-The UI polls controller snapshots through a 0.5-second
+Instrument polls `GET /api/experiment/status` every 0.5 seconds while Experiment
+is visible. Start/Stop accept only bounded JSON settings and require both a
+same-origin request and the current server's action token. The token is issued
+only by same-origin status responses, not global config. No browser-provided
+executable path, arbitrary output directory, PID or command is accepted.
+Stop requires the displayed run ID; repeating it for an old terminal run cannot
+stop a later worker. Numeric types, duplicate fields, unknown options, input
+size and existing runner bounds are checked before output creation. Neither a
+lost response nor browser retries trigger automatic Start replay.
+
+The existing UI polls controller snapshots through a 0.5-second
 [Streamlit fragment](https://docs.streamlit.io/develop/api-reference/execution-flow/st.fragment)
-while its session is active. It displays process state and controller elapsed
+while its session is active. Both display process state and controller elapsed
 time without reading changing captures or claiming live observation counts.
-Browser closure or mode changes do not own the worker lifetime. Each terminal
-handoff calls the existing saved-file reader and transfers validated `SavedRun`
-values into Analyze; inspection and comparison remain execution-independent.
+Browser closure or mode changes do not own the worker lifetime. Instrument
+retains its previous Analyze state across mode changes unless an explicit
+handoff replaces it. Its terminal handoff accepts only a run retained by this
+controller and opens the fixed evidence through the pinned catalog loader.
+It returns validated saved-run analysis and a root-relative catalog key for
+guarded follow-up reads. The existing UI similarly validates terminal files
+before passing `SavedRun` values to Analyze. Inspection and comparison remain
+execution-independent; controller snapshots mark evidence as not yet validated.
 
 `experiment_worker.py` receives a fixed argument list, without a shell. Its
 stdin ownership pipe requests interruption on Stop or parent exit. The controller
 uses a duration/startup allowance plus eight seconds, then a five-second cleanup
-allowance before forced termination. Normal server shutdown waits for owned
-cleanup. These deadlines are not real-time guarantees under process suspension
+allowance before forced termination. Instrument's ASGI lifespan closes only its
+already allocated controller on normal server shutdown; it does not install
+replacement process signal handlers. Normal shutdown waits for owned cleanup.
+These deadlines are not real-time guarantees under process suspension
 or blocked I/O. A missing or unfinalized runner outcome remains explicit.
 
 For SITL, the controller launches the worker through `unshare` in dedicated
@@ -346,7 +370,7 @@ the original v0.1.0 Analyze scope.
 | Runtime | Python 3.12; Linux x86_64 | One runtime for decoding, analysis, presentation and local execution. |
 | Frame decoding | Pinned `pymavlink`, explicit `common` dialect | Reuse MAVLink message definitions and checksum handling. |
 | Full interface | Streamlit served on `127.0.0.1` | Local file selection, filters, record inspection, downloads and explicit Experiment execution. |
-| Instrument interface | Packaged HTML/CSS/JavaScript; Starlette, Uvicorn and streaming multipart parsing on `127.0.0.1` | Bounded, stateless recording and saved-run analysis through the existing Python core. |
+| Instrument interface | Packaged HTML/CSS/JavaScript; Starlette, Uvicorn and streaming multipart parsing on `127.0.0.1` | Stateless file analysis and comparison; separate explicit worker controls through the existing Python core. |
 | Timeline | Plotly with explicit source/type/time controls | Activity and attitude plots with point-to-record inspection; zoom does not change filters. |
 | Session data | Python data structures in memory; original experiment evidence on disk | Per-session recording/run/pair analysis and a shared bounded execution history, with no automatic recovery or execution on restart. |
 | Report | Markdown download | Readable evidence summary with source fingerprints and record references. |

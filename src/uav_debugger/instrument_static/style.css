@@ -232,6 +232,43 @@ dialog p { font-size:13px; margin-top:10px; }
 @media(pointer:coarse) { button,.icon-button,select,.mode-link,.action-link,input[type="text"] { min-height:44px; } .icon-button { width:44px; height:44px; } select,input[type="text"] { height:44px; font-size:16px; } summary { min-height:44px; } }
 @media(max-width:600px) { .report-actions,.run-upload-actions { padding:0 16px 16px; } .input-navigation { padding-inline:16px; gap:12px; flex-wrap:wrap; } .input-navigation button { font-size:12px; } .chart-toolbar { flex-wrap:wrap; } .chart-tabs { gap:16px; } .chart-actions { margin-left:auto; } .messages-heading { padding:16px; } .record-form { padding-inline:16px; } .messages-table { margin-inline:16px; } .messages-pagination { padding-inline:16px; } .run-section,.run-status { padding:16px; } #catalog-view { padding:20px 16px; } .run-point-field select { max-width:260px; } }
 .comparison-handoff { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:0 28px 16px; }
+.experiment-heading { padding:24px 28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.experiment-heading h2 { font-size:23px; margin-top:4px; }
+.experiment-connection { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px; }
+.experiment-connection[data-stale="true"] { color:var(--warning); }
+.experiment-connection[data-stale="true"] .status-dot { background:var(--warning); }
+#experiment-error { margin:0; padding:0 28px 18px; }
+.experiment-layout { display:grid; grid-template-columns:260px minmax(0,1fr) 300px; border-top:1px solid var(--line); }
+.experiment-configuration,.experiment-history-panel { background:var(--surface); padding:22px 20px; min-width:0; }
+.experiment-configuration { border-right:1px solid var(--line); }
+.experiment-history-panel { border-left:1px solid var(--line); }
+#experiment-form { margin-top:20px; }
+#experiment-start { width:100%; }
+.experiment-configuration .time-fields { grid-template-columns:minmax(0,1fr); }
+.experiment-configuration input { font-size:13px; }
+.experiment-monitor { min-width:0; }
+.experiment-selected { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:22px; border-bottom:1px solid var(--line); }
+.experiment-selected>div { flex:1 1 180px; min-width:0; }
+.experiment-selected h3 { margin-top:8px; font-size:14px; overflow-wrap:anywhere; }
+.experiment-stop { color:var(--error); }
+.experiment-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 16px; padding:24px 22px; border-bottom:1px solid var(--line); }
+.experiment-metrics strong { display:block; font-size:18px; line-height:1.4; font-weight:400; margin-top:6px; overflow-wrap:anywhere; }
+#experiment-process-state[data-state="running"] { color:var(--pitch); }
+#experiment-process-state[data-state="failed"] { color:var(--error); }
+#experiment-process-state[data-state="stopping"] { color:var(--warning); }
+.experiment-notice { font-size:12px; color:var(--warning); margin:16px 22px 0; overflow-wrap:anywhere; }
+.experiment-section { padding:18px 22px; border-bottom:1px solid var(--line); }
+.experiment-section h3 { font-size:14px; }
+.experiment-section .fact-list>div { align-items:flex-start; }
+.experiment-section .fact-list dt { flex:1; }
+.experiment-section .fact-list dd { flex:1; }
+.experiment-handoff { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.experiment-handoff button { font-size:12px; }
+#experiment-compare { margin-top:16px; max-width:100%; }
+.experiment-catalog { margin-top:16px; padding-inline:8px; font-size:12px; max-width:100%; }
+@media(max-width:1120px) { .experiment-layout { grid-template-columns:240px minmax(0,1fr); } .experiment-history-panel { grid-column:1/-1; border-left:0; border-top:1px solid var(--line); } #experiment-history { max-width:500px; } }
+@media(max-width:600px) { .experiment-heading { padding:20px 16px; } #experiment-error { padding:0 16px 16px; } .experiment-layout { display:block; } .experiment-configuration { padding:20px 16px; border-right:0; border-bottom:1px solid var(--line); } .experiment-configuration .filter-field { margin-top:14px; } .experiment-configuration .time-fields { margin-top:0; } .experiment-configuration .filter-actions { margin-top:18px; } .experiment-selected,.experiment-metrics,.experiment-section,.experiment-history-panel { padding:20px 16px; } .experiment-selected h3 { font-size:13px; } .experiment-metrics strong { font-size:16px; } .experiment-notice { margin-inline:16px; } }
+@media(pointer:coarse) { .experiment-configuration input { min-height:44px; font-size:16px; } }
 .comparison-handoff p { font-size:12px; overflow-wrap:anywhere; min-width:0; }
 .catalog-pair { border-top:1px solid var(--line); margin-top:20px; padding-top:16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
 .catalog-pair dl { flex:1 1 250px; min-width:0; }

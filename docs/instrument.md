@@ -11,9 +11,9 @@ directory, while **Local experiments** discovers saved runs under the configured
 server-side root. **Compare experiments** evaluates one saved baseline and one
 blackout on an explicit common measurement-relative window.
 
-Explicit Experiment execution remains available through
-`uav-debugger-analyze`. Instrument does not yet replace that workflow and is
-not included in the published v0.2.0 artifacts.
+The dedicated **Experiment** mode provides explicit Start/Stop controls for
+the existing bounded local workers. Analyze remains independent of execution.
+Instrument is not included in the published v0.2.0 artifacts.
 
 ## Launch
 
@@ -30,7 +30,10 @@ selects another unused local port. The server binds only to `127.0.0.1`;
 The optional `--experiment-root PATH` selects the root for local saved-run
 browsing, defaulting to `local/experiments` relative to the launch directory.
 The launcher interprets it as an absolute location without creating it. This
-setting permits read-only browsing; it does not enable Experiment execution.
+setting selects both the read-only catalog and the destination for an explicit
+Experiment Start. Browsing or launching the interface never creates that root;
+an accepted Start may create it. `--sitl-binary PATH` optionally configures the
+pinned simulator executable on the server, never through a browser-supplied path.
 
 The browser loads scripts, fonts and icons from this server. Plotly's JavaScript
 bundle is served from the installed pinned Python dependency. Font and icon
@@ -385,6 +388,45 @@ diagnosis or clock alignment is inferred. See the
 
 ## Complete workflows
 
+### Run an Experiment
+
+Choose **Experiment** for a dedicated execution view. Select **Source**,
+**Scenario** and **Measurement duration (s)**, then explicitly choose **Start
+experiment**. Synthetic is available without a simulator; ArduCopter SITL
+requires the launcher-configured pinned executable and isolated worker
+prerequisites. Baseline omits blackout settings. Blackout uses the requested
+start and duration, retaining the existing timing bounds and defaults.
+
+**Controller state** and **Controller elapsed** describe the server's worker,
+not live telemetry or evidence consistency. Status refreshes every half second
+while Experiment is visible. One controller is shared by tabs on that server,
+so another tab's active run prevents a second launch. **Stop experiment** names
+the displayed run; it does not stop a later run selected by a stale view.
+Repeated Stop is idempotent. If a command response is lost, refresh status;
+the interface never automatically repeats Start.
+
+After termination, choose a retained run under **Selected experiment** and review **Declared outcome**,
+settings, controller clocks and diagnostics. **Open in Analyze** validates its
+saved evidence before opening the saved-run view. **Use as baseline** and
+**Use as blackout** validate and assign terminal evidence to the existing
+comparison; **Compare selected runs** opens the pair. Controller status does
+not stand in for the reader's evidence status, and an unsuccessful run can
+remain inspectable with explicit limitations.
+
+Returning to Analyze preserves the tab's previous analysis unless an explicit
+handoff replaces it. Switching modes, reloading or closing a browser tab does
+not stop a worker. The server keeps at most 20 history snapshots; older files
+remain on disk. A server restart starts with empty controller history, while
+**Browse saved experiments** opens the independent read-only catalog.
+
+Normal server shutdown requests owned-worker cleanup; abrupt owner loss is
+also detected through the worker's ownership pipe. SITL keeps the existing
+mandatory user/network/PID namespace isolation, pinned executable checks and
+no host-network fallback. See the [Experiment interface guide](experiment-ui.md)
+for timing limits, output files, shutdown and simulator setup.
+
+### Link the existing interface
+
 Start the existing interface in a separate terminal:
 
 ```sh
@@ -400,8 +442,9 @@ uv run --locked uav-debugger-instrument --port 8765 --classic-port 8501
 This exposes a link to the separately running full workspace. The ports must
 differ. Instrument does not start, supervise or verify that server, and no
 recording or selection is transferred across the link. Choose Analyze or
-Experiment within the full workspace as needed. Instrument's Experiment control
-opens the handoff dialog; it does not select a mode in the full workspace.
+Experiment within the full workspace as needed. This optional link is separate
+from Instrument's own Experiment mode. The two servers own independent workers
+and histories; starting one does not connect their controllers.
 Without `--classic-port`, the dialog reports that no existing workspace is linked.
 Use the commands above to start and link it. With SSH access, forward both
 configured ports to open both interfaces from the browser computer.
@@ -413,9 +456,10 @@ explicit Start or an Experiment CLI command.
 
 ## Local data boundary
 
-The HTTP interface performs stateless analysis of the fixed example, uploaded
-bytes or a fixed-layout catalog entry beneath the configured root. It does not
-accept an arbitrary server filesystem path.
+The Analyze routes perform stateless analysis of the fixed example, uploaded
+bytes or a fixed-layout catalog entry beneath the configured root. They do not
+accept an arbitrary server filesystem path. Explicit Experiment routes own a
+separate bounded controller; they do not change the file-only analysis contract.
 
 | Route | Response |
 | --- | --- |
@@ -427,10 +471,14 @@ accept an arbitrary server filesystem path.
 | `GET /api/catalog` | Bounded snapshot of declared manifest metadata beneath the configured experiment root. |
 | `GET /api/catalog/open` | Reread and validate a selected root-relative catalog key for analysis or report export. |
 | `POST /api/comparison` | Compare two uploaded or catalog-backed saved runs, or export their applied comparison report. |
+| `GET /api/experiment/status` | Shared controller status, bounded history, exact controller clocks and the server action token; does not create a controller or start a worker. |
+| `POST /api/experiment/start` | Validate explicit settings and start one owned worker. |
+| `POST /api/experiment/stop` | Request orderly interruption of the supplied controller run ID. |
+| `GET /api/experiment/open?run_id=...` | Validate terminal controller-owned saved evidence and return its analysis payload and catalog key. |
 | `GET /` and `/assets/...` | Packaged interface, fonts and icons. |
 | `GET /vendor/plotly.min.js` | JavaScript bundle from the installed Plotly dependency. |
 
-The config and JSON analysis responses declare `schema_version: 5`. Recording
+The config and JSON responses declare `schema_version: 6`. Recording
 analysis accepts these query parameters:
 
 | Parameter | Meaning |
@@ -526,9 +574,36 @@ inputs, selections and inspectors; theme preference is the only persisted
 browser setting. Reloading the page does not restore an uploaded input. Input
 byte limits do not bound total process memory or guarantee performance.
 
-There is no Experiment command endpoint or execution bridge. This bounded API
-is an implementation contract for the current workspace, not a general
-integration API.
+Experiment status and handoff requests require the same origin. Start and Stop
+also require the current status response's `experiment.action_token` in
+`X-UAV-Debugger-Action`, an unencoded `application/json` object and no query
+parameters. Bodies are bounded to 4,096 bytes while streaming. Duplicate keys,
+unknown fields, incorrect types and nonfinite values are rejected.
+
+Start requires `source` (`synthetic` or `arducopter-sitl`), `scenario`
+(`baseline` or `blackout`) and numeric `duration_s`. Optional numeric settings
+are `blackout_at_s`, `blackout_duration_s` and `startup_timeout_s`, subject to
+the existing runner's validation. Stop accepts exactly `run_id`, identifying
+one retained controller run; it never derives a target from the latest status.
+No executable path, PID, command or output path is accepted from the browser.
+The controller is allocated lazily for an explicit valid Start, and cleanup
+closes only a controller that this server has already allocated.
+
+Invalid actions return `400`, origin/token failures `403`, unknown retained
+run IDs `404`, and a conflicting active worker or unavailable handoff `409`.
+Oversized bodies return `413`; unsupported media types or encodings return
+`415`. A successful command response includes a fresh controller snapshot.
+Status clocks and elapsed nanoseconds are decimal strings. Its
+`evidence_status: not_validated` remains distinct from the saved-run reader's
+result; terminal handoff loads fixed evidence through the pinned-directory
+loader rather than trusting controller metadata. History is not restored from
+disk after restart. A lost response does not prove that Start was rejected;
+refresh status instead of automatically replaying a command.
+
+These local protections are not user authentication. Keep the service on
+loopback or access it through the documented SSH tunnel. This bounded API is
+an implementation contract for the current workspace, not a general remote
+execution or integration API.
 
 ## Development checks
 

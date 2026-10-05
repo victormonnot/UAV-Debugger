@@ -12,6 +12,7 @@
   <script src="/vendor/plotly.min.js" defer></script>
   <script src="/assets/runs.js" defer></script>
   <script src="/assets/comparison.js" defer></script>
+  <script src="/assets/experiment.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </head>
 <body>
@@ -25,11 +26,12 @@
     </div>
   </header>
   <nav class="mode-navigation" aria-label="Workspace mode">
-    <a class="mode-link active" href="#main" aria-current="page"><span class="mono">01</span> Analyze</a>
-    <button id="experiment-button" class="mode-link" aria-haspopup="dialog"><span class="mono">02</span> Experiment <i data-lucide="arrow-up-right" aria-hidden="true"></i></button>
+    <a id="analyze-button" class="mode-link active" href="#main" aria-current="page"><span class="mono">01</span> Analyze</a>
+    <button id="experiment-button" class="mode-link" aria-controls="experiment-view"><span class="mono">02</span> Experiment</button>
     <span class="navigation-context overline">Saved observations</span>
   </nav>
   <main id="main">
+    <div id="analyze-view">
     <div class="input-navigation chart-tabs" role="tablist" aria-label="Analyze input"><button id="recording-input-tab" role="tab" aria-selected="true" aria-controls="analysis-workspace">Recording</button><button id="saved-input-tab" role="tab" aria-selected="false" aria-controls="analysis-workspace" tabindex="-1">Saved experiment</button><button id="catalog-input-tab" role="tab" aria-selected="false" aria-controls="catalog-view" tabindex="-1">Local experiments</button><button id="comparison-input-tab" role="tab" aria-selected="false" aria-controls="comparison-view" tabindex="-1">Compare experiments</button></div>
     <section id="recording-header" class="recording-header" aria-label="Current input">
       <div class="recording-identity"><p class="overline"><span id="input-caption">Recording</span> <span class="separator">/</span> <span id="recording-kind">No input</span></p><h2 id="recording-name">No recording selected</h2><p id="recording-meta" class="mono muted">QGC timestamped MAVLink</p></div>
@@ -152,8 +154,44 @@
         </div>
       </aside>
     </div>
+    </div>
+    <section id="experiment-view" aria-labelledby="experiment-title" hidden>
+      <div class="experiment-heading"><div><p class="overline">Local execution</p><h2 id="experiment-title">Experiment</h2></div><div class="experiment-connection"><span class="status-dot"></span><span id="experiment-connection" role="status">Unavailable</span><button id="experiment-refresh" class="icon-button bordered" aria-label="Refresh experiment status" data-tip="Refresh status"><i data-lucide="refresh-cw" aria-hidden="true"></i></button></div></div>
+      <p id="experiment-error" class="field-error" role="alert" hidden></p>
+      <div class="experiment-layout">
+        <aside class="experiment-configuration" aria-label="Experiment configuration">
+          <h3 class="overline">Next run / requested settings</h3>
+          <form id="experiment-form" novalidate><fieldset id="experiment-fields" disabled>
+            <div class="filter-field"><label for="experiment-source">Source</label><select id="experiment-source"><option value="synthetic">Synthetic</option><option value="arducopter-sitl">ArduCopter SITL</option></select></div>
+            <div class="filter-field"><label for="experiment-scenario">Scenario</label><select id="experiment-scenario"><option value="baseline">Baseline</option><option value="blackout">Blackout</option></select></div>
+            <div class="filter-field"><label for="experiment-duration">Measurement duration (s)</label><input id="experiment-duration" type="number" min="0.1" max="60" step="0.1" value="6"></div>
+            <div class="time-fields"><div class="filter-field"><label for="experiment-blackout-at">Blackout start (s)</label><input id="experiment-blackout-at" type="number" min="0.1" max="59.8" step="0.1" value="2" disabled></div><div class="filter-field"><label for="experiment-blackout-duration">Blackout duration (s)</label><input id="experiment-blackout-duration" type="number" min="0.1" max="59.8" step="0.1" value="2" disabled></div></div>
+            <div id="experiment-startup-field" class="filter-field" hidden><label for="experiment-startup-timeout">Startup timeout (s)</label><input id="experiment-startup-timeout" type="number" min="0.1" max="60" step="0.1" value="15"></div>
+            <div class="filter-actions"><button id="experiment-start" class="primary" type="submit" disabled><i data-lucide="play" aria-hidden="true"></i>Start experiment</button></div>
+          </fieldset></form>
+          <p id="experiment-source-status" class="microcopy"></p>
+          <div class="panel-section"><p class="overline">Server output root</p><p id="experiment-root" class="mono break-value">N/A</p></div>
+          <details id="experiment-target-details"><summary>Source profile</summary><p id="experiment-profile" class="microcopy"></p><p id="experiment-binary" class="mono break-value" hidden></p></details>
+        </aside>
+        <section class="experiment-monitor" aria-label="Selected experiment">
+          <div class="experiment-selected"><div><p class="overline">Selected run</p><h3 id="experiment-run-id" class="mono">No experiment selected</h3></div><button id="experiment-stop" class="bordered experiment-stop" disabled><i data-lucide="square" aria-hidden="true"></i>Stop experiment</button></div>
+          <div class="experiment-metrics"><div><span class="overline">Controller state</span><strong id="experiment-process-state">Idle</strong></div><div><span class="overline">Declared outcome</span><strong id="experiment-outcome">N/A</strong></div><div><span class="overline">Controller elapsed / s</span><strong id="experiment-elapsed" class="mono">N/A</strong></div><div><span class="overline">Evidence status</span><strong id="experiment-evidence-status">Not validated</strong></div></div>
+          <p id="experiment-active-notice" class="experiment-notice" hidden></p>
+          <div class="experiment-section"><h3>Requested configuration</h3><dl class="fact-list"><div><dt>Source</dt><dd id="experiment-requested-source">N/A</dd></div><div><dt>Scenario</dt><dd id="experiment-requested-scenario">N/A</dd></div><div><dt>Measurement duration / s</dt><dd id="experiment-requested-duration">N/A</dd></div><div><dt>Blackout start / s</dt><dd id="experiment-requested-blackout-at">N/A</dd></div><div><dt>Blackout duration / s</dt><dd id="experiment-requested-blackout-duration">N/A</dd></div></dl></div>
+          <div class="experiment-section"><h3>Saved evidence</h3><p id="experiment-output" class="mono break-value">N/A</p><div class="experiment-handoff"><button id="experiment-open-analyze" class="primary" disabled><i data-lucide="scan-search" aria-hidden="true"></i>Open in Analyze</button><button id="experiment-use-baseline" class="bordered" disabled><i data-lucide="bookmark-plus" aria-hidden="true"></i>Use as baseline</button><button id="experiment-use-blackout" class="bordered" disabled><i data-lucide="bookmark-plus" aria-hidden="true"></i>Use as blackout</button></div><p id="experiment-handoff-status" class="microcopy" role="status"></p></div>
+          <details id="experiment-details" class="experiment-section"><summary>Controller clocks and diagnostics</summary><p class="microcopy">Host monotonic nanoseconds / Unix microseconds. Controller requests, not applied forwarding gates.</p><pre id="experiment-clocks" class="evidence-code" tabindex="0" aria-label="Exact controller clocks"></pre><dl class="fact-list"><div><dt>Stop reason</dt><dd id="experiment-stop-reason">N/A</dd></div><div><dt>Return code</dt><dd id="experiment-returncode">N/A</dd></div><div><dt>Forced termination</dt><dd id="experiment-forced">N/A</dd></div></dl><pre id="experiment-diagnostics" class="evidence-code" tabindex="0" aria-label="Controller diagnostics">No diagnostics</pre></details>
+        </section>
+        <aside class="experiment-history-panel" aria-label="Server experiment history">
+          <div class="section-heading"><h3 class="overline">Server history</h3><span id="experiment-history-count" class="mono muted">0 / 20</span></div>
+          <div class="filter-field"><label for="experiment-history">Selected experiment</label><select id="experiment-history" disabled><option value="">No experiments</option></select></div>
+          <p class="microcopy">Current server session / latest 20 runs</p>
+          <button id="experiment-catalog" class="bordered experiment-catalog"><i data-lucide="folder-search" aria-hidden="true"></i>Browse saved experiments</button>
+          <div class="panel-section"><h3 class="overline">Comparison pair</h3><dl class="stacked-facts"><dt>Baseline</dt><dd id="experiment-baseline-name">No baseline selected</dd><dt>Blackout</dt><dd id="experiment-blackout-name">No blackout selected</dd></dl><button id="experiment-compare" class="bordered" disabled><i data-lucide="git-compare-arrows" aria-hidden="true"></i>Compare selected runs</button></div>
+        </aside>
+      </div>
+    </section>
   </main>
-  <footer class="app-footer"><span id="footer-state" class="mono">FILE-ONLY ANALYSIS</span><span class="footer-provenance">Capture clock <span class="separator">/</span> original timestamps preserved</span><span id="version" class="mono"></span></footer>
+  <footer class="app-footer"><span id="footer-state" class="mono">FILE-ONLY ANALYSIS</span><span id="experiment-footer" class="mono" hidden>PROCESS CONTROL / INDEPENDENT CLOCKS</span><span class="footer-provenance">Capture clock <span class="separator">/</span> original timestamps preserved</span><span id="version" class="mono"></span></footer>
   <dialog id="workspace-dialog" aria-labelledby="workspace-title"><div class="dialog-heading"><h2 id="workspace-title">Existing workspace</h2><button id="close-workspace" class="icon-button" aria-label="Close existing workspace dialog" data-tip="Close"><i data-lucide="x" aria-hidden="true"></i></button></div><p id="workspace-context">Recordings, saved experiments and execution</p><p id="workspace-availability" class="muted">No existing workspace linked.</p><a id="classic-link" class="primary action-link" target="_blank" rel="noopener noreferrer" hidden>Open existing workspace <i data-lucide="arrow-up-right" aria-hidden="true"></i></a><p class="dialog-note">Opening the workspace does not start an experiment.</p></dialog>
   <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 </body>

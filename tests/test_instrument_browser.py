@@ -144,7 +144,7 @@ def instrument_page(instrument_server, request):
         finally:
             try:
                 if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
-                    output_dir = ROOT / "local" / "instrument-brick5" / "browser"
+                    output_dir = ROOT / "local" / "instrument-brick6" / "browser"
                     output_dir.mkdir(parents=True, exist_ok=True)
                     page.evaluate(
                         "() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }"
@@ -500,7 +500,7 @@ def test_chart_controls_change_the_view_without_changing_the_recording(instrumen
     expect(page.locator("#source-filter")).to_be_visible()
 
 
-def test_experiment_handoff_is_explicit_and_does_not_execute(instrument_page):
+def test_experiment_mode_is_explicit_and_does_not_execute(instrument_page):
     page, expect = instrument_page
     api_requests = []
     page.on(
@@ -510,13 +510,13 @@ def test_experiment_handoff_is_explicit_and_does_not_execute(instrument_page):
         ),
     )
     page.locator("#experiment-button").click()
-    expect(page.locator("#workspace-dialog")).to_be_visible()
-    expect(page.locator("#classic-link")).to_have_attribute("href", "http://127.0.0.1:8501/")
-    expect(page.locator("#classic-link")).to_have_text("Open existing workspace")
-    page.keyboard.press("Escape")
-    expect(page.locator("#workspace-dialog")).to_be_hidden()
-    expect(page.locator("#experiment-button")).to_be_focused()
-    assert api_requests == []
+    expect(page.locator("#experiment-view")).to_be_visible()
+    expect(page.locator("#experiment-start")).to_be_enabled()
+    expect(page.locator("#experiment-process-state")).to_have_text("Idle")
+    page.locator("#analyze-button").click()
+    expect(page.locator("#experiment-view")).to_be_hidden()
+    expect(page.locator("#load-example")).to_be_visible()
+    assert api_requests and set(api_requests) == {"/api/experiment/status"}
 
 
 def test_upload_replacement_and_example_reset_input_and_applied_selection(instrument_page):
@@ -1288,7 +1288,7 @@ def test_loaded_workspace_fits_and_remains_readable(instrument_page, width, them
     expect(page.locator("#message-rows tr")).to_have_count(2)
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
     if os.environ.get("UAV_DEBUGGER_BROWSER_SCREENSHOTS") == "1":
-        output_dir = ROOT / "local" / "instrument-brick5" / "browser"
+        output_dir = ROOT / "local" / "instrument-brick6" / "browser"
         output_dir.mkdir(parents=True, exist_ok=True)
         page.evaluate("() => { scrollTo(0, 0); return new Promise(requestAnimationFrame); }")
         page.screenshot(path=output_dir / f"messages-{theme}-{width}.png", full_page=True)

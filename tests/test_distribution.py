@@ -357,6 +357,7 @@ def test_changed_public_file_is_detected(distribution):
         "app.js",
         "runs.js",
         "comparison.js",
+        "experiment.js",
         "vendor/ibm-plex-sans-latin-400-normal.woff2",
         "vendor/lucide-LICENSE.txt",
     ],

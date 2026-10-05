@@ -192,7 +192,7 @@
         const call = runRequest(input, controller.signal), response = await fetch(call.url, call.options);
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "The saved evidence could not be read.");
-        if (data.schema_version !== 5 || !data.run) throw new Error("The local service returned unsupported saved evidence.");
+        if (data.schema_version !== 6 || !data.run) throw new Error("The local service returned unsupported saved evidence.");
         run = data.run;
       }
       if (request !== item.request) return;
@@ -233,7 +233,7 @@
     try {
       const response = await fetch(call.url, call.options), data = await response.json();
       if (!response.ok) throw Object.assign(new Error(data.error || "The comparison could not be read."), { status: response.status, run_role: data.run_role });
-      if (data.schema_version !== 5 || !data.comparison) throw new Error("The local service returned an unsupported comparison.");
+      if (data.schema_version !== 6 || !data.comparison) throw new Error("The local service returned an unsupported comparison.");
       if (request !== state.request) return;
       state.result = data.comparison;
       for (const role of roles) state[role].run = state.result.runs[role];
@@ -349,6 +349,7 @@
     renderRoles(); renderResult(true);
   }
   globalThis.InstrumentComparison = { init, assign, enter, leave, renderPlot, hasPair,
+    pair: () => Object.fromEntries(roles.map(role => [role, state[role].run?.source_name])),
     configure: config => { maxBytes = config.max_run_bytes || maxBytes; maxFiles = config.max_run_files || maxFiles; },
   };
 })();

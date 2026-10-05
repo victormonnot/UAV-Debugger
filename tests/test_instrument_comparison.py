@@ -83,7 +83,7 @@ def test_uploaded_pair_uses_existing_comparator_metrics_and_original_references(
     status, headers, body = compare(run_server[0], files, **identities(runs))
     assert status == 200 and headers["Cache-Control"] == "no-store"
     payload = json.loads(body)
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     result = payload["comparison"]
     assert result["comparable"] is expected.comparable is True
     assert result["reasons"]["rows"] == []

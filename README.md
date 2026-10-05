@@ -25,8 +25,8 @@ message-type and exact time filters, reading activity and attitude plots,
 inspecting original messages and exporting Markdown evidence reports.
 It also opens saved experiments, browses local run directories and compares a
 saved baseline with a blackout, with input provenance, evidence checks and
-light/dark themes. Experiment execution remains in the existing interface
-during the transition.
+light/dark themes. Its dedicated **Experiment** mode explicitly starts and stops
+the same bounded local workers, then opens saved evidence in Analyze.
 
 See the [Experiment interface](docs/experiment-ui.md),
 [saved Experiment inspection](docs/saved-experiments.md) and
@@ -116,16 +116,18 @@ gates and observed counts/rates/intervals. **Download comparison report** export
 the applied result, including reasons when evidence cannot be compared. See the
 [comparison guide](docs/comparison.md) for eligibility and interpretation limits.
 
-Experiment execution remains in `uav-debugger-analyze`.
-Instrument can link to that interface
+Choose **Experiment** for explicit Start/Stop controls, shared process status
+and terminal-run handoff into analysis or comparison. Entering the mode or
+changing settings never starts a worker. The existing `uav-debugger-analyze`
+interface remains available, and Instrument can link to it
 when it is started separately; see the [launch and handoff guide](docs/instrument.md).
-Instrument does not launch an experiment, start the other server or transfer a
-recording to it. This addition is not part of the published v0.2.0 artifacts.
+That link neither starts the other server nor transfers a recording or active
+worker to it. These Instrument additions are not part of the published v0.2.0 artifacts.
 
 ## Run a local Experiment
 
-In the current source checkout, choose **Experiment** under **Mode** in the
-local interface. Select **Synthetic**, keep the six-second duration and click
+In the current source checkout, choose **Experiment** in Instrument or under
+**Mode** in the existing interface. Select **Synthetic**, keep the six-second duration and click
 **Start experiment** for a baseline. **Stop experiment** requests orderly
 interruption. When the worker finishes, **Open in Analyze** validates and opens
 the saved run. Repeat with **Blackout**, assign the two results with **Use as
@@ -136,6 +138,9 @@ lets the bounded run continue. Outputs remain on disk under
 `local/experiments/run-<identifier>/evidence`; the separate `control.json` records
 controller requests and state. See the [Experiment interface guide](docs/experiment-ui.md)
 for server configuration, shutdown and the optional SITL source.
+Separately launched Instrument and Streamlit servers do not share worker
+ownership or in-memory history. A Stop request targets the displayed run, not
+whichever run another tab might start later.
 
 To find saved runs after restarting the server, choose **Local experiments**
 under **Analyze input**, or **Browse saved experiments** in Experiment. The

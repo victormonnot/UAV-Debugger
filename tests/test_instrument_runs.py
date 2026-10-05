@@ -122,7 +122,7 @@ def test_missing_catalog_root_is_reported_without_creating_it(run_server):
     status, headers, body = _request(url, "/api/catalog")
     payload = json.loads(body)
     assert status == 200 and headers["Cache-Control"] == "no-store"
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["root"] == str(root)
     assert payload["entries"] == [] and payload["issues"]
     assert payload["truncated"] is False

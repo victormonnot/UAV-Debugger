@@ -134,7 +134,7 @@
       const response = await fetch("/api/catalog", { cache: "no-store", credentials: "same-origin", signal: controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The catalog could not be read.");
-      if (data.schema_version !== 5 || !Array.isArray(data.entries)) throw new Error("The local service returned an unsupported catalog.");
+      if (data.schema_version !== 6 || !Array.isArray(data.entries)) throw new Error("The local service returned an unsupported catalog.");
       if (request !== catalogRequest) return;
       catalog = data; catalogPage = 0; renderCatalog();
     } catch (error) {

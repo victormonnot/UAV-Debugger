@@ -95,7 +95,7 @@ server was isolated from external networking.
 `scripts/check_distribution.py` requires exactly one source archive and one
 wheel for the version declared in `pyproject.toml`. It compares source-archive
 files against the explicit Hatch inclusion list, and wheel modules/data against
-the package source. This includes the 17 explicitly declared Instrument HTML,
+the package source. This includes the 18 explicitly declared Instrument HTML,
 CSS, JavaScript, font and license files. Unexpected, missing, duplicated or changed files cause a
 failure. It also checks distribution metadata and wheel integrity entries.
 The package declares `MIT` as its SPDX license expression. The corresponding
@@ -112,6 +112,52 @@ declared inputs; changes to the inclusion list and source files still require
 review.
 
 ## Verification status and release conditions
+
+### Instrument execution checks
+
+On 2026-10-05, a newly built wheel installed into a separate locked Python
+3.12.3 environment passed the complete suite: **1,221 tests in 649.92 seconds**,
+with no failures or skips. Execution used an external working directory and
+verified site-packages imports. The suite ran inside a user/network namespace
+with only loopback enabled, including the Python servers, with all **14 native
+SITL cases** explicitly enabled against the verified pinned executable.
+All **172 Chromium workflows** ran: 134 Instrument cases and 38 existing-interface
+cases. Browser fixtures also rejected external HTTP and WebSocket requests.
+
+The 70 new Experiment service tests exercise real synthetic workers, strict
+bounded action data, action tokens, origin/host restrictions, concurrent Start,
+targeted and repeated Stop, exact controller clocks, terminal handoffs and
+complete saved-evidence identities. They also cover symlink-root rejection,
+empty controller history after restart, retained catalog files, normal lifespan
+cleanup and actual worker interruption/finalization after abrupt server loss.
+Read-only routes and idle shutdown are checked without importing execution
+modules or creating an output directory.
+
+The 25 new Instrument browser cases cover actual baseline/custom-blackout
+execution, interrupted forwarding, both capture points, validated role assignment,
+comparison and downloaded reports. They verify invalid settings without output,
+shared state across tabs, stale Start/Stop requests, browser-independent worker
+lifetime, polling failure/recovery, manual history selection, literal diagnostics
+and completed-but-delayed command or evidence responses. The native Instrument
+case starts the pinned simulator in its owned isolated namespace, stops it,
+checks simulator cleanup and disarmed telemetry, then opens and reports the
+actual saved capture. Existing native completion, forced teardown and file-only
+inspection checks also pass. The runner, controller and worker implementations
+are unchanged.
+
+Experiment light/dark layouts at 320 and 1440 pixels pass overflow checks and
+rendered text contrast of at least 4.5:1; desktop and mobile screenshots were
+reviewed. The existing recording, saved-run and comparison appearance checks
+remain included. A live source preview additionally preserves an opened
+recording across Analyze/Experiment navigation, performs no Start request and
+reports no JavaScript errors.
+
+Ruff lint and formatting, all Instrument JavaScript syntax checks, the locked
+dependency check, unchanged synthetic fixture and whitespace checks pass.
+The final archives contain **113 source files, 53 wheel members and 18 static
+assets**; all 52 non-RECORD wheel payloads match the tested installation.
+No dependency or evidence schema changed. These are local verification results,
+not a hosted CI run, a new release or a change to the published v0.2.0 artifacts.
 
 ### Instrument comparison checks
 

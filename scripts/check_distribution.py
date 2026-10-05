@@ -35,6 +35,7 @@ INSTRUMENT_ASSETS = tuple(
         "app.js",
         "runs.js",
         "comparison.js",
+        "experiment.js",
         "theme.js",
         "style.css",
         "vendor/ibm-plex-sans-latin-400-normal.woff2",

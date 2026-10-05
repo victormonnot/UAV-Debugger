@@ -8,7 +8,8 @@ experiment is needed to read their saved evidence.
 The source checkout provides this workflow in [Instrument](instrument.md) as
 well as the existing interface. Instrument is not part of the published
 v0.2.0 artifacts. Both interfaces use the same file-only comparator and report
-builder; explicit Experiment execution remains in the existing interface.
+builder. Both provide explicit [Experiment controls](experiment-ui.md), separate
+from this file-only comparison.
 
 ## Compare in Instrument
 
@@ -44,6 +45,12 @@ entry is opened through the validator; **Compare selected runs** opens the pair
 and rereads both runs. Uploaded files and catalog entries may be mixed. The
 catalog's root and read limits are described in the
 [saved-run guide](saved-experiments.md#use-instrument).
+
+Instrument's **Experiment** mode can also assign terminal controller runs with
+**Use as baseline** and **Use as blackout**. Each handoff validates the saved
+evidence before assigning its role; **Compare selected runs** opens the pair in
+Analyze. Controller completion alone does not establish compatible or consistent
+evidence. Selecting a role or opening a comparison never starts another run.
 
 Each role accepts at most **64 files / 64 MiB**, including excluded auxiliary
 files; individual captures retain their **10 MiB** limit. Replacing or clearing

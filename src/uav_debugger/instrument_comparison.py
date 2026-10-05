@@ -125,7 +125,7 @@ def _payload(comparison, available: dict, point: str, ignored: dict[str, tuple[s
             len(intervals),
         )
     return {
-        "schema_version": 5,
+        "schema_version": 6,
         "comparison": {
             "runs": {
                 role: _run_summary(getattr(comparison, role), ignored.get(role, ()))

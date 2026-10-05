@@ -1,9 +1,10 @@
-"""Serve bounded, stateless recording analysis on loopback."""
+"""Serve stateless analysis and explicit owned experiments on loopback."""
 
 import argparse
 import json
 import os
 from collections import Counter
+from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from email.message import Message
 from importlib.metadata import version
@@ -42,6 +43,7 @@ from .catalog import (
 from .charts import activity_chart, attitude_chart
 from .importer import MAX_INPUT_BYTES
 from .instrument_comparison import comparison_response
+from .instrument_experiment import ExperimentRequestError, ExperimentWorkspace, action_payload
 from .model import ImportResult, Record
 from .report import _json_value, build_markdown_report
 from .run_report import _bounded_value, build_run_markdown_report
@@ -247,7 +249,7 @@ def _recording_payload(
     issue_page = _page_parameter(parameters, "issue_page", len(result.issues), ISSUE_PAGE_SIZE)
     issue_start = issue_page * ISSUE_PAGE_SIZE
     return {
-        "schema_version": 5,
+        "schema_version": 6,
         "recording": {
             "source_name": result.source_name,
             "synthetic": synthetic,
@@ -662,7 +664,11 @@ def _run_payload(
 
 
 def _run_response(
-    run: SavedRun, parameters: dict[str, str], *, ignored: tuple[str, ...] = ()
+    run: SavedRun,
+    parameters: dict[str, str],
+    *,
+    ignored: tuple[str, ...] = (),
+    catalog_key: str | None = None,
 ) -> Response:
     try:
         output_format = parameters.get("format", "json")
@@ -743,7 +749,7 @@ def _run_response(
             _recording_payload(capture, capture_parameters)
             if capture is not None
             else {
-                "schema_version": 5,
+                "schema_version": 6,
                 "recording": None,
                 "selection": None,
                 "inspector": None,
@@ -757,6 +763,8 @@ def _run_response(
             }
         )
         payload["run"] = _run_payload(run, parameters, point=point, ignored=ignored)
+        if catalog_key is not None:
+            payload["catalog_key"] = catalog_key
         return JSONResponse(payload)
     except ValueError as error:
         return JSONResponse({"error": str(error)}, status_code=400)
@@ -868,19 +876,32 @@ def _comparison_upload_response(
 
 
 def create_app(
-    *, classic_port: int | None = None, experiment_root: Path = Path("local/experiments")
+    *,
+    classic_port: int | None = None,
+    experiment_root: Path = Path("local/experiments"),
+    sitl_binary: Path | None = None,
 ) -> Starlette:
-    """Create a file-only workspace; no recording session or execution state is retained."""
+    """Keep analysis stateless and construct execution only on explicit Start."""
     if classic_port is not None and (
         type(classic_port) is not int or not 1 <= classic_port <= 65535
     ):
         raise ValueError("Existing workspace port must be between 1 and 65535.")
     root = Path(os.path.abspath(experiment_root))
+    experiments = ExperimentWorkspace(
+        root, Path(os.path.abspath(sitl_binary)) if sitl_binary is not None else None
+    )
+
+    @asynccontextmanager
+    async def lifespan(app):
+        try:
+            yield
+        finally:
+            await run_in_threadpool(experiments.close)
 
     def configuration(request: Request) -> JSONResponse:
         return JSONResponse(
             {
-                "schema_version": 5,
+                "schema_version": 6,
                 "version": version("uav-debugger"),
                 "classic_url": f"http://127.0.0.1:{classic_port}" if classic_port else None,
                 "max_recording_bytes": MAX_INPUT_BYTES,
@@ -995,7 +1016,7 @@ def create_app(
         result = scan_catalog(root)
         return JSONResponse(
             {
-                "schema_version": 5,
+                "schema_version": 6,
                 "root": str(result.root),
                 "entries": [
                     {
@@ -1040,6 +1061,65 @@ def create_app(
             )
         return _run_response(run, parameters)
 
+    def experiment_error(error: ExperimentRequestError) -> JSONResponse:
+        payload = {"error": str(error)}
+        if error.code is not None:
+            payload["error_code"] = error.code
+        return JSONResponse(payload, status_code=error.status)
+
+    def experiment_status(request: Request) -> Response:
+        if not _same_origin(request):
+            return JSONResponse(
+                {"error": "Cross-origin Experiment access is not accepted."}, status_code=403
+            )
+        if request.query_params:
+            return JSONResponse(
+                {"error": "Experiment status does not accept query parameters."}, status_code=400
+            )
+        return JSONResponse(experiments.status())
+
+    async def experiment_start(request: Request) -> Response:
+        try:
+            values = await action_payload(
+                request, experiments.action_token, same_origin=_same_origin(request)
+            )
+            return JSONResponse(await run_in_threadpool(experiments.start, values))
+        except ExperimentRequestError as error:
+            return experiment_error(error)
+
+    async def experiment_stop(request: Request) -> Response:
+        try:
+            values = await action_payload(
+                request, experiments.action_token, same_origin=_same_origin(request)
+            )
+            return JSONResponse(await run_in_threadpool(experiments.stop, values))
+        except ExperimentRequestError as error:
+            return experiment_error(error)
+
+    def experiment_open(request: Request) -> Response:
+        if not _same_origin(request):
+            return JSONResponse(
+                {"error": "Cross-origin Experiment access is not accepted."}, status_code=403
+            )
+        try:
+            values = request.query_params.multi_items()
+            if len(values) != 1 or values[0][0] != "run_id":
+                raise ExperimentRequestError(
+                    "Opening Experiment evidence requires exactly one run_id."
+                )
+            key = experiments.open_key(values[0][1])
+            _key_parts(key)
+        except ExperimentRequestError as error:
+            return experiment_error(error)
+        try:
+            run = load_catalog_entry(root, key)
+        except (OSError, ValueError) as error:
+            return JSONResponse(
+                {"error": f"Cannot open saved evidence: {error}", "error_code": "run_unavailable"},
+                status_code=409,
+            )
+        return _run_response(run, {}, catalog_key=key)
+
     def index(request: Request) -> FileResponse:
         return FileResponse(STATIC_ROOT / "index.html", media_type="text/html")
 
@@ -1051,6 +1131,7 @@ def create_app(
         return JSONResponse({"status": "ok"})
 
     app = Starlette(
+        lifespan=lifespan,
         routes=[
             Route("/", index),
             Route("/health", health),
@@ -1061,11 +1142,16 @@ def create_app(
             Route("/api/comparison", compare, methods=["POST"]),
             Route("/api/catalog", catalog),
             Route("/api/catalog/open", open_catalog),
+            Route("/api/experiment/status", experiment_status),
+            Route("/api/experiment/start", experiment_start, methods=["POST"]),
+            Route("/api/experiment/stop", experiment_stop, methods=["POST"]),
+            Route("/api/experiment/open", experiment_open),
             Route("/vendor/plotly.min.js", plotly_bundle),
             Mount("/assets", app=StaticFiles(directory=STATIC_ROOT, check_dir=False)),
         ],
         middleware=[Middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])],
     )
+    app.state.experiments = experiments
 
     async def response_headers(request: Request, call_next):
         response = await call_next(request)
@@ -1090,7 +1176,10 @@ def main(argv: list[str] | None = None) -> int:
         "--experiment-root",
         type=Path,
         default=Path("local/experiments"),
-        help="Read-only local saved-experiment catalog root (default: local/experiments)",
+        help="Saved-experiment catalog and explicit-run output root (default: local/experiments)",
+    )
+    parser.add_argument(
+        "--sitl-binary", type=Path, help="Optional server-configured pinned SITL executable"
     )
     parser.add_argument(
         "--classic-port",
@@ -1106,7 +1195,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.port == args.classic_port:
             parser.error("Instrument and existing workspace ports must differ")
     uvicorn.run(
-        create_app(classic_port=args.classic_port, experiment_root=args.experiment_root),
+        create_app(
+            classic_port=args.classic_port,
+            experiment_root=args.experiment_root,
+            sitl_binary=args.sitl_binary,
+        ),
         host="127.0.0.1",
         port=args.port,
         proxy_headers=False,

@@ -5,6 +5,8 @@
   const text = (id, value) => { $(id).textContent = String(value ?? "N/A"); };
   const runs = globalThis.InstrumentRuns;
   const comparison = globalThis.InstrumentComparison;
+  const experiment = globalThis.InstrumentExperiment;
+  let workspace = "analyze";
   const state = {
     data: null, input: null, retryInput: null, pendingInput: null,
     request: 0, controller: null, busy: false, busyPurpose: null, render: 0, viewRevision: 0,
@@ -256,7 +258,7 @@
       try { data = await response.json(); }
       catch { throw new Error("The local service returned an unreadable response."); }
       if (!response.ok) throw Object.assign(new Error(data.error || "The input could not be analyzed."), { status: response.status });
-      if (data.schema_version !== 5 || (!data.run && !data.recording) || (data.recording && !data.selection?.messages) || !Array.isArray(data.sources) || !Array.isArray(data.message_types) || !Array.isArray(data.issues)) {
+      if (data.schema_version !== 6 || (!data.run && !data.recording) || (data.recording && !data.selection?.messages) || !Array.isArray(data.sources) || !Array.isArray(data.message_types) || !Array.isArray(data.issues)) {
         throw new Error("The local service returned an unsupported recording response.");
       }
       if (request !== state.request) return;
@@ -692,9 +694,18 @@
       if (state.input && !state.busy) analyze(state.input, appliedFilters(), "run-page", state.data.issue_page, parameters);
     },
   });
+  experiment.init({
+    inspect: key => { selectWorkspace("analyze"); selectInputMode("saved"); openInput({ kind: "catalog", key }); },
+    assign: (role, key, run) => comparison.assign(role, { kind: "catalog", key }, run),
+    compare: () => { selectWorkspace("analyze"); selectInputMode("comparison"); },
+    hasPair: () => comparison.hasPair(),
+    pair: () => comparison.pair(),
+    browse: () => { selectWorkspace("analyze"); if (state.inputMode === "catalog") runs.loadCatalog(); else selectInputMode("catalog"); },
+  });
   comparison.init({
     show: () => selectInputMode("comparison"),
     inspect: input => { selectInputMode("saved"); openInput(input); },
+    changed: () => experiment.controls(),
   });
   for (const role of ["baseline", "blackout"]) $("use-run-" + role).addEventListener("click", () => {
     if (state.input && state.data?.run && !state.busy) comparison.assign(role, state.input, state.data.run);
@@ -807,16 +818,36 @@
     $(`observations-${direction}`).addEventListener("click", () => { state.observationPage += step; renderObservationPage(); });
     $(`messages-${direction}`).addEventListener("click", () => changeMessagePage(state.data.selection.messages.page + step));
   }
-  function openWorkspace(experiment) {
-    text("workspace-title", experiment ? "Experiment" : "Existing workspace");
-    text("workspace-context", experiment ? "Execution is available in the existing workspace." : "Experiment execution");
+  function selectWorkspace(mode) {
+    if (workspace === mode) return;
+    if (workspace === "experiment") experiment.leave();
+    else { cancelReport(); if (state.inputMode === "comparison") comparison.leave(); }
+    workspace = mode;
+    $("analyze-view").hidden = mode !== "analyze";
+    $("experiment-view").hidden = mode !== "experiment";
+    $("experiment-footer").hidden = mode !== "experiment";
+    $("footer-state").hidden = document.querySelector(".footer-provenance").hidden = mode === "experiment";
+    for (const name of ["analyze", "experiment"]) {
+      const button = $(name + "-button");
+      button.classList.toggle("active", mode === name);
+      if (mode === name) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    }
+    document.querySelector(".navigation-context").textContent = mode === "experiment" ? "Explicit local execution" : "Saved observations";
+    if (mode === "experiment") experiment.enter();
+    else { renderPlot(); if (state.inputMode === "comparison") comparison.enter(); }
+  }
+  function openWorkspace() {
+    text("workspace-title", "Existing workspace");
+    text("workspace-context", "Recordings, saved experiments and execution");
     text("workspace-availability", classicURL ? "Separate local service / no recording is transferred." : "No existing workspace linked.");
     $("classic-link").hidden = !classicURL;
     if (classicURL) $("classic-link").href = classicURL;
     $("workspace-dialog").showModal();
   }
-  $("experiment-button").addEventListener("click", () => openWorkspace(true));
-  $("full-workspace").addEventListener("click", () => openWorkspace(false));
+  $("experiment-button").addEventListener("click", () => selectWorkspace("experiment"));
+  $("analyze-button").addEventListener("click", event => { event.preventDefault(); selectWorkspace("analyze"); });
+  $("full-workspace").addEventListener("click", openWorkspace);
   $("close-workspace").addEventListener("click", () => $("workspace-dialog").close());
   $("workspace-dialog").addEventListener("click", event => {
     if (event.target !== $("workspace-dialog")) return;

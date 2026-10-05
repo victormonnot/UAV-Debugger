@@ -13,8 +13,9 @@ commands from its manifest, opens a telemetry transport or resumes an experiment
 
 The source checkout also provides these single-run, local catalog and
 baseline/blackout comparison workflows in [Instrument](instrument.md). Its
-additions are not part of the published v0.2.0 artifacts. Explicit Experiment
-execution remains in the existing interface.
+additions are not part of the published v0.2.0 artifacts. Instrument also offers
+explicit [Experiment controls](experiment-ui.md#use-instrument); opening saved
+evidence remains independent of execution.
 
 ## Use Instrument
 
@@ -69,6 +70,13 @@ report, and catalog entries are reread before use. Roles survive navigation
 within the tab but not a page reload. Clear either role or the entire pair from
 the comparison view. See [comparison in Instrument](comparison.md#compare-in-instrument)
 for applied controls, blocked results and reports.
+
+Terminal runs launched through Instrument's **Experiment** mode use **Open in
+Analyze** to validate their saved files and open this same view. Controller
+process state and declared outcome do not establish evidence consistency.
+Handoff is limited to terminal runs retained by that server's controller;
+older directories remain accessible through the separate local catalog after
+history eviction or server restart.
 
 Instrument resends selected upload bytes or rereads the local entry for each
 analysis request. Subsequent operations and exports check the complete run
