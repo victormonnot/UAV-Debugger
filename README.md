@@ -1,6 +1,6 @@
 # UAV Debugger
 
-**Work in progress — V1 is not ready yet.**
+**Work in progress. V1 isn't ready yet.**
 
 The goal is to make it easier to investigate a drone's behavior from its
 recordings and compare what happens in controlled experiments.
