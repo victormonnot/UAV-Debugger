@@ -236,6 +236,10 @@ def test_keyboard_comparison_upload_filter_report_and_inspection_keep_visible_fo
     integration_page, tmp_path
 ):
     page, expect, _ = integration_page
+    # Keep interception enabled between the two keyboard-opened folder choosers.
+    # Removing the last listener makes Playwright disable it asynchronously.
+    opened_choosers = []
+    page.on("filechooser", lambda chooser: opened_choosers.append(chooser))
     page.locator("#recording-input-tab").focus()
     page.keyboard.press("End")
     expect(page.locator("#comparison-input-tab")).to_be_focused()
@@ -245,8 +249,10 @@ def test_keyboard_comparison_upload_filter_report_and_inspection_keep_visible_fo
         tab_to(page, f"#comparison-open-{role}")
         with page.expect_file_chooser() as chooser:
             page.keyboard.press("Enter")
+        assert chooser.value.element.get_attribute("id") == f"comparison-{role}-files"
         chooser.value.set_files(directory)
         expect(page.locator(f"#comparison-{role}-name")).to_have_text(role)
+    assert len(opened_choosers) == 2
     comparison(page, expect)
     assert_visible_focus(page)
     key_text(page, "#comparison-start", "0.5")
