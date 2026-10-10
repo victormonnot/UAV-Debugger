@@ -1,18 +1,22 @@
 # UAV Debugger
 
-Inspect drone recordings and compare experiments in a local web workspace.
+**Work in progress — V1 is not ready yet.**
 
-UAV Debugger brings charts, recorded measurements and the original messages into
-one place. Select an interval, inspect what was received and save your findings
-in a report. You can also create a controlled interruption in a local telemetry
-stream, then compare the result with a normal run.
+The goal is to make it easier to investigate a drone's behavior from its
+recordings and compare what happens in controlled experiments.
+
+The current prototype brings charts, recorded measurements and original messages
+into one workspace. Some parts already work, including inspecting a supported
+recording and comparing a normal telemetry stream with an interrupted one.
+There is still work to do before these become a usable first version of the
+debugger. The screenshots and examples below show progress so far.
 
 ![UAV Debugger showing attitude measurements and a gap in a synthetic recording](docs/media/instrument-analyze.png)
 
-*Inspecting roll, pitch and yaw from a synthetic experiment. The gap is a deliberate
-interruption in message forwarding, not a recorded flight.*
+*The current prototype inspecting roll, pitch and yaw from a synthetic experiment.
+The gap is a deliberate interruption in message forwarding, not a recorded flight.*
 
-## What you can do
+## What exists so far
 
 - **Inspect a recording.** Filter by vehicle source, message type and time. Look
   at the charts, then open a message to see its decoded fields and original bytes.
@@ -23,11 +27,15 @@ interruption in message forwarding, not a recorded flight.*
 - **Keep the findings.** Export a Markdown report with the selected data,
   recording details and limits of the analysis.
 
-The two modes, **Analyze** and **Experiment**, work together. Analyze also works
-on its own: no drone, simulator or ARGOS installation is needed to open a saved
-recording. A gap between the selected messages does not tell you what caused it.
+The prototype is organized around two workflows, **Analyze** and **Experiment**.
+The implemented analysis can be tried without a drone, simulator or ARGOS
+installation. It supports a limited recording format and does not automatically
+explain a problem: a gap between selected messages does not tell you its cause.
 
-## Quick start
+## Try the prototype locally
+
+These steps let you explore the current development version and its small
+synthetic example. Setup, supported inputs and workflows may change before V1.
 
 The checked runtime is **Linux with Python 3.12**. Install
 [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
@@ -108,19 +116,23 @@ It runs locally, with charts, fonts and icons served by the same process.
 Recordings remain unchanged. Tabs keep their own analysis selections; an explicit
 experiment has one shared worker per server.
 
-The commands above use the **current source checkout**. Published **v0.2.0**
-artifacts contain the earlier Streamlit interface and do not include Instrument.
+The commands above use the **current source checkout**. The published **v0.x**
+releases are earlier stages of this pre-V1 project. **v0.2.0** artifacts contain
+the earlier Streamlit interface and do not include Instrument.
 That interface remains available through `uav-debugger-analyze` on port **8501**;
 it does not need to run alongside Instrument. See the
 [interface guide](docs/instrument.md) and [published releases](https://github.com/victormonnot/UAV-Debugger/releases).
 
 ## Product direction
 
-Analyze focuses on understanding saved observations; Experiment provides controlled
-ways to investigate telemetry behavior and compare results. Broader input-format
-support, video and broader session comparison remain future work. The current
-interface inspects charts and messages; it does not play an animated flight or
-provide automatic diagnosis.
+The intended workflow is to investigate something in a recording, set up a
+controlled experiment and use the results to understand it better. The current
+prototype only covers a small part of that, with one recording format and
+baseline/interruption comparisons on local telemetry streams.
+
+Broader input-format support, video and broader session comparison remain future
+work. The current interface inspects charts and messages; it does not play an
+animated flight or provide automatic diagnosis.
 
 See the [project scope](docs/project-scope.md) and [architecture](docs/architecture.md)
 for the product boundaries and implementation.

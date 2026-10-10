@@ -1,10 +1,12 @@
 # Project scope
 
-UAV Debugger is a standalone tool for understanding UAV recordings and running
-controlled protocol experiments. It has two modes:
-**Analyze** and **Experiment**, built around the same session evidence.
+UAV Debugger is a project in development, working towards a first usable version
+of a standalone tool for understanding UAV recordings and running controlled
+protocol experiments. **V1 is not ready yet.** The prototype has two modes,
+**Analyze** and **Experiment**, built around the same session evidence; the
+capabilities below describe implemented pieces of that unfinished workflow.
 
-The **0.2.0** source checkout provides an offline Analyze interface with
+The current development checkout provides an offline Analyze interface with
 source, message and time filters, activity and attitude plots, record inspection
 and Markdown evidence export. The same importer is available through Python and
 a JSON command-line summary. The [Experiment interface](experiment-ui.md) and
