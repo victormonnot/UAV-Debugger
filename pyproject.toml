@@ -88,6 +88,9 @@ include = [
     "/docs/comparison.md",
     "/docs/recording-validation.md",
     "/docs/verification.md",
+    "/docs/media/README.md",
+    "/docs/media/instrument-analyze.png",
+    "/docs/media/instrument-comparison.png",
 ]
 
 [tool.pytest.ini_options]

@@ -1,212 +1,129 @@
 # UAV Debugger
 
-A local tool for inspecting UAV recordings and running bounded MAVLink
-experiments, with original frames, explicit clocks and evidence reports.
+Inspect drone recordings and compare experiments in a local web workspace.
 
-**Analyze** opens saved recordings, filters sources and time, plots attitude,
-inspects message activity and raw frames, and exports Markdown reports. It also
-inspects saved experiments and compares a baseline with a blackout.
-**Experiment** runs a synthetic sender or pinned ArduCopter SITL source through
-a local UDP relay to a receiver. Explicit Start/Stop controls and a CLI produce
-captures before and after the relay, retaining requested settings, applied
-actions and actual observations separately.
+UAV Debugger brings charts, recorded measurements and the original messages into
+one place. Select an interval, inspect what was received and save your findings
+in a report. You can also create a controlled interruption in a local telemetry
+stream, then compare the result with a normal run.
 
-**Instrument is the recommended interface for the current source checkout.**
-Its custom Analyze / Experiment workspace includes light/dark themes, file
-inspection, saved-run browsing, comparison and explicit local worker controls.
-These are unreleased source additions, not changes to the published **v0.2.0**
-artifacts. Package metadata remains 0.2.0. The commands below use this checkout;
-published artifacts remain listed in
-[GitHub Releases](https://github.com/victormonnot/UAV-Debugger/releases).
-See [Instrument](docs/instrument.md) for the current interface and
-[verification](docs/verification.md) for actual checks and hosted CI status.
+![UAV Debugger showing attitude measurements and a gap in a synthetic recording](docs/media/instrument-analyze.png)
 
-See the [Experiment interface](docs/experiment-ui.md),
-[saved Experiment inspection](docs/saved-experiments.md) and
-[baseline/blackout comparison](docs/comparison.md).
+*Inspecting roll, pitch and yaw from a synthetic experiment. The gap is a deliberate
+interruption in message forwarding, not a recorded flight.*
+
+## What you can do
+
+- **Inspect a recording.** Filter by vehicle source, message type and time. Look
+  at the charts, then open a message to see its decoded fields and original bytes.
+- **Run an experiment.** Send synthetic telemetry through a local relay, with or
+  without an interruption. Record what reaches each side of the relay.
+- **Compare two runs.** Look at the same interval in a baseline and an interrupted
+  run, including message counts, timing and the interruption that actually occurred.
+- **Keep the findings.** Export a Markdown report with the selected data,
+  recording details and limits of the analysis.
+
+The two modes, **Analyze** and **Experiment**, work together. Analyze also works
+on its own: no drone, simulator or ARGOS installation is needed to open a saved
+recording. A gap between the selected messages does not tell you what caused it.
 
 ## Quick start
 
-The initial runtime target is **Linux with Python 3.12**. Install
-[uv](https://docs.astral.sh/uv/getting-started/installation/), then run these
-commands from the repository root:
+The checked runtime is **Linux with Python 3.12**. Install
+[uv](https://docs.astral.sh/uv/getting-started/installation/), then:
 
 ```sh
+git clone https://github.com/victormonnot/UAV-Debugger.git
+cd UAV-Debugger
 uv sync --locked
 uv run --locked uav-debugger-instrument
 ```
 
-Open [Instrument](http://127.0.0.1:8765) in a browser on the same computer and click
-**Load example**. The bundled synthetic recording needs no upload and contains
-12 messages from two sources. Select source **1 / 1**, message type
-**ATTITUDE**, start **1** and end **5**, then click **Apply filters**: records
-**#2** and **#8** show a four-second interval between those observations.
+Open **http://127.0.0.1:8765** and click **Load example**. The included synthetic
+recording has 12 messages from two sources; no download or vehicle connection
+is needed to try it after installation.
 
-The **Attitude** plot shows roll, pitch and yaw in radians. Click a marker or a
-record in **Messages** to inspect its decoded fields, original capture timestamp and frame
-bytes. The example's four-second gap remains disconnected at the default
-one-second maximum line gap. **Download report** exports the applied filters, plot settings, input
-provenance, import limitations and the currently inspected record. Five repeated
-timestamp warnings are expected in this fixture.
+To inspect a gap, select source **1 / 1**, message type **ATTITUDE**, start **1**
+and end **5**, then click **Apply filters**. Open **Attitude** to see the two
+observations, four seconds apart. Click a plotted point or a row in **Messages**
+to inspect the original record. **Download report** saves the current analysis.
+The fixture intentionally includes five repeated-timestamp warnings.
 
-Choose your own file under **Open recording** to replace the example, or use
-**Clear recording** to return to an empty view. To use Analyze on a remote machine,
-see [access through SSH](docs/analyze.md#access-through-ssh).
-
-The launcher listens on `127.0.0.1` and serves its display assets locally. Analysis
-requires no vehicle, simulator or ARGOS installation. Dependency installation
-can require network access. Recordings remain unchanged. Each browser tab owns
-its inputs and comparison roles; analysis requests resend uploads or reread
-saved evidence without a server-side analysis cache. The **10 MiB capture limit**
-and **64 MiB per saved-run limit** bound input bytes,
-not total memory use or guaranteed performance.
-
-The historical `uav-debugger-analyze` command still launches the complete
-Streamlit interface on port **8501**. It is not required to use Instrument,
-and no launcher or port is redirected. Published **v0.2.0** artifacts retain
-that interface and do not include Instrument. A wheel built from this checkout
-includes the current source behavior; it is not the historical release artifact.
-See [interface coverage and differences](docs/instrument.md#interface-coverage-and-differences).
-
-See the [Analyze guide](docs/analyze.md) for filtering, reports, alternate ports
-and observation limits. For a command-line summary:
-
-```sh
-uv run --locked python -m uav_debugger tests/fixtures/telemetry-gap.tlog
-```
-
-The [importer guide](docs/importer.md) documents the Python API, JSON output and
-exit codes; the [fixture documentation](tests/fixtures/README.md) records the
-example's provenance and expected observations.
-
-## Instrument workspace
-
-The recommended source interface starts with:
-
-```sh
-uv run --locked uav-debugger-instrument
-```
-
-Open [Instrument](http://127.0.0.1:8765) and choose **Load example** or
-**Open recording**. Files up to **10 MiB** use the existing importer and retain
-their fingerprint, capture clock and import warnings. Select a source, message
-type and inclusive time bounds, then choose **Apply filters**. **Activity** and
-**Attitude** use the same analysis logic as the Streamlit interface; plot zoom does
-not change the applied filters. **Messages** pages the selected records in
-original order. Inspect a record from the table or an attitude marker to read
-its exact timestamp, decoded fields and original bytes. **Download report**
-exports the applied selection, plot settings and explicitly inspected record,
-with counts for the whole selection rather than only the visible page.
-Fonts, icons and plotting assets are served locally. See the
-[Instrument guide](docs/instrument.md) for partial imports, capacity limits and
-file replacement behavior.
-
-Choose **Saved experiment** to upload one saved evidence directory, or **Local
-experiments** to browse the configured server-side `--experiment-root`
-(default `local/experiments`). The run view keeps requested settings, applied
-actions and observations separate. Choose an observation point to inspect its
-capture with the same filters, messages and reports. Listing a local run reads
-declared metadata only; **Open in Analyze** validates the saved evidence without
-starting or resuming an experiment.
-
-Choose **Compare experiments** to assign a baseline and blackout from directory
-uploads, the current saved run or the local catalog. **Apply comparison** selects
-a common source, message type and exact half-open measurement-relative window.
-The view separates compatibility reasons, configuration differences, applied
-gates and observed counts/rates/intervals. **Download comparison report** exports
-the applied result, including reasons when evidence cannot be compared. See the
-[comparison guide](docs/comparison.md) for eligibility and interpretation limits.
-
-Choose **Experiment** for explicit Start/Stop controls, shared process status
-and terminal-run handoff into analysis or comparison. Entering the mode or
-changing settings never starts a worker. The existing `uav-debugger-analyze`
-interface remains available, and Instrument can link to it
-when it is started separately; see the [launch and handoff guide](docs/instrument.md).
-That link neither starts the other server nor transfers a recording or active
-worker to it. These Instrument additions are not part of the published v0.2.0 artifacts.
+Use **Open recording** for your own supported file. Stop the server with
+**Ctrl-C**. The [Analyze guide](docs/analyze.md) covers filters, reports, alternate
+ports and access through SSH.
 
 ## Run a local Experiment
 
-In the current source checkout, choose **Experiment** in Instrument or under
-**Mode** in the existing interface. Select **Synthetic**, keep the six-second duration and click
-**Start experiment** for a baseline. **Stop experiment** requests orderly
-interruption. When the worker finishes, **Open in Analyze** validates and opens
-the saved run. Repeat with **Blackout**, assign the two results with **Use as
-baseline** and **Use as blackout**, then choose **Compare selected runs**.
+Choose **Experiment**, keep **Synthetic** and the default six-second duration,
+then click **Start experiment**. Once it finishes, choose **Use as baseline**.
+Repeat with the **Blackout** scenario, choose **Use as blackout**, then
+**Compare selected runs**. The default interruption lasts two seconds.
 
-All tabs share one active worker per server. Switching modes or closing a tab
-lets the bounded run continue. Outputs remain on disk under
-`local/experiments/run-<identifier>/evidence`; the separate `control.json` records
-controller requests and state. See the [Experiment interface guide](docs/experiment-ui.md)
-for server configuration, shutdown and the optional SITL source.
-Separately launched Instrument and Streamlit servers do not share worker
-ownership or in-memory history. A Stop request targets the displayed run, not
-whichever run another tab might start later.
+![Baseline and interrupted synthetic telemetry compared in UAV Debugger](docs/media/instrument-comparison.png)
 
-To find saved runs after restarting the server, choose **Local experiments**
-under **Analyze input**, or **Browse saved experiments** in Experiment. The
-catalog reads declared manifest metadata under `--experiment-root`; **Open in
-Analyze** and **Compare selected runs** validate the selected evidence before
-inspection. It does not restart runs. See
-[browsing local experiments](docs/instrument.md#browse-local-experiments).
+*Two local UDP experiments compared over the same interval. The chart shows
+messages received; both runs use artificial attitude signals.*
 
-The same scenarios are available from the command line:
+**Open in Analyze** opens either saved run for closer inspection. Results stay
+in `local/experiments/`; **Local experiments** lets you reopen them after a
+restart. **Stop experiment** requests an orderly stop. Changing tabs or
+closing the browser lets the bounded run continue.
+
+These scenarios exchange real messages on the computer's loopback network.
+They do not simulate flight dynamics or connect to an aircraft. An optional
+[ArduCopter SITL source](docs/sitl.md) supplies simulator telemetry and requires
+separate setup. The experiment does not arm or command that autopilot.
+
+The same synthetic scenarios are available from the command line. Each needs
+a new output directory:
 
 ```sh
 uv run --locked uav-debugger-experiment --output local/experiments/baseline --scenario baseline
 uv run --locked uav-debugger-experiment --output local/experiments/blackout --scenario blackout
 ```
 
-Each run defaults to six seconds and requires a new output directory. A synthetic
-20 Hz `ATTITUDE` sender, a byte-preserving relay and a receiver exchange UDP
-datagrams on `127.0.0.1` in one process. The relay input and receiver record
-messages they actually read as `relay-input.tlog` and `receiver.tlog`. Open each
-file independently in Analyze, or choose **Saved experiment** and open the run
-directory to inspect settings, applied actions and both capture points together.
-Their clocks remain explicit; `Ctrl+C` stops the runner cleanly.
-
-Blackout duration defaults to two seconds. Set **Blackout duration (s)** in the
-interface or `--blackout-duration SECONDS` in the CLI to change it. The accepted
-range is 0.1–59.8 seconds, with at least 0.1 second before and after the requested
-interval inside the measurement duration. Analyze retains requested timing and
-actual gate transitions separately, including interruptions stopped early.
-
-See the [Experiment guide](docs/experiment.md) for configuration, output files,
-termination and evidence limits. The optional [ArduCopter SITL guide](docs/sitl.md)
-describes the separately installed, fingerprinted simulator, startup readiness
-and mandatory network isolation. Choose **Compare experiments** in Analyze to
-compare a saved baseline and blackout on an explicit common window, with
-configuration checks, observed counts/rates/intervals and an evidence report.
-Experiment execution, saved-run inspection and comparison are not part of
-published v0.1.0.
+See the [Experiment guide](docs/experiment.md) for configuration and output files,
+and the [comparison guide](docs/comparison.md) for how the results are measured.
+[Media details](docs/media/README.md) describe the screenshots above.
 
 ## Current input support
 
-The `qgc-timestamped-mavlink-v1` profile reads repeated 8-byte big-endian Unix
-microsecond timestamps followed by unsigned MAVLink 1 or 2 frames, decoded with
-the `common` dialect from `pymavlink==2.4.49`.
+UAV Debugger currently reads a specific **QGroundControl-style timestamped MAVLink
+format**. A `.tlog` extension alone does not guarantee compatibility. Input
+captures are limited to **10 MiB**, and saved experiments to **64 MiB per run**.
+These are input limits, not a guarantee of memory use or performance.
 
-This is a QGroundControl-style byte layout, checked with synthetic fixtures and
-[one public recording associated with an identified QGroundControl build](docs/recording-validation.md).
-That file has partial message-definition coverage; this is not general producer
-compatibility. A `.tlog` extension alone does not identify the format. Unknown message
-IDs remain opaque, and damaged or unsupported records stop traversal with an
-explicit issue and the original remainder retained.
+The importer preserves capture timestamps, original bytes and unsupported message
+IDs. Capture time and timestamps reported by the vehicle remain distinct.
+Damaged or unsupported records stop traversal with an explicit issue and the
+original remainder retained. The [importer guide](docs/importer.md) specifies
+the byte layout and decoding support; [recording validation](docs/recording-validation.md)
+documents the public recording checked so far and its partial message coverage.
 
-Logging timestamps and device timestamps remain distinct. An interval without
-recorded observations does not establish packet loss, vehicle inactivity or a
-cause.
+## Instrument workspace
+
+**Instrument** is the current HTML/CSS/JavaScript interface, backed by Python.
+It runs locally, with charts, fonts and icons served by the same process.
+Recordings remain unchanged. Tabs keep their own analysis selections; an explicit
+experiment has one shared worker per server.
+
+The commands above use the **current source checkout**. Published **v0.2.0**
+artifacts contain the earlier Streamlit interface and do not include Instrument.
+That interface remains available through `uav-debugger-analyze` on port **8501**;
+it does not need to run alongside Instrument. See the
+[interface guide](docs/instrument.md) and [published releases](https://github.com/victormonnot/UAV-Debugger/releases).
 
 ## Product direction
 
-| Mode | Direction | Current implementation |
-| --- | --- | --- |
-| **Analyze** | Open recordings, inspect sources and timing, investigate an interval and export evidence. | Local browser interface, source/time filters, activity and attitude plots, message inspection, Markdown reports, local saved-run browsing, inspection and bounded baseline/blackout comparison, Python API and JSON import summary. |
-| **Experiment** | Run reproducible protocol experiments on explicit simulation or bench targets and inspect their observations in Analyze. | Browser Start/Stop and CLI; synthetic or pinned ArduCopter SITL source, local UDP relay and receiver; baseline and configurable interruption (two seconds by default); saved evidence opens in Analyze or comparison. |
+Analyze focuses on understanding saved observations; Experiment provides controlled
+ways to investigate telemetry behavior and compare results. Broader input-format
+support, video and broader session comparison remain future work. The current
+interface inspects charts and messages; it does not play an animated flight or
+provide automatic diagnosis.
 
-Analyze remains independently usable from saved files. Opening a recording never
-starts an experiment or sends vehicle commands. Video, broader session comparison and
-additional input formats are future work.
+See the [project scope](docs/project-scope.md) and [architecture](docs/architecture.md)
+for the product boundaries and implementation.
 
 ## Development checks
 
@@ -217,43 +134,29 @@ uv run --locked ruff format --check .
 uv run --locked python scripts/generate_fixture.py --check
 ```
 
-The fixture generator's `--check` mode compares deterministic bytes without
-rewriting the fixture. Core tests cover importer boundaries, exact time
-selection, observation intervals, plot counts and discontinuities, report provenance and actual
-command-line invocations. Experiment checks exercise local UDP captures,
-blackout decisions, evidence references and shutdown. Browser tests are opt-in;
-installation and commands
-are documented in the [Analyze guide](docs/analyze.md#browser-workflow-checks).
-The [Verification workflow](.github/workflows/ci.yml) is configured to check source,
-build and inspect distributions, then run the installed package's complete test suite
-with only loopback networking. See [verification and release preparation](docs/verification.md)
-for local reproduction, current development checks and published-release evidence.
+The fixture check verifies deterministic bytes without rewriting the example.
+Browser checks are opt-in; the [verification guide](docs/verification.md) covers
+Chromium setup, installed-package checks, optional native SITL checks and dated
+results. The [CI workflow](.github/workflows/ci.yml) also checks distributions and
+runs the installed package's suite with only loopback networking.
 
 ## Documentation
 
-| Document | Contents |
+| Guide | What it covers |
 | --- | --- |
-| [Instrument workspace](docs/instrument.md) | Open recordings and saved experiments, browse local runs, inspect evidence and export reports. |
-| [Analyze guide](docs/analyze.md) | Launch, inspect a recording, apply filters and export a report. |
-| [Experiment interface](docs/experiment-ui.md) | Explicit Start/Stop, shared execution, simulator setup and saved-evidence handoff. |
-| [Compare saved experiments](docs/comparison.md) | Pair eligibility, measurement-relative windows, observed differences and reports. |
-| [Saved Experiment inspection](docs/saved-experiments.md) | Browse local runs, open saved evidence and distinguish declared metadata from validated observations. |
-| [ArduCopter SITL](docs/sitl.md) | Pinned local simulator setup, isolation, timing and retained evidence. |
-| [Experiment guide](docs/experiment.md) | Run the local synthetic baseline/interruption, inspect captures and interpret execution evidence. |
-| [Importer guide](docs/importer.md) | Installation, input profile, API, CLI outcomes and limits. |
-| [Public recording verification](docs/recording-validation.md) | Download source, exact fingerprint, observed coverage and a reproducible browser case. |
-| [Synthetic fixture](tests/fixtures/README.md) | Provenance, byte references and expected observations. |
-| [Project scope](docs/project-scope.md) | Users, boundaries and product principles. |
-| [Mode workflows](docs/workflows.md) | Current Analyze and Experiment workflows and later capabilities. |
-| [Architecture](docs/architecture.md) | Imported evidence, analysis, local presentation and optional execution. |
-| [First milestone](docs/first-milestone.md) | Delivered v0.1.0 Analyze workflow and its verification boundary. |
-| [Verification and release preparation](docs/verification.md) | Automated checks, distribution contents, installed-package testing and release evidence. |
-| [Changelog](CHANGELOG.md) | Version features and limitations. |
-| [Dependency notices](THIRD_PARTY_NOTICES.md) | Licensing information for the pinned direct runtime dependencies. |
+| [Instrument](docs/instrument.md) | Current interface, saved-run catalog and handoffs between modes |
+| [Analyze](docs/analyze.md) | Opening files, filtering, charts and reports |
+| [Experiment interface](docs/experiment-ui.md) · [CLI](docs/experiment.md) | Starting and stopping experiments, configuration and retained files |
+| [Saved experiments](docs/saved-experiments.md) · [Comparison](docs/comparison.md) | Reopening results and comparing a baseline with an interruption |
+| [ArduCopter SITL](docs/sitl.md) | Optional simulator setup and experiment isolation |
+| [Importer](docs/importer.md) | Supported recording format, Python API and CLI summary |
+| [Public recording](docs/recording-validation.md) · [Synthetic fixture](tests/fixtures/README.md) | Data provenance and observed format coverage |
+| [Scope](docs/project-scope.md) · [Workflows](docs/workflows.md) · [Architecture](docs/architecture.md) | Product direction and implementation |
+| [Verification](docs/verification.md) · [Changelog](CHANGELOG.md) · [First milestone](docs/first-milestone.md) | Checks, release history and earlier milestones |
 
 ## License
 
 The original source code, documentation and synthetic telemetry fixture are
 licensed under the [MIT License](LICENSE). Dependencies retain their own
-licenses; see the [direct runtime dependency notices](THIRD_PARTY_NOTICES.md).
+licenses; see the [dependency notices](THIRD_PARTY_NOTICES.md).
 Separately obtained recordings are not covered by the project license.
